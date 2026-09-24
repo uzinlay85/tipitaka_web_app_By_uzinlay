@@ -33,7 +33,9 @@ const state = {
     mmCategories: [],
     bookmarks: [],
     activeTab: "tab-books",
-    activeBasket: "all",
+    activeBasket: "mula",
+    appView: localStorage.getItem("tipitaka_app_view") || "home",
+    homeBasket: "mula",
     searchMode: "word",
     theme: localStorage.getItem("tipitaka_theme") || "paper",
     fontSize: parseInt(localStorage.getItem("tipitaka_font_size") || "100", 10),
@@ -168,7 +170,24 @@ const el = {
     popoverWord: document.getElementById("popoverWord"),
     popoverBody: document.getElementById("popoverBody"),
     btnClosePopover: document.getElementById("btnClosePopover"),
-    btnOpenInFullDict: document.getElementById("btnOpenInFullDict")
+    btnOpenInFullDict: document.getElementById("btnOpenInFullDict"),
+
+    // Home Catalog & Bottom Nav (APK Style)
+    btnGoHome: document.getElementById("btnGoHome"),
+    homePage: document.getElementById("homePage"),
+    homeAppTitle: document.getElementById("homeAppTitle"),
+    homeBtnModeToggle: document.getElementById("homeBtnModeToggle"),
+    homeModeToggleLabel: document.getElementById("homeModeToggleLabel"),
+    homeBtnSearch: document.getElementById("homeBtnSearch"),
+    homeBasketTabs: document.getElementById("homeBasketTabs"),
+    homeCatalogInner: document.getElementById("homeCatalogInner"),
+    btnFloatingSutta: document.getElementById("btnFloatingSutta"),
+    bottomNavBar: document.getElementById("bottomNavBar"),
+    btnNavHome: document.getElementById("btnNavHome"),
+    btnNavReader: document.getElementById("btnNavReader"),
+    btnNavRecent: document.getElementById("btnNavRecent"),
+    btnNavDict: document.getElementById("btnNavDict"),
+    btnNavMore: document.getElementById("btnNavMore")
 };
 
 // Initialize Application
@@ -186,6 +205,9 @@ async function initApp() {
     await loadCategories();
     await loadRecentOrFirst();
     await loadBookmarks();
+
+    renderHomeCatalog();
+    setAppView(state.appView);
 }
 
 // ----------------- Categories & Initialization -----------------
@@ -199,6 +221,7 @@ async function loadCategories() {
         state.paliCategories = await resPali.json();
         state.mmCategories = await resMM.json();
         renderBooksTree();
+        renderHomeCatalog();
     } catch (err) {
         console.error("Failed to load categories:", err);
     }
@@ -266,6 +289,7 @@ function setReaderMode(mode) {
         loadPaliBook(state.paliBookId, state.paliPage);
     }
     renderBooksTree();
+    renderHomeCatalog();
 }
 
 function handleCrossLink() {
@@ -731,6 +755,150 @@ async function renderSplitView() {
     await loadPaliPage(state.paliBookId, state.paliPage);
 }
 
+// ----------------- Category & Catalog Helpers (APK Style) -----------------
+
+function getCleanCategoryName(catName, catId) {
+    const map = {
+        'vi': 'ဝိနယပိဋက',
+        'di': 'ဒီဃနိကာယ',
+        'ma': 'မဇ္ဈိမနိကာယ',
+        'sa': 'သံယုတ္တနိကာယ',
+        'an': 'အင်္ဂုတ္တရနိကာယ',
+        'ku': 'ခုဒ္ဒကနိကာယ',
+        'bi': 'အဘိဓမ္မပိဋက',
+        'annya_vi': 'ဝိနယ',
+        'annya_bi': 'အဘိဓမ္မ',
+        'annya_sadda': 'ဗျာကရဏာဒိ'
+    };
+    if (catId && map[catId]) return map[catId];
+    if (!catName) return "";
+    return catName.replace(/\(.*?\)/g, "").trim() || catName;
+}
+
+// ----------------- App View Controller (Home vs Reader) -----------------
+
+function setAppView(view) {
+    state.appView = view;
+    localStorage.setItem("tipitaka_app_view", view);
+
+    const isHome = (view === "home");
+    
+    if (el.homePage) {
+        el.homePage.style.display = isHome ? "flex" : "none";
+    }
+    
+    if (isHome) {
+        if (el.readerContainer) el.readerContainer.style.display = "none";
+        if (el.splitViewContainer) el.splitViewContainer.style.display = "none";
+        if (el.appSidebar) el.appSidebar.classList.add("collapsed");
+        renderHomeCatalog();
+    } else {
+        if (state.readerMode === "split") {
+            if (el.splitViewContainer) el.splitViewContainer.style.display = "flex";
+            if (el.readerPaper) el.readerPaper.style.display = "none";
+        } else {
+            if (el.readerContainer) el.readerContainer.style.display = "flex";
+            if (el.readerPaper) el.readerPaper.style.display = "flex";
+        }
+    }
+
+    // Update bottom navigation bar active states
+    if (el.btnNavHome) el.btnNavHome.classList.toggle("active", isHome);
+    if (el.btnNavReader) el.btnNavReader.classList.toggle("active", !isHome);
+}
+
+// ----------------- Home Page Catalog (APK Style) -----------------
+
+function renderHomeCatalog() {
+    if (!el.homeCatalogInner) return;
+    const isPali = (state.readerMode !== "mm");
+    const basket = state.homeBasket || "mula";
+
+    // Update Title and Mode Toggle Label
+    if (el.homeAppTitle) {
+        el.homeAppTitle.textContent = isPali ? "တိပိဋကပါဠိ" : "တိပိဋကမြန်မာပြန်";
+    }
+    if (el.homeModeToggleLabel) {
+        el.homeModeToggleLabel.textContent = isPali ? "🇲🇲 မြန်မာပြန်သို့" : "☸️ ပါဠိတော်သို့";
+    }
+
+    // Basket Tabs for Pali (ပါဠိ, အဋ္ဌကထာ, ဋီကာ, အည)
+    if (el.homeBasketTabs) {
+        if (isPali) {
+            el.homeBasketTabs.style.display = "flex";
+            el.homeBasketTabs.querySelectorAll(".home-basket-tab").forEach(tab => {
+                tab.classList.toggle("active", tab.getAttribute("data-basket") === basket);
+            });
+        } else {
+            el.homeBasketTabs.style.display = "none";
+        }
+    }
+
+    let html = "";
+    if (isPali) {
+        state.paliCategories.forEach(cat => {
+            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
+            const books = (cat.books || []).filter(b => b.basket === basket);
+            if (books.length > 0) {
+                html += `
+                    <div class="home-cat-section">
+                        <div class="home-cat-header">${cleanCatName}</div>
+                        <div class="home-book-list">
+                `;
+                books.forEach(b => {
+                    html += `
+                        <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
+                            <span class="home-book-name">${b.name}</span>
+                        </button>
+                    `;
+                });
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    } else {
+        // Myanmar translations catalog (60 books)
+        state.mmCategories.forEach(cat => {
+            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
+            if (cat.books && cat.books.length > 0) {
+                html += `
+                    <div class="home-cat-section">
+                        <div class="home-cat-header">${cleanCatName}</div>
+                        <div class="home-book-list">
+                `;
+                cat.books.forEach(b => {
+                    html += `
+                        <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
+                            <span class="home-book-name">${b.name}</span>
+                        </button>
+                    `;
+                });
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    el.homeCatalogInner.innerHTML = html || `<div class="empty-state">ကျမ်းစာအုပ်များ စာရင်းဆွဲယူနေပါသည်...</div>`;
+
+    // Book row click listener: open book & transition to reader
+    el.homeCatalogInner.querySelectorAll(".home-book-row").forEach(row => {
+        row.addEventListener("click", () => {
+            const bId = row.getAttribute("data-id");
+            if (state.readerMode === "mm") {
+                loadMMBook(bId, 1);
+            } else {
+                loadPaliBook(bId, 1);
+            }
+            setAppView("reader");
+        });
+    });
+}
+
 // ----------------- Sidebar Rendering -----------------
 
 function renderBooksTree() {
@@ -740,10 +908,11 @@ function renderBooksTree() {
     if (state.readerMode === "mm") {
         // Render Myanmar 60 Books
         state.mmCategories.forEach(cat => {
+            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
             const filtered = cat.books.filter(b => !filterText || b.name.toLowerCase().includes(filterText));
             if (filtered.length > 0) {
                 html += `<div class="category-group">
-                    <div class="category-header">${cat.name}</div>`;
+                    <div class="category-header">${cleanCatName}</div>`;
                 filtered.forEach(b => {
                     const isActive = (b.id === state.mmBookId);
                     html += `
@@ -760,6 +929,7 @@ function renderBooksTree() {
         // Render Pali Books
         const basket = state.activeBasket;
         state.paliCategories.forEach(cat => {
+            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
             const filtered = cat.books.filter(b => {
                 const matchesBasket = (basket === "all" || b.basket === basket);
                 const matchesText = !filterText || b.name.toLowerCase().includes(filterText) || (b.short_name && b.short_name.toLowerCase().includes(filterText));
@@ -767,7 +937,7 @@ function renderBooksTree() {
             });
             if (filtered.length > 0) {
                 html += `<div class="category-group">
-                    <div class="category-header">${cat.name}</div>`;
+                    <div class="category-header">${cleanCatName}</div>`;
                 filtered.forEach(b => {
                     const isActive = (b.id === state.paliBookId);
                     html += `
@@ -792,6 +962,7 @@ function renderBooksTree() {
             } else {
                 loadPaliBook(bId, 1);
             }
+            setAppView("reader");
             closeSidebarMobile();
         });
     });
@@ -1698,6 +1869,65 @@ function setupEventListeners() {
             el.dictQuickPopover.style.display = "none";
         }
     });
+
+    // Home Navigation & Bottom Bar (APK Style)
+    if (el.btnGoHome) {
+        el.btnGoHome.addEventListener("click", () => setAppView("home"));
+    }
+
+    if (el.homeBasketTabs) {
+        el.homeBasketTabs.querySelectorAll(".home-basket-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                state.homeBasket = tab.getAttribute("data-basket");
+                renderHomeCatalog();
+            });
+        });
+    }
+
+    if (el.homeBtnModeToggle) {
+        el.homeBtnModeToggle.addEventListener("click", () => {
+            const nextMode = (state.readerMode === "mm") ? "pali" : "mm";
+            setReaderMode(nextMode);
+            renderHomeCatalog();
+        });
+    }
+
+    if (el.homeBtnSearch) {
+        el.homeBtnSearch.addEventListener("click", openSearchModal);
+    }
+
+    if (el.btnFloatingSutta) {
+        el.btnFloatingSutta.addEventListener("click", () => {
+            openSearchModal();
+            const suttaTabBtn = document.querySelector('.modal-tab-btn[data-type="sutta"]');
+            if (suttaTabBtn) suttaTabBtn.click();
+        });
+    }
+
+    if (el.btnNavHome) {
+        el.btnNavHome.addEventListener("click", () => setAppView("home"));
+    }
+    if (el.btnNavReader) {
+        el.btnNavReader.addEventListener("click", () => setAppView("reader"));
+    }
+    if (el.btnNavRecent) {
+        el.btnNavRecent.addEventListener("click", async () => {
+            await loadRecentOrFirst();
+            setAppView("reader");
+        });
+    }
+    if (el.btnNavDict) {
+        el.btnNavDict.addEventListener("click", () => {
+            if (window.innerWidth <= 992) {
+                openSearchModal();
+            } else {
+                toggleDictSidebar();
+            }
+        });
+    }
+    if (el.btnNavMore) {
+        el.btnNavMore.addEventListener("click", toggleSidebar);
+    }
 }
 
 function toggleDictSidebar(forceState = null) {
