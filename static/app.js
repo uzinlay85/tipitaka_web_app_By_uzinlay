@@ -248,12 +248,12 @@ async function loadRecentOrFirst() {
         const res = await fetch("/api/recent");
         const recent = await res.json();
         if (recent && recent.book_id) {
-            await loadPaliBook(recent.book_id, recent.page_number || 1);
+            await loadPaliBook(recent.book_id, recent.page_number || null);
         } else {
-            await loadPaliBook("mula_vi_01", 1);
+            await loadPaliBook("mula_vi_01", null);
         }
     } catch (err) {
-        await loadPaliBook("mula_vi_01", 1);
+        await loadPaliBook("mula_vi_01", null);
     }
     setReaderMode(state.readerMode);
 }
@@ -340,12 +340,9 @@ function getLoadedFeedPages() {
 
 // ----------------- Pali Reader -----------------
 
-async function loadPaliBook(bookId, targetPage = 1) {
+async function loadPaliBook(bookId, targetPage = null) {
     state.feedSessionId = (state.feedSessionId || 0) + 1;
     const thisSession = state.feedSessionId;
-    state.feedLoadedPages.clear();
-    state.feedFirstLoadedPage = targetPage;
-    state.feedLastLoadedPage = targetPage;
 
     if (state.paliBookId !== bookId || state.paliTocs.length === 0) {
         state.paliBookId = bookId;
@@ -369,7 +366,17 @@ async function loadPaliBook(bookId, targetPage = 1) {
         }
     }
     if (thisSession !== state.feedSessionId) return;
-    await loadPaliPage(bookId, targetPage);
+
+    let page = parseInt(targetPage, 10);
+    if (isNaN(page) || (state.paliFirstPage && page < state.paliFirstPage) || (state.paliLastPage && page > state.paliLastPage)) {
+        page = state.paliFirstPage || 1;
+    }
+
+    state.feedLoadedPages.clear();
+    state.feedFirstLoadedPage = page;
+    state.feedLastLoadedPage = page;
+
+    await loadPaliPage(bookId, page);
 }
 
 function cleanPaliContent(html) {
@@ -377,34 +384,42 @@ function cleanPaliContent(html) {
     return html.replace(/,(?![^<]*>)/g, "");
 }
 
-async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = false, isPrepend = false) {
-    pageNum = parseInt(pageNum, 10) || 1;
+async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppend = false, isPrepend = false) {
     state.paliBookId = bookId;
+    let targetNum = parseInt(pageNum, 10);
+    if (isNaN(targetNum)) {
+        targetNum = state.paliFirstPage || 1;
+    }
+    if (!isAppend && !isPrepend && state.paliFirstPage && state.paliLastPage) {
+        if (targetNum < state.paliFirstPage) targetNum = state.paliFirstPage;
+        if (targetNum > state.paliLastPage) targetNum = state.paliLastPage;
+    }
     
     let thisSession = state.feedSessionId;
     if (!isAppend && !isPrepend) {
         state.feedSessionId = (state.feedSessionId || 0) + 1;
         thisSession = state.feedSessionId;
         state.feedLoadedPages.clear();
-        state.feedFirstLoadedPage = pageNum;
-        state.feedLastLoadedPage = pageNum;
+        state.feedFirstLoadedPage = targetNum;
+        state.feedLastLoadedPage = targetNum;
 
         if (state.readerMode !== "split") {
             el.paliContent.innerHTML = `<div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
-            el.pageNumberInput.value = pageNum;
+            el.pageNumberInput.value = targetNum;
             if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
             if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
         }
     }
     
     try {
-        const res = await fetch(`/api/page/${bookId}/${pageNum}`);
+        const res = await fetch(`/api/page/${bookId}/${targetNum}`);
         if (thisSession !== state.feedSessionId) return;
         const data = await res.json();
         
         state.paliFirstPage = data.first_page;
         state.paliLastPage = data.last_page;
         state.matchingMM = data.matching_mm;
+        const actualPage = data.page;
         
         if (state.readerMode === "pali") {
             let html = cleanPaliContent(data.content);
@@ -415,20 +430,22 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
 
             if (state.scrollMode === "feed") {
                 if (!isAppend && !isPrepend) {
-                    state.paliPage = pageNum;
+                    state.paliPage = actualPage;
                     state.feedLoadedPages.clear();
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedFirstLoadedPage = pageNum;
-                    state.feedLastLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedFirstLoadedPage = actualPage;
+                    state.feedLastLoadedPage = actualPage;
 
                     el.bookTitleDisplay.textContent = data.book_name;
                     el.chapterTitleDisplay.textContent = data.chapter_name || "";
-                    el.totalPageDisplay.textContent = data.last_page;
+                    el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                     el.metaBookName.textContent = data.book_name;
-                    el.metaPageNum.textContent = toMyanmarNum(data.page);
-                    el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                    el.metaPageNum.textContent = toMyanmarNum(actualPage);
+                    el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                     el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                    el.pageNumberInput.value = pageNum;
+                    el.pageNumberInput.value = actualPage;
+                    el.pageNumberInput.min = data.first_page;
+                    el.pageNumberInput.max = data.last_page;
 
                     el.btnPrevPage.disabled = !data.has_prev;
                     el.btnNextPage.disabled = !data.has_next;
@@ -436,60 +453,60 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                     el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
 
                     el.paliContent.innerHTML = `
-                        <section class="feed-page-item" id="pali-page-${pageNum}" data-page="${pageNum}">
+                        <section class="feed-page-item" id="pali-page-${actualPage}" data-page="${actualPage}">
                             ${html}
                         </section>
                     `;
                     el.readerContainer.scrollTop = 0;
 
                     if (el.loadPrevBox && el.loadPrevText) {
-                        if (pageNum > data.first_page) {
+                        if (actualPage > data.first_page) {
                             el.loadPrevBox.style.display = "flex";
-                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(actualPage - 1)}) ကို ဆွဲယူရန်`;
                         } else {
                             el.loadPrevBox.style.display = "none";
                         }
                     }
 
                     if (el.infiniteSentinel) el.infiniteSentinel.style.display = "flex";
-                    if (el.sentinelEnd) el.sentinelEnd.style.display = (pageNum >= data.last_page) ? "block" : "none";
+                    if (el.sentinelEnd) el.sentinelEnd.style.display = (actualPage >= data.last_page) ? "block" : "none";
                     if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
 
                     setupSentinelObserver();
                     setupPageVisibilityObserver();
-                    debounceRecent(bookId, pageNum);
+                    debounceRecent(bookId, actualPage);
                     updateBookmarkIconStatus();
-                    highlightActiveToc(pageNum);
+                    highlightActiveToc(actualPage);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
-                    const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : 0;
-                    if (loaded.length > 0 && pageNum !== currentLast + 1) {
-                        console.warn(`Prevented non-sequential append: expected ${currentLast + 1}, got ${pageNum}`);
+                    const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
+                    if (loaded.length > 0 && actualPage !== currentLast + 1) {
+                        console.warn(`Prevented non-sequential append: expected ${currentLast + 1}, got ${actualPage}`);
                         return;
                     }
-                    if (document.getElementById(`pali-page-${pageNum}`)) {
+                    if (document.getElementById(`pali-page-${actualPage}`)) {
                         return;
                     }
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedLastLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedLastLoadedPage = actualPage;
 
                     const div = document.createElement("div");
                     div.className = "page-divider";
-                    div.setAttribute("data-page", pageNum);
+                    div.setAttribute("data-page", actualPage);
                     div.innerHTML = `
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
-                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum)}</span>
+                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage)}</span>
                         </div>
                         <div class="divider-line"></div>
                     `;
 
                     const sec = document.createElement("section");
                     sec.className = "feed-page-item";
-                    sec.id = `pali-page-${pageNum}`;
-                    sec.setAttribute("data-page", pageNum);
+                    sec.id = `pali-page-${actualPage}`;
+                    sec.setAttribute("data-page", actualPage);
                     sec.innerHTML = html;
 
                     el.paliContent.appendChild(div);
@@ -497,39 +514,39 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
-                    if (pageNum >= data.last_page) {
+                    if (actualPage >= data.last_page) {
                         if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
                         if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     }
                 } else if (isPrepend) {
                     const loaded = getLoadedFeedPages();
-                    const currentFirst = loaded.length > 0 ? loaded[0] : 0;
-                    if (loaded.length > 0 && pageNum !== currentFirst - 1) {
-                        console.warn(`Prevented non-sequential prepend: expected ${currentFirst - 1}, got ${pageNum}`);
+                    const currentFirst = loaded.length > 0 ? loaded[0] : (data.last_page + 1);
+                    if (loaded.length > 0 && actualPage !== currentFirst - 1) {
+                        console.warn(`Prevented non-sequential prepend: expected ${currentFirst - 1}, got ${actualPage}`);
                         return;
                     }
-                    if (document.getElementById(`pali-page-${pageNum}`)) {
+                    if (document.getElementById(`pali-page-${actualPage}`)) {
                         return;
                     }
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedFirstLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedFirstLoadedPage = actualPage;
 
                     const div = document.createElement("div");
                     div.className = "page-divider";
-                    div.setAttribute("data-page", pageNum + 1);
+                    div.setAttribute("data-page", actualPage + 1);
                     div.innerHTML = `
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
-                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum + 1)}</span>
+                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage + 1)}</span>
                         </div>
                         <div class="divider-line"></div>
                     `;
 
                     const sec = document.createElement("section");
                     sec.className = "feed-page-item";
-                    sec.id = `pali-page-${pageNum}`;
-                    sec.setAttribute("data-page", pageNum);
+                    sec.id = `pali-page-${actualPage}`;
+                    sec.setAttribute("data-page", actualPage);
                     sec.innerHTML = html;
 
                     const oldScrollHeight = el.readerContainer.scrollHeight;
@@ -544,9 +561,9 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
                     if (el.loadPrevBox && el.loadPrevText) {
-                        if (pageNum > data.first_page) {
+                        if (actualPage > data.first_page) {
                             el.loadPrevBox.style.display = "flex";
-                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(actualPage - 1)}) ကို ဆွဲယူရန်`;
                         } else {
                             el.loadPrevBox.style.display = "none";
                         }
@@ -554,15 +571,17 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                 }
             } else {
                 // Single page mode
-                state.paliPage = pageNum;
+                state.paliPage = actualPage;
                 el.bookTitleDisplay.textContent = data.book_name;
                 el.chapterTitleDisplay.textContent = data.chapter_name || "";
-                el.totalPageDisplay.textContent = data.last_page;
+                el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                 el.metaBookName.textContent = data.book_name;
-                el.metaPageNum.textContent = toMyanmarNum(data.page);
-                el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                el.metaPageNum.textContent = toMyanmarNum(actualPage);
+                el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                 el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                el.pageNumberInput.value = pageNum;
+                el.pageNumberInput.value = actualPage;
+                el.pageNumberInput.min = data.first_page;
+                el.pageNumberInput.max = data.last_page;
                 
                 el.btnPrevPage.disabled = !data.has_prev;
                 el.btnNextPage.disabled = !data.has_next;
@@ -574,11 +593,11 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                 
                 if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
                 if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
-                updateScrollIndicator(data.page, data.last_page);
+                updateScrollIndicator(actualPage, data.last_page);
                 
-                debounceRecent(bookId, pageNum);
+                debounceRecent(bookId, actualPage);
                 updateBookmarkIconStatus();
-                highlightActiveToc(pageNum);
+                highlightActiveToc(actualPage);
             }
         }
 
@@ -603,12 +622,9 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
 
 // ----------------- Myanmar Translation Reader -----------------
 
-async function loadMMBook(bookId, targetPage = 1) {
+async function loadMMBook(bookId, targetPage = null) {
     state.feedSessionId = (state.feedSessionId || 0) + 1;
     const thisSession = state.feedSessionId;
-    state.feedLoadedPages.clear();
-    state.feedFirstLoadedPage = targetPage;
-    state.feedLastLoadedPage = targetPage;
 
     if (state.mmBookId !== bookId || state.mmTocs.length === 0) {
         state.mmBookId = bookId;
@@ -630,53 +646,73 @@ async function loadMMBook(bookId, targetPage = 1) {
         }
     }
     if (thisSession !== state.feedSessionId) return;
-    await loadMMPage(bookId, targetPage);
+
+    let page = parseInt(targetPage, 10);
+    if (isNaN(page) || (state.mmFirstPage && page < state.mmFirstPage) || (state.mmLastPage && page > state.mmLastPage)) {
+        page = state.mmFirstPage || 1;
+    }
+
+    state.feedLoadedPages.clear();
+    state.feedFirstLoadedPage = page;
+    state.feedLastLoadedPage = page;
+
+    await loadMMPage(bookId, page);
 }
 
-async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = false, isPrepend = false) {
-    pageNum = parseInt(pageNum, 10) || 1;
+async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAppend = false, isPrepend = false) {
     state.mmBookId = bookId;
+    let targetNum = parseInt(pageNum, 10);
+    if (isNaN(targetNum)) {
+        targetNum = state.mmFirstPage || 1;
+    }
+    if (!isSplitRightPane && !isAppend && !isPrepend && state.mmFirstPage && state.mmLastPage) {
+        if (targetNum < state.mmFirstPage) targetNum = state.mmFirstPage;
+        if (targetNum > state.mmLastPage) targetNum = state.mmLastPage;
+    }
 
     let thisSession = state.feedSessionId;
     if (!isSplitRightPane && !isAppend && !isPrepend && state.readerMode === "mm") {
         state.feedSessionId = (state.feedSessionId || 0) + 1;
         thisSession = state.feedSessionId;
         state.feedLoadedPages.clear();
-        state.feedFirstLoadedPage = pageNum;
-        state.feedLastLoadedPage = pageNum;
+        state.feedFirstLoadedPage = targetNum;
+        state.feedLastLoadedPage = targetNum;
 
         el.paliContent.innerHTML = `<div class="loading-state">မြန်မာပြန် စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
-        el.pageNumberInput.value = pageNum;
+        el.pageNumberInput.value = targetNum;
         if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
         if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
     }
 
     try {
-        const res = await fetch(`/api/mm/page/${bookId}/${pageNum}`);
+        const res = await fetch(`/api/mm/page/${bookId}/${targetNum}`);
         if (thisSession !== state.feedSessionId) return;
         const data = await res.json();
 
         state.mmFirstPage = data.first_page;
         state.mmLastPage = data.last_page;
         state.matchingPali = data.matching_pali;
+        const actualPage = data.page;
 
         if (state.readerMode === "mm" && !isSplitRightPane) {
             if (state.scrollMode === "feed") {
                 if (!isAppend && !isPrepend) {
-                    state.mmPage = pageNum;
+                    state.mmPage = actualPage;
                     state.feedLoadedPages.clear();
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedFirstLoadedPage = pageNum;
-                    state.feedLastLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedFirstLoadedPage = actualPage;
+                    state.feedLastLoadedPage = actualPage;
 
                     el.bookTitleDisplay.textContent = data.book_name;
                     el.chapterTitleDisplay.textContent = data.chapter_name || "";
-                    el.totalPageDisplay.textContent = data.last_page;
+                    el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                     el.metaBookName.textContent = data.book_name;
-                    el.metaPageNum.textContent = toMyanmarNum(data.page);
-                    el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                    el.metaPageNum.textContent = toMyanmarNum(actualPage);
+                    el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                     el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                    el.pageNumberInput.value = pageNum;
+                    el.pageNumberInput.value = actualPage;
+                    el.pageNumberInput.min = data.first_page;
+                    el.pageNumberInput.max = data.last_page;
 
                     el.btnPrevPage.disabled = !data.has_prev;
                     el.btnNextPage.disabled = !data.has_next;
@@ -684,58 +720,58 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                     el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
 
                     el.paliContent.innerHTML = `
-                        <section class="feed-page-item" id="mm-page-${pageNum}" data-page="${pageNum}">
+                        <section class="feed-page-item" id="mm-page-${actualPage}" data-page="${actualPage}">
                             ${data.content}
                         </section>
                     `;
                     el.readerContainer.scrollTop = 0;
 
                     if (el.loadPrevBox && el.loadPrevText) {
-                        if (pageNum > data.first_page) {
+                        if (actualPage > data.first_page) {
                             el.loadPrevBox.style.display = "flex";
-                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(actualPage - 1)}) ကို ဆွဲယူရန်`;
                         } else {
                             el.loadPrevBox.style.display = "none";
                         }
                     }
 
                     if (el.infiniteSentinel) el.infiniteSentinel.style.display = "flex";
-                    if (el.sentinelEnd) el.sentinelEnd.style.display = (pageNum >= data.last_page) ? "block" : "none";
+                    if (el.sentinelEnd) el.sentinelEnd.style.display = (actualPage >= data.last_page) ? "block" : "none";
                     if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
 
                     setupSentinelObserver();
                     setupPageVisibilityObserver();
-                    highlightActiveToc(pageNum);
+                    highlightActiveToc(actualPage);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
-                    const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : 0;
-                    if (loaded.length > 0 && pageNum !== currentLast + 1) {
-                        console.warn(`Prevented non-sequential append: expected ${currentLast + 1}, got ${pageNum}`);
+                    const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
+                    if (loaded.length > 0 && actualPage !== currentLast + 1) {
+                        console.warn(`Prevented non-sequential append: expected ${currentLast + 1}, got ${actualPage}`);
                         return;
                     }
-                    if (document.getElementById(`mm-page-${pageNum}`)) {
+                    if (document.getElementById(`mm-page-${actualPage}`)) {
                         return;
                     }
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedLastLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedLastLoadedPage = actualPage;
 
                     const div = document.createElement("div");
                     div.className = "page-divider";
-                    div.setAttribute("data-page", pageNum);
+                    div.setAttribute("data-page", actualPage);
                     div.innerHTML = `
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
-                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum)}</span>
+                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage)}</span>
                         </div>
                         <div class="divider-line"></div>
                     `;
 
                     const sec = document.createElement("section");
                     sec.className = "feed-page-item";
-                    sec.id = `mm-page-${pageNum}`;
-                    sec.setAttribute("data-page", pageNum);
+                    sec.id = `mm-page-${actualPage}`;
+                    sec.setAttribute("data-page", actualPage);
                     sec.innerHTML = data.content;
 
                     el.paliContent.appendChild(div);
@@ -743,39 +779,39 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
-                    if (pageNum >= data.last_page) {
+                    if (actualPage >= data.last_page) {
                         if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
                         if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     }
                 } else if (isPrepend) {
                     const loaded = getLoadedFeedPages();
-                    const currentFirst = loaded.length > 0 ? loaded[0] : 0;
-                    if (loaded.length > 0 && pageNum !== currentFirst - 1) {
-                        console.warn(`Prevented non-sequential prepend: expected ${currentFirst - 1}, got ${pageNum}`);
+                    const currentFirst = loaded.length > 0 ? loaded[0] : (data.last_page + 1);
+                    if (loaded.length > 0 && actualPage !== currentFirst - 1) {
+                        console.warn(`Prevented non-sequential prepend: expected ${currentFirst - 1}, got ${actualPage}`);
                         return;
                     }
-                    if (document.getElementById(`mm-page-${pageNum}`)) {
+                    if (document.getElementById(`mm-page-${actualPage}`)) {
                         return;
                     }
-                    state.feedLoadedPages.add(pageNum);
-                    state.feedFirstLoadedPage = pageNum;
+                    state.feedLoadedPages.add(actualPage);
+                    state.feedFirstLoadedPage = actualPage;
 
                     const div = document.createElement("div");
                     div.className = "page-divider";
-                    div.setAttribute("data-page", pageNum + 1);
+                    div.setAttribute("data-page", actualPage + 1);
                     div.innerHTML = `
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
-                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum + 1)}</span>
+                            <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage + 1)}</span>
                         </div>
                         <div class="divider-line"></div>
                     `;
 
                     const sec = document.createElement("section");
                     sec.className = "feed-page-item";
-                    sec.id = `mm-page-${pageNum}`;
-                    sec.setAttribute("data-page", pageNum);
+                    sec.id = `mm-page-${actualPage}`;
+                    sec.setAttribute("data-page", actualPage);
                     sec.innerHTML = data.content;
 
                     const oldScrollHeight = el.readerContainer.scrollHeight;
@@ -790,9 +826,9 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
                     if (el.loadPrevBox && el.loadPrevText) {
-                        if (pageNum > data.first_page) {
+                        if (actualPage > data.first_page) {
                             el.loadPrevBox.style.display = "flex";
-                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(actualPage - 1)}) ကို ဆွဲယူရန်`;
                         } else {
                             el.loadPrevBox.style.display = "none";
                         }
@@ -800,15 +836,17 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                 }
             } else {
                 // Single page mode
-                state.mmPage = pageNum;
+                state.mmPage = actualPage;
                 el.bookTitleDisplay.textContent = data.book_name;
                 el.chapterTitleDisplay.textContent = data.chapter_name || "";
-                el.totalPageDisplay.textContent = data.last_page;
+                el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                 el.metaBookName.textContent = data.book_name;
-                el.metaPageNum.textContent = toMyanmarNum(data.page);
-                el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                el.metaPageNum.textContent = toMyanmarNum(actualPage);
+                el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                 el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                el.pageNumberInput.value = pageNum;
+                el.pageNumberInput.value = actualPage;
+                el.pageNumberInput.min = data.first_page;
+                el.pageNumberInput.max = data.last_page;
 
                 el.btnPrevPage.disabled = !data.has_prev;
                 el.btnNextPage.disabled = !data.has_next;
@@ -820,15 +858,15 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                 
                 if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
                 if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
-                updateScrollIndicator(data.page, data.last_page);
+                updateScrollIndicator(actualPage, data.last_page);
 
-                highlightActiveToc(pageNum);
+                highlightActiveToc(actualPage);
             }
         }
 
         if (isSplitRightPane || state.readerMode === "split") {
             el.splitMMTitle.textContent = data.book_name;
-            el.splitMMPage.textContent = toMyanmarNum(data.page);
+            el.splitMMPage.textContent = toMyanmarNum(actualPage);
             el.splitMMContent.innerHTML = data.content;
         }
 
@@ -1010,9 +1048,9 @@ async function renderHomeCatalog() {
         row.addEventListener("click", () => {
             const bId = row.getAttribute("data-id");
             if (state.readerMode === "mm") {
-                loadMMBook(bId, 1);
+                loadMMBook(bId, null);
             } else {
-                loadPaliBook(bId, 1);
+                loadPaliBook(bId, null);
             }
             setAppView("reader");
         });
@@ -1078,9 +1116,9 @@ function renderBooksTree() {
         btn.addEventListener("click", () => {
             const bId = btn.getAttribute("data-id");
             if (state.readerMode === "mm") {
-                loadMMBook(bId, 1);
+                loadMMBook(bId, null);
             } else {
-                loadPaliBook(bId, 1);
+                loadPaliBook(bId, null);
             }
             setAppView("reader");
             closeSidebarMobile();
@@ -1195,7 +1233,7 @@ function renderRelatedDropdown() {
         btn.addEventListener("click", () => {
             const relId = btn.getAttribute("data-id");
             el.relatedDropdownWrapper.classList.remove("open");
-            loadPaliBook(relId, 1);
+            loadPaliBook(relId, null);
         });
     });
 }

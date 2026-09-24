@@ -44,16 +44,6 @@ def heal_databases():
     except Exception as e:
         print(f"Pali DB self-heal notice: {e}")
 
-    try:
-        conn = get_mm_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE book SET last_page = 1 WHERE id = '06_khuddaka_01' AND last_page = 12")
-        cur.execute("UPDATE book SET last_page = 348 WHERE id = '08_jataka_07' AND last_page = 352")
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"MM DB self-heal notice: {e}")
-
 heal_databases()
 
 # Cache category names and structure
