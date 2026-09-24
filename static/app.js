@@ -198,33 +198,47 @@ async function initApp() {
     setScrollMode(state.scrollMode);
     setupEventListeners();
     
+    // Set view immediately so the page displays correctly right from the start
+    setAppView(state.appView);
+
     if (!state.isSidebarOpen) el.appSidebar.classList.add("collapsed");
-    if (!state.isDictOpen) el.dictSidebar.classList.add("collapsed");
-    el.btnToggleDict.classList.toggle("active", state.isDictOpen);
+    if (!state.isDictOpen || state.appView === "home") el.dictSidebar.classList.add("collapsed");
+    el.btnToggleDict.classList.toggle("active", state.isDictOpen && state.appView !== "home");
     
     await loadCategories();
-    await loadRecentOrFirst();
     await loadBookmarks();
 
-    renderHomeCatalog();
-    setAppView(state.appView);
+    if (state.appView === "reader") {
+        await loadRecentOrFirst();
+    } else {
+        // Preload in background without stealing view focus
+        loadRecentOrFirst();
+    }
 }
 
 // ----------------- Categories & Initialization -----------------
 
 async function loadCategories() {
     try {
-        const [resPali, resMM] = await Promise.all([
-            fetch("/api/categories"),
-            fetch("/api/mm/categories")
-        ]);
-        state.paliCategories = await resPali.json();
-        state.mmCategories = await resMM.json();
-        renderBooksTree();
-        renderHomeCatalog();
+        const resPali = await fetch("/api/categories");
+        if (resPali.ok) {
+            state.paliCategories = await resPali.json();
+        }
     } catch (err) {
-        console.error("Failed to load categories:", err);
+        console.error("Failed to load Pali categories:", err);
     }
+
+    try {
+        const resMM = await fetch("/api/mm/categories");
+        if (resMM.ok) {
+            state.mmCategories = await resMM.json();
+        }
+    } catch (err) {
+        console.error("Failed to load MM categories:", err);
+    }
+
+    renderBooksTree();
+    renderHomeCatalog();
 }
 
 async function loadRecentOrFirst() {
@@ -783,16 +797,19 @@ function setAppView(view) {
 
     const isHome = (view === "home");
     
-    if (el.homePage) {
-        el.homePage.style.display = isHome ? "flex" : "none";
-    }
-    
     if (isHome) {
+        document.body.classList.add("view-home");
+        document.body.classList.remove("view-reader");
+        if (el.homePage) el.homePage.style.display = "flex";
         if (el.readerContainer) el.readerContainer.style.display = "none";
         if (el.splitViewContainer) el.splitViewContainer.style.display = "none";
         if (el.appSidebar) el.appSidebar.classList.add("collapsed");
+        if (el.dictSidebar) el.dictSidebar.classList.add("collapsed");
         renderHomeCatalog();
     } else {
+        document.body.classList.remove("view-home");
+        document.body.classList.add("view-reader");
+        if (el.homePage) el.homePage.style.display = "none";
         if (state.readerMode === "split") {
             if (el.splitViewContainer) el.splitViewContainer.style.display = "flex";
             if (el.readerPaper) el.readerPaper.style.display = "none";
@@ -809,7 +826,7 @@ function setAppView(view) {
 
 // ----------------- Home Page Catalog (APK Style) -----------------
 
-function renderHomeCatalog() {
+async function renderHomeCatalog() {
     if (!el.homeCatalogInner) return;
     const isPali = (state.readerMode !== "mm");
     const basket = state.homeBasket || "mula";
@@ -834,8 +851,25 @@ function renderHomeCatalog() {
         }
     }
 
+    // Auto-fetch if categories not ready
+    if (isPali && (!state.paliCategories || state.paliCategories.length === 0)) {
+        try {
+            const res = await fetch("/api/categories");
+            if (res.ok) state.paliCategories = await res.json();
+        } catch (e) {
+            console.error("Auto fetch categories failed:", e);
+        }
+    } else if (!isPali && (!state.mmCategories || state.mmCategories.length === 0)) {
+        try {
+            const res = await fetch("/api/mm/categories");
+            if (res.ok) state.mmCategories = await res.json();
+        } catch (e) {
+            console.error("Auto fetch MM categories failed:", e);
+        }
+    }
+
     let html = "";
-    if (isPali) {
+    if (isPali && state.paliCategories && state.paliCategories.length > 0) {
         state.paliCategories.forEach(cat => {
             const cleanCatName = getCleanCategoryName(cat.name, cat.id);
             const books = (cat.books || []).filter(b => b.basket === basket);
@@ -858,7 +892,7 @@ function renderHomeCatalog() {
                 `;
             }
         });
-    } else {
+    } else if (!isPali && state.mmCategories && state.mmCategories.length > 0) {
         // Myanmar translations catalog (60 books)
         state.mmCategories.forEach(cat => {
             const cleanCatName = getCleanCategoryName(cat.name, cat.id);
@@ -883,7 +917,12 @@ function renderHomeCatalog() {
         });
     }
 
-    el.homeCatalogInner.innerHTML = html || `<div class="empty-state">ကျမ်းစာအုပ်များ စာရင်းဆွဲယူနေပါသည်...</div>`;
+    el.homeCatalogInner.innerHTML = html || `
+        <div class="empty-state" style="padding: 40px 16px; text-align: center;">
+            <p>ကျမ်းစာအုပ်များ စာရင်းဆွဲယူနေပါသည်...</p>
+            <button class="tool-btn" style="margin-top: 10px;" onclick="loadCategories()">ပြန်လည်ဆွဲယူရန် (Reload)</button>
+        </div>
+    `;
 
     // Book row click listener: open book & transition to reader
     el.homeCatalogInner.querySelectorAll(".home-book-row").forEach(row => {
