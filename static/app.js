@@ -38,7 +38,8 @@ const state = {
     theme: localStorage.getItem("tipitaka_theme") || "paper",
     fontSize: parseInt(localStorage.getItem("tipitaka_font_size") || "100", 10),
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
-    isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0")
+    isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0"),
+    showNotes: localStorage.getItem("tipitaka_show_notes") === "1"
 };
 
 // DOM Elements
@@ -49,12 +50,17 @@ const el = {
     btnToggleDict: document.getElementById("btnToggleDict"),
     btnCloseDict: document.getElementById("btnCloseDict"),
     
-    // Mode Switcher
+    // Mode Switcher & Tools
     btnModePali: document.getElementById("btnModePali"),
     btnModeMM: document.getElementById("btnModeMM"),
     btnModeSplit: document.getElementById("btnModeSplit"),
     btnCrossLink: document.getElementById("btnCrossLink"),
     crossLinkLabel: document.getElementById("crossLinkLabel"),
+    btnToggleNotes: document.getElementById("btnToggleNotes"),
+    toggleNotesLabel: document.getElementById("toggleNotesLabel"),
+    btnToggleNotesMobile: document.getElementById("btnToggleNotesMobile"),
+    toggleNotesLabelMobile: document.getElementById("toggleNotesLabelMobile"),
+    mobileNotesRow: document.getElementById("mobileNotesRow"),
     metaEditionTag: document.getElementById("metaEditionTag"),
     paliBasketFilter: document.getElementById("paliBasketFilter"),
 
@@ -145,6 +151,7 @@ const el = {
 async function initApp() {
     setupTheme(state.theme);
     setupFontSize(state.fontSize);
+    setNotesVisibility(state.showNotes);
     setupEventListeners();
     
     if (!state.isSidebarOpen) el.appSidebar.classList.add("collapsed");
@@ -207,6 +214,8 @@ function setReaderMode(mode) {
         el.paliBasketFilter.style.display = "flex";
         el.metaEditionTag.textContent = "ယှဉ်တွဲဖတ်ရှုခြင်း";
         el.btnCrossLink.style.display = "none";
+        if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
+        if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         el.relatedDropdownWrapper.style.display = "none";
         renderSplitView();
     } else if (mode === "mm") {
@@ -216,6 +225,8 @@ function setReaderMode(mode) {
         el.metaEditionTag.textContent = "မြန်မာပြန်";
         el.btnCrossLink.style.display = "inline-flex";
         el.crossLinkLabel.textContent = "☸️ ပါဠိတော်သို့";
+        if (el.btnToggleNotes) el.btnToggleNotes.style.display = "none";
+        if (el.mobileNotesRow) el.mobileNotesRow.style.display = "none";
         el.relatedDropdownWrapper.style.display = "none";
         loadMMBook(state.mmBookId, state.mmPage);
     } else { // 'pali'
@@ -225,6 +236,8 @@ function setReaderMode(mode) {
         el.metaEditionTag.textContent = "ပါဠိတော်";
         el.btnCrossLink.style.display = "inline-flex";
         el.crossLinkLabel.textContent = "🇲🇲 မြန်မာပြန်သို့";
+        if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
+        if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         loadPaliBook(state.paliBookId, state.paliPage);
     }
     renderBooksTree();
@@ -907,6 +920,18 @@ function setupEventListeners() {
     el.btnModeSplit.addEventListener("click", () => setReaderMode("split"));
     el.btnCrossLink.addEventListener("click", handleCrossLink);
 
+    // Toggle Footnotes / Variant Readings
+    if (el.btnToggleNotes) {
+        el.btnToggleNotes.addEventListener("click", () => {
+            setNotesVisibility(!state.showNotes);
+        });
+    }
+    if (el.btnToggleNotesMobile) {
+        el.btnToggleNotesMobile.addEventListener("click", () => {
+            setNotesVisibility(!state.showNotes);
+        });
+    }
+
     // Toggle Sidebar
     el.btnToggleSidebar.addEventListener("click", () => {
         state.isSidebarOpen = !state.isSidebarOpen;
@@ -1222,11 +1247,34 @@ function toggleDictSidebar(forceState = null) {
 function setupTheme(themeName) {
     state.theme = themeName;
     document.documentElement.setAttribute("data-theme", themeName);
-    document.body.className = `theme-${themeName}`;
+    document.body.classList.remove("theme-paper", "theme-light", "theme-night");
+    document.body.classList.add(`theme-${themeName}`);
     document.querySelectorAll(".theme-btn").forEach(btn => {
         btn.classList.toggle("active", btn.getAttribute("data-theme") === themeName);
     });
     localStorage.setItem("tipitaka_theme", themeName);
+}
+
+function setNotesVisibility(show) {
+    state.showNotes = show;
+    document.body.classList.toggle("hide-notes", !show);
+    
+    if (el.btnToggleNotes) {
+        el.btnToggleNotes.classList.toggle("active", show);
+        if (el.toggleNotesLabel) {
+            el.toggleNotesLabel.textContent = show ? "မူကွဲ: ဖွင့်" : "မူကွဲ: ပိတ်";
+        }
+        el.btnToggleNotes.title = show ? "မူကွဲပါဠိတော်များ ဖွင့်ထားပါသည် (ပိတ်ရန် နှိပ်ပါ)" : "မူကွဲပါဠိတော်များ ပိတ်ထားပါသည် (ဖွင့်ရန် နှိပ်ပါ)";
+    }
+    
+    if (el.btnToggleNotesMobile) {
+        el.btnToggleNotesMobile.classList.toggle("active", show);
+        if (el.toggleNotesLabelMobile) {
+            el.toggleNotesLabelMobile.textContent = show ? "📝 မူကွဲပါဠိတော်များ: ဖွင့်ထားသည်" : "📝 မူကွဲပါဠိတော်များ: ပိတ်ထားသည်";
+        }
+    }
+
+    localStorage.setItem("tipitaka_show_notes", show ? "1" : "0");
 }
 
 function setupFontSize(size) {

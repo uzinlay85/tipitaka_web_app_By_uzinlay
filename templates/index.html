@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/static/app.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
-<body class="theme-paper">
+<body class="theme-paper hide-notes">
 
     <!-- Top Navigation Header -->
     <header class="app-header">
@@ -59,6 +59,12 @@
             <!-- Quick Cross-link Button (Pali <-> Myanmar) -->
             <button id="btnCrossLink" class="tool-btn cross-link-btn" title="ပါဠိတော်နှင့် မြန်မာပြန် အပြန်အလှန် ကူးပြောင်းရန်">
                 <span id="crossLinkLabel">🇲🇲 မြန်မာပြန်သို့</span>
+            </button>
+
+            <!-- Toggle Variant Readings (မူကွဲပါဠိတော် ဖွင့်/ပိတ်) -->
+            <button id="btnToggleNotes" class="tool-btn notes-toggle-btn" title="မူကွဲ ပါဠိတော်များ (Footnotes / Variants) ဖွင့်/ပိတ်">
+                <span class="btn-icon">📝</span>
+                <span class="btn-text" id="toggleNotesLabel">မူကွဲ: ပိတ်</span>
             </button>
 
             <!-- Search Trigger -->
@@ -146,6 +152,12 @@
                         <button class="theme-btn" data-theme="light" title="နေ့ရောင်">☀️</button>
                         <button class="theme-btn" data-theme="night" title="ညရောင်">🌙</button>
                     </div>
+                </div>
+                <div class="mobile-notes-row" id="mobileNotesRow" style="margin-top: 8px;">
+                    <button id="btnToggleNotesMobile" class="edition-btn notes-toggle-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
+                        <span>📝</span>
+                        <span id="toggleNotesLabelMobile">မူကွဲပါဠိတော်များ: ပိတ်ထားသည်</span>
+                    </button>
                 </div>
             </div>
 
