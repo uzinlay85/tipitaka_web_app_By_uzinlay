@@ -316,6 +316,7 @@ function cleanPaliContent(html) {
 }
 
 async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = false, isPrepend = false) {
+    pageNum = parseInt(pageNum, 10) || 1;
     state.paliBookId = bookId;
     
     if (!isAppend && !isPrepend && state.readerMode !== "split") {
@@ -388,13 +389,6 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                     debounceRecent(bookId, pageNum);
                     updateBookmarkIconStatus();
                     highlightActiveToc(pageNum);
-
-                    requestAnimationFrame(() => {
-                        const c = el.readerContainer;
-                        if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) && (state.feedLastLoadedPage < data.last_page)) {
-                            loadNextFeedPage();
-                        }
-                    });
                 } else if (isAppend) {
                     if (!state.feedLoadedPages.has(pageNum)) {
                         state.feedLoadedPages.add(pageNum);
@@ -546,6 +540,7 @@ async function loadMMBook(bookId, targetPage = 1) {
 }
 
 async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = false, isPrepend = false) {
+    pageNum = parseInt(pageNum, 10) || 1;
     state.mmBookId = bookId;
 
     if (!isSplitRightPane && !isAppend && !isPrepend && state.readerMode === "mm") {
@@ -610,13 +605,6 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                     setupSentinelObserver();
                     setupPageVisibilityObserver();
                     highlightActiveToc(pageNum);
-
-                    requestAnimationFrame(() => {
-                        const c = el.readerContainer;
-                        if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) && (state.feedLastLoadedPage < data.last_page)) {
-                            loadNextFeedPage();
-                        }
-                    });
                 } else if (isAppend) {
                     if (!state.feedLoadedPages.has(pageNum)) {
                         state.feedLoadedPages.add(pageNum);
@@ -1503,13 +1491,19 @@ function setupEventListeners() {
     });
 
     // Infinite Feed Scroll listener (Desktop mouse wheel & Mobile finger scroll)
+    let feedScrollThrottleTimer = null;
     el.readerContainer.addEventListener("scroll", () => {
         if (state.scrollMode !== "feed") return;
 
-        // Auto load next page when scrolled near bottom (within 900px)
-        const c = el.readerContainer;
-        if (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) {
-            loadNextFeedPage();
+        // Auto load next page when scrolled near bottom (within 250px)
+        if (!feedScrollThrottleTimer) {
+            feedScrollThrottleTimer = setTimeout(() => {
+                feedScrollThrottleTimer = null;
+                const c = el.readerContainer;
+                if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 250)) {
+                    loadNextFeedPage();
+                }
+            }, 120);
         }
 
         // Auto track and update reading page number
@@ -1811,7 +1805,8 @@ function setupSentinelObserver() {
             }
         });
     }, {
-        root: null,
+        root: el.readerContainer,
+        rootMargin: "0px 0px 200px 0px",
         threshold: 0.05
     });
 
@@ -1849,7 +1844,9 @@ async function loadNextFeedPage() {
     if (state.scrollMode !== "feed") return;
 
     if (state.readerMode === "pali") {
-        const nextPage = state.feedLastLoadedPage + 1;
+        const currentLast = parseInt(state.feedLastLoadedPage, 10);
+        const nextPage = currentLast + 1;
+        if (state.feedLoadedPages && state.feedLoadedPages.has(nextPage)) return;
         if (nextPage > state.paliLastPage) {
             showSentinelEnd();
             return;
@@ -1863,13 +1860,11 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
-            const c = el.readerContainer;
-            if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 600) && (state.feedLastLoadedPage < state.paliLastPage)) {
-                setTimeout(loadNextFeedPage, 100);
-            }
         }
     } else if (state.readerMode === "mm") {
-        const nextPage = state.feedLastLoadedPage + 1;
+        const currentLast = parseInt(state.feedLastLoadedPage, 10);
+        const nextPage = currentLast + 1;
+        if (state.feedLoadedPages && state.feedLoadedPages.has(nextPage)) return;
         if (nextPage > state.mmLastPage) {
             showSentinelEnd();
             return;
@@ -1883,10 +1878,6 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
-            const c = el.readerContainer;
-            if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 600) && (state.feedLastLoadedPage < state.mmLastPage)) {
-                setTimeout(loadNextFeedPage, 100);
-            }
         }
     }
 }
@@ -1898,12 +1889,16 @@ async function handleLoadPrevPage() {
 
     try {
         if (state.readerMode === "pali") {
-            const prevPageNum = state.feedFirstLoadedPage - 1;
+            const currentFirst = parseInt(state.feedFirstLoadedPage, 10);
+            const prevPageNum = currentFirst - 1;
+            if (state.feedLoadedPages && state.feedLoadedPages.has(prevPageNum)) return;
             if (prevPageNum >= state.paliFirstPage) {
                 await loadPaliPage(state.paliBookId, prevPageNum, null, false, true);
             }
         } else if (state.readerMode === "mm") {
-            const prevPageNum = state.feedFirstLoadedPage - 1;
+            const currentFirst = parseInt(state.feedFirstLoadedPage, 10);
+            const prevPageNum = currentFirst - 1;
+            if (state.feedLoadedPages && state.feedLoadedPages.has(prevPageNum)) return;
             if (prevPageNum >= state.mmFirstPage) {
                 await loadMMPage(state.mmBookId, prevPageNum, false, false, true);
             }

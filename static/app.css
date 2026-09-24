@@ -607,8 +607,10 @@ button, input, select {
     align-items: center;
     padding: 24px 16px 40px 16px;
     background: var(--bg-app);
-    scroll-behavior: smooth;
     min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
 }
 
 .reader-paper {
