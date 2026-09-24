@@ -1755,11 +1755,11 @@ function setScrollMode(mode) {
         single: "📖"
     };
     const labels = {
-        feed: "Facebook Scroll",
+        feed: "စာမျက်နှာဆက်တိုက်",
         single: "တစ်မျက်နှာချင်း"
     };
     if (el.scrollModeIcon) el.scrollModeIcon.textContent = icons[mode] || "📜";
-    if (el.scrollModeText) el.scrollModeText.textContent = labels[mode] || "Facebook Scroll";
+    if (el.scrollModeText) el.scrollModeText.textContent = labels[mode] || "စာမျက်နှာဆက်တိုက်";
 
     // Update active class on dropdown options & mobile drawer options
     document.querySelectorAll(".scroll-opt-btn").forEach(btn => {
