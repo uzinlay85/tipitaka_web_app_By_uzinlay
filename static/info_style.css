@@ -1,0 +1,10 @@
+﻿@font-face {
+     font-family: NotoSansMyanmar;
+     src: url('NotoSansMyanmarUI-Regular.otf');
+}
+body {
+	font-family: "NotoSansMyanmar";
+	line-height: 2em;
+}
+p { font-size: 1.3em}
+.centered {  text-align:center; color: blue;}

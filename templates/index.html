@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="my" data-theme="paper">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>တိပိဋက ပါဠိတော် နှင့် မြန်မာပြန် (Tipitaka Pali & Myanmar Web Reader)</title>
+    
+    <!-- Authentic Fonts and Styles -->
+    <link rel="stylesheet" href="/static/style_unicode.css">
+    <link rel="stylesheet" href="/static/app.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
+</head>
+<body class="theme-paper">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <button id="btnToggleSidebar" class="icon-btn" title="မာတိကာ/ကျမ်းစာအုပ်များ (Toggle Sidebar)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+
+            <!-- Mode Switcher (Pali vs Myanmar vs Split) -->
+            <div class="edition-switcher">
+                <button class="edition-btn active" id="btnModePali" data-mode="pali" title="ပါဠိတော် ကျမ်းစာများ">☸️ ပါဠိတော်</button>
+                <button class="edition-btn" id="btnModeMM" data-mode="mm" title="တိပိဋက မြန်မာပြန် ကျမ်းစာများ">🇲🇲 မြန်မာပြန်</button>
+                <button class="edition-btn" id="btnModeSplit" data-mode="split" title="ပါဠိတော်နှင့် မြန်မာပြန် ယှဉ်တွဲဖတ်ရှုရန်">📖 ယှဉ်တွဲဖတ်ရန်</button>
+            </div>
+
+            <div class="current-book-badge" id="currentBookBadge">
+                <span class="book-title" id="bookTitleDisplay">ပါရာဇိကပါဠိ</span>
+                <span class="chapter-title" id="chapterTitleDisplay">ဝေရဉ္ဇကဏ္ဍံ</span>
+            </div>
+        </div>
+
+        <!-- Center: Page Navigation -->
+        <div class="header-center">
+            <div class="page-nav-controls">
+                <button id="btnPrevPage" class="nav-btn" title="ရှေ့စာမျက်နှာ (Left Arrow / [)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>ရှေ့</span>
+                </button>
+                <div class="page-indicator">
+                    <input type="number" id="pageNumberInput" min="1" max="1000" value="1">
+                    <span class="page-total">/ <span id="totalPageDisplay">381</span></span>
+                </div>
+                <button id="btnNextPage" class="nav-btn" title="နောက်စာမျက်နှာ (Right Arrow / ])">
+                    <span>နောက်</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: Actions & Tools -->
+        <div class="header-right">
+            <!-- Quick Cross-link Button (Pali <-> Myanmar) -->
+            <button id="btnCrossLink" class="tool-btn cross-link-btn" title="ပါဠိတော်နှင့် မြန်မာပြန် အပြန်အလှန် ကူးပြောင်းရန်">
+                <span id="crossLinkLabel">🇲🇲 မြန်မာပြန်သို့</span>
+            </button>
+
+            <!-- Search Trigger -->
+            <button id="btnOpenSearch" class="tool-btn search-trigger-btn" title="ရှာဖွေရန် (Ctrl + K)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span class="btn-text">ရှာဖွေရန်</span>
+                <span class="kbd-shortcut">Ctrl+K</span>
+            </button>
+
+            <!-- Related Commentary Switcher (Pali only) -->
+            <div class="dropdown-wrapper" id="relatedDropdownWrapper">
+                <button id="btnRelated" class="tool-btn" title="အဋ္ဌကထာ / ဋီကာ အမြန်ကူးရန်">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span class="btn-text">တွဲဖက်ကျမ်း</span>
+                </button>
+                <div class="dropdown-menu" id="relatedDropdownMenu">
+                    <div class="dropdown-header">ဆက်စပ် အဋ္ဌကထာ/ဋီကာ များ</div>
+                    <div class="dropdown-list" id="relatedList"></div>
+                </div>
+            </div>
+
+            <!-- Bookmark Button -->
+            <button id="btnBookmarkToggle" class="icon-btn" title="စာမျက်နှာ မှတ်သားရန်">
+                <svg id="bookmarkIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </button>
+
+            <!-- Font Size Adjuster -->
+            <div class="font-controls">
+                <button id="btnFontDec" class="icon-btn-sm" title="စာလုံး အရွယ်အစား လျှော့ရန်">A-</button>
+                <span id="fontSizeDisplay">100%</span>
+                <button id="btnFontInc" class="icon-btn-sm" title="စာလုံး အရွယ်အစား တိုးရန်">A+</button>
+            </div>
+
+            <!-- Theme Switcher -->
+            <div class="theme-switcher">
+                <button class="theme-btn active" data-theme="paper" title="စက္ကူရောင် (Paper Mode)">📜</button>
+                <button class="theme-btn" data-theme="light" title="နေ့ရောင် (Day Mode)">☀️</button>
+                <button class="theme-btn" data-theme="night" title="ညရောင် (Dark Mode)">🌙</button>
+            </div>
+
+            <!-- Help / User Guide Button -->
+            <button id="btnOpenHelp" class="tool-btn help-btn" title="အသုံးပြုနည်း လမ်းညွှန် (User Guide)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span class="btn-text">လမ်းညွှန်</span>
+            </button>
+
+            <!-- Toggle Dictionary Sidebar -->
+            <button id="btnToggleDict" class="tool-btn dict-toggle-btn active" title="အဘိဓာန်ပြား ဖွင့်/ပိတ်">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                <span class="btn-text">အဘိဓာန်</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Layout -->
+    <div class="app-layout">
+        <!-- Backdrop overlay for mobile drawer -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Left Navigation Sidebar -->
+        <aside class="app-sidebar" id="appSidebar">
+            <!-- Mobile Drawer Quick Controls (Visible only on mobile/tablet) -->
+            <div class="mobile-drawer-controls" id="mobileDrawerControls">
+                <div class="mobile-drawer-header">
+                    <span class="mobile-drawer-title">စာဖတ် ပုံစံ ရွေးချယ်ရန်</span>
+                    <button class="icon-btn-sm" id="btnCloseSidebarMobile" title="ပိတ်ရန်">&times;</button>
+                </div>
+                <div class="mobile-edition-switcher">
+                    <button class="edition-btn mobile-mode-btn active" data-mode="pali">☸️ ပါဠိတော်</button>
+                    <button class="edition-btn mobile-mode-btn" data-mode="mm">🇲🇲 မြန်မာပြန်</button>
+                    <button class="edition-btn mobile-mode-btn" data-mode="split">📖 ယှဉ်တွဲ</button>
+                </div>
+                <div class="mobile-settings-row">
+                    <div class="font-controls">
+                        <button class="icon-btn-sm" id="btnFontDecMobile" title="စာလုံး လျှော့">A-</button>
+                        <span id="fontSizeDisplayMobile">100%</span>
+                        <button class="icon-btn-sm" id="btnFontIncMobile" title="စာလုံး တိုး">A+</button>
+                    </div>
+                    <div class="theme-switcher">
+                        <button class="theme-btn active" data-theme="paper" title="စက္ကူရောင်">📜</button>
+                        <button class="theme-btn" data-theme="light" title="နေ့ရောင်">☀️</button>
+                        <button class="theme-btn" data-theme="night" title="ညရောင်">🌙</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Header Tabs -->
+            <div class="sidebar-tabs">
+                <button class="tab-btn active" data-tab="tab-books">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>ကျမ်းစာများ</span>
+                </button>
+                <button class="tab-btn" data-tab="tab-toc">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>မာတိကာ</span>
+                </button>
+                <button class="tab-btn" data-tab="tab-suttas">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+                    <span>သုတ္တန်များ</span>
+                </button>
+                <button class="tab-btn" data-tab="tab-bookmarks">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                    <span>မှတ်စုများ</span>
+                </button>
+            </div>
+
+            <!-- Tab Content 1: Books List -->
+            <div class="sidebar-tab-panel active" id="tab-books">
+                <!-- Basket filter for Pali mode -->
+                <div class="basket-filter-bar" id="paliBasketFilter">
+                    <button class="basket-btn active" data-basket="all">အားလုံး (192)</button>
+                    <button class="basket-btn" data-basket="mula">ပါဠိတော်</button>
+                    <button class="basket-btn" data-basket="attha">အဋ္ဌကထာ</button>
+                    <button class="basket-btn" data-basket="tika">ဋီကာ</button>
+                    <button class="basket-btn" data-basket="annya">အည</button>
+                </div>
+                <div class="sidebar-search-box">
+                    <input type="text" id="booksFilterInput" placeholder="ကျမ်းစာအုပ် အမည် ရှာရန်...">
+                </div>
+                <div class="books-tree-list" id="booksTreeList">
+                    <div class="loading-state">ကျမ်းစာအုပ်များ စာရင်းဆွဲယူနေပါသည်...</div>
+                </div>
+            </div>
+
+            <!-- Tab Content 2: Table of Contents (TOC) -->
+            <div class="sidebar-tab-panel" id="tab-toc">
+                <div class="sidebar-search-box">
+                    <input type="text" id="tocFilterInput" placeholder="မာတိကာ ခေါင်းစဉ် ရှာရန်...">
+                </div>
+                <div class="toc-list" id="tocList">
+                    <div class="empty-state">မာတိကာ အချက်အလက် မရှိပါ။</div>
+                </div>
+            </div>
+
+            <!-- Tab Content 3: Suttas List -->
+            <div class="sidebar-tab-panel" id="tab-suttas">
+                <div class="sidebar-search-box">
+                    <input type="text" id="suttaFilterInput" placeholder="သုတ္တန် အမည် ရှာရန်...">
+                </div>
+                <div class="sutta-list" id="suttaList">
+                    <div class="empty-state">ဤကျမ်းတွင် သုတ္တန်ခွဲများ မရှိပါ။</div>
+                </div>
+            </div>
+
+            <!-- Tab Content 4: Bookmarks -->
+            <div class="sidebar-tab-panel" id="tab-bookmarks">
+                <div class="bookmarks-list" id="bookmarksList">
+                    <div class="empty-state">မှတ်သားထားသော စာမျက်နှာ မရှိသေးပါ။</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Reading Canvas -->
+        <main class="reader-container" id="readerContainer">
+            <!-- Normal Single Reading Paper (Pali or Myanmar) -->
+            <div class="reader-paper" id="readerPaper">
+                <div class="reader-header-meta">
+                    <span class="meta-book" id="metaBookName">ပါရာဇိကပါဠိ</span>
+                    <span class="meta-separator">•</span>
+                    <span class="meta-page">စာမျက်နှာ - <span id="metaPageNum">၁</span></span>
+                    <span class="meta-edition-tag" id="metaEditionTag">ပါဠိတော်</span>
+                </div>
+
+                <!-- Page Content Area -->
+                <article class="pali-content" id="paliContent">
+                    <div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>
+                </article>
+
+                <!-- Page Footer Navigation -->
+                <div class="reader-footer-nav">
+                    <button class="footer-nav-btn prev" id="btnFooterPrev">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        <span>ယခင် စာမျက်နှာသို့</span>
+                    </button>
+                    <div class="footer-page-info">
+                        <span>စာမျက်နှာ <strong id="footerCurrentPage">၁</strong> / <span id="footerTotalPage">၃၈၁</span></span>
+                    </div>
+                    <button class="footer-nav-btn next" id="btnFooterNext">
+                        <span>နောက် စာမျက်နှာသို့</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dual Split View Container (Pali + Myanmar Side by Side) -->
+            <div class="split-view-container" id="splitViewContainer" style="display: none;">
+                <!-- Left Pane: Pali -->
+                <div class="split-pane pane-pali">
+                    <div class="split-pane-header">
+                        <span class="split-pane-title">☸️ ပါဠိတော်: <strong id="splitPaliTitle">ပါရာဇိကပါဠိ</strong></span>
+                        <span class="split-pane-page">စာ-<span id="splitPaliPage">၁</span></span>
+                    </div>
+                    <div class="split-pane-body" id="splitPaliContent"></div>
+                </div>
+
+                <!-- Right Pane: Myanmar Translation -->
+                <div class="split-pane pane-mm">
+                    <div class="split-pane-header">
+                        <span class="split-pane-title">🇲🇲 မြန်မာပြန်: <strong id="splitMMTitle">ပါရာဇိကဏ်</strong></span>
+                        <span class="split-pane-page">စာ-<span id="splitMMPage">၁</span></span>
+                    </div>
+                    <div class="split-pane-body" id="splitMMContent"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Side: Dictionary Inspector Panel -->
+        <aside class="dict-sidebar" id="dictSidebar">
+            <div class="dict-header">
+                <div class="dict-header-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    <span>ပါဠိ-မြန်မာ အဘိဓာန်</span>
+                </div>
+                <button id="btnCloseDict" class="icon-btn-sm" title="ပိတ်ရန်">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="dict-search-bar">
+                <input type="text" id="dictSearchInput" placeholder="ပါဠိစကားလုံး ရိုက်ထည့်၍ ရှာရန်...">
+                <button id="btnDictSearch" class="dict-search-btn">ရှာပါ</button>
+            </div>
+
+            <div class="dict-content" id="dictContent">
+                <div class="dict-welcome">
+                    <div class="welcome-icon">📖</div>
+                    <h3>ပါဠိစကားလုံးကို ကလစ်နှိပ်ပါ</h3>
+                    <p>စာဖတ်နေစဉ် မသိသော ပါဠိစကားလုံး တစ်လုံးချင်းစီကို <strong>Click နှိပ်လိုက်ရုံဖြင့်</strong> တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန် အဓိပ္ပာယ် ဤနေရာတွင် ချက်ချင်း ထွက်ပေါ်လာမည် ဖြစ်ပါသည်။</p>
+                    <div class="dict-sources-info">
+                        <strong>ပါဝင်သော အဘိဓာန်များ -</strong>
+                        <ul>
+                            <li>တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်</li>
+                            <li>ဦးဟုတ်စိန် ပါဠိ-မြန်မာ အဘိဓာန်</li>
+                            <li>ဓာတွတ္ထပန်းကုံး နှင့် ပါဠိဓာတ်အဘိဓာန်</li>
+                            <li>PTS Pali-English Dictionary</li>
+                            <li>Concise Pali-English Dictionary</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Dark Backdrop for Mobile Drawers -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    </div>
+
+    <!-- Universal Search Modal -->
+    <div class="modal-backdrop" id="searchModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="search-input-wrapper">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="globalSearchInput" placeholder="တိပိဋက ကျမ်းစာအုပ်များအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ..." autocomplete="off">
+                    <button id="btnClearSearch" class="clear-search-btn" style="display:none;">&times;</button>
+                </div>
+                <button id="btnCloseModal" class="icon-btn modal-close-btn" title="ပိတ်ရန် (Esc)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <!-- Search Mode Tabs -->
+            <div class="modal-tabs">
+                <button class="modal-tab-btn active" data-mode="word">
+                    <span>ပါဠိစကားလုံး (Word Index - ၉ သိန်းကျော်)</span>
+                </button>
+                <button class="modal-tab-btn" data-mode="sutta">
+                    <span>ပါဠိ သုတ္တန်များ (Suttas - ၆ ထောင်ကျော်)</span>
+                </button>
+                <button class="modal-tab-btn" data-mode="book">
+                    <span>ပါဠိ ကျမ်းစာအုပ်များ (၁၉၂ အုပ်)</span>
+                </button>
+                <button class="modal-tab-btn" data-mode="mm_book">
+                    <span>မြန်မာပြန် ကျမ်းစာအုပ်များ (၆၀ အုပ်)</span>
+                </button>
+                <button class="modal-tab-btn" data-mode="mm_toc">
+                    <span>မြန်မာပြန် မာတိကာ (၁ သောင်းကျော်)</span>
+                </button>
+            </div>
+
+            <div class="search-summary" id="searchSummary"></div>
+
+            <div class="search-results-list" id="searchResultsList">
+                <div class="search-hint">
+                    <p>💡 ပါဠိစာလုံး (ဥပမာ- <strong>ဗုဒ္ဓ</strong>၊ <strong>နိဗ္ဗာန</strong>၊ <strong>သတိပဋ္ဌာန</strong>) သို့မဟုတ် မြန်မာပြန်ခေါင်းစဉ်များ ရိုက်ထည့်၍ ရှာဖွေနိုင်ပါသည်။</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Guide / Help Modal -->
+    <div class="modal-backdrop" id="helpModal">
+        <div class="modal-dialog help-modal-dialog">
+            <div class="modal-header">
+                <div class="help-modal-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <span>တိပိဋက Web App အသုံးပြုနည်း လမ်းညွှန်ချက် အပြည့်အစုံ</span>
+                </div>
+                <button id="btnCloseHelp" class="icon-btn modal-close-btn" title="ပိတ်ရန် (Esc)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="help-modal-body">
+                <!-- Welcome Banner -->
+                <div class="guide-welcome-box">
+                    <h3>🙏 သာသနာတော်အကျိုးငှာ အဆင်ပြေစေရန် တည်ဆောက်ထားသော နည်းစနစ်များ</h3>
+                    <p>ဤ Web Application သည် ဆဋ္ဌသင်္ဂါယနာ <strong>တိပိဋက ပါဠိတော် (၁၉၂ အုပ်)</strong> နှင့် <strong>တိပိဋက မြန်မာပြန် (၆၀ အုပ်)</strong>၊ အဋ္ဌကထာ၊ ဋီကာ ကျမ်းစာများနှင့် ပါဠိ-မြန်မာ အဘိဓာန်များကို ရဟန်း၊ ရှင်၊ လူ၊ သာသနာ့နွယ်ဝင် ကျောင်းသား၊ ကျောင်းသူများ မည်သည့်စက်ပစ္စည်းမှမဆို အလွယ်ကူဆုံး၊ အလျင်မြန်ဆုံး လေ့လာဖတ်ရှုနိုင်ရန် ဖန်တီးထားခြင်း ဖြစ်ပါသည်။</p>
+                </div>
+
+                <!-- Section 1: 3 Reading Modes -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၁</span>
+                        <span>ဖတ်ရှုမှု ပုံစံ ၃ မျိုး (Reading Modes)</span>
+                    </h4>
+                    <p class="guide-desc">အပေါ်ဘားရှိ ခလုတ် ၃ ခုဖြင့် မိမိနှစ်သက်ရာ ဖတ်ရှုမှုစနစ်ကို လွတ်လပ်စွာ ပြောင်းလဲနိုင်ပါသည် -</p>
+                    <div class="guide-cards-grid">
+                        <div class="guide-card">
+                            <div class="card-icon">☸️</div>
+                            <h5>ပါဠိတော် Mode</h5>
+                            <p>ဆဋ္ဌသင်္ဂါယနာ မူရင်းပါဠိတော် (မူလ၊ အဋ္ဌကထာ၊ ဋီကာ စုစုပေါင်း ၁၉၂ အုပ်၊ စာမျက်နှာ ၅၉,၀၀၈ မျက်နှာ) ကို စာအုပ်အစစ်ကဲ့သို့ သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
+                        </div>
+                        <div class="guide-card">
+                            <div class="card-icon">🇲🇲</div>
+                            <h5>မြန်မာပြန် Mode</h5>
+                            <p>သာသနာရေးဦးစီးဌာနမှ ထုတ်ဝေသော တိပိဋက မြန်မာပြန် ကျမ်းစာအုပ် ၆၀ (ဇာတ်တော် ၅၅၀၊ ဓမ္မပဒ၊ ဝိသုဒ္ဓိမဂ် အပါအဝင် စာမျက်နှာ ၂၃,၃၉၀ မျက်နှာ) ကို သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
+                        </div>
+                        <div class="guide-card highlight-card">
+                            <div class="card-icon">📖</div>
+                            <h5>ယှဉ်တွဲဖတ်ရှုခြင်း (Dual Split View)</h5>
+                            <p><strong>ဘယ်ဘက်တွင် ပါဠိတော်</strong> နှင့် <strong>ညာဘက်တွင် မြန်မာပြန်</strong> တို့ကို ဘေးချင်းယှဉ်တွဲ၍ တစ်ပြိုင်နက် ဖတ်ရှုနိုင်ပါသည်။ စာပိုဒ်တစ်ခုချင်းစီကို တိုက်ဆိုင်ကြည့်ရှုရန် အထူးသင့်လျော်ပါသည်။</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Cross Link -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၂</span>
+                        <span>ပါဠိ နှင့် မြန်မာပြန် အပြန်အလှန် ခုန်ကူးဖတ်ရှုနည်း (Instant Cross-Link)</span>
+                    </h4>
+                    <div class="guide-info-box">
+                        <ul>
+                            <li><strong>ပါဠိတော် ဖတ်ရှုနေစဉ်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">🇲🇲 မြန်မာပြန်သို့</span> ခလုတ်ကို နှိပ်လိုက်သည်နှင့် လက်ရှိဖတ်နေသော စာပိုဒ်နှင့် ကိုက်ညီသည့် <strong>မြန်မာပြန် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ခုန်ကူးရောက်ရှိသွားပါမည်။</li>
+                            <li><strong>မြန်မာပြန် ဖတ်ရှုနေစဉ်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">☸️ ပါဠိတော်သို့</span> ခလုတ်ကို နှိပ်လိုက်ပါကလည်း မူရင်း <strong>ပါဠိတော် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ပြန်လည်ရောက်ရှိပါမည်။</li>
+                            <li><strong>အဋ္ဌကထာ/ဋီကာ ကူးလိုလျှင်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">တွဲဖက်ကျမ်း</span> ခလုတ်ကို နှိပ်၍ သက်ဆိုင်ရာ အဋ္ဌကထာ သို့မဟုတ် ဋီကာသို့ ချက်ချင်း ကူးပြောင်းနိုင်ပါသည်။</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Section 3: Click to lookup Dictionary -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၃</span>
+                        <span>ကလစ်တစ်ချက်နှိပ်ရုံဖြင့် အဘိဓာန် အနက်ကြည့်ရှုနည်း (Instant Click-to-Lookup)</span>
+                    </h4>
+                    <div class="guide-info-box">
+                        <div class="guide-feature-row">
+                            <div class="feature-badge-icon">👆</div>
+                            <div>
+                                <strong>စာလုံးကို Click နှိပ်ရုံမျှဖြင့် အနက်ထွက်ပေါ်ခြင်း:</strong>
+                                <p>ပါဠိစာဖတ်နေစဉ် မသိသော ပါဠိစကားလုံးကို Mouse ဖြင့် <strong>Click တစ်ချက် နှိပ်လိုက်ရုံဖြင့်</strong> ညာဘက်ခြမ်းရှိ အဘိဓာန်ပြားတွင် အဓိပ္ပာယ် ချက်ချင်း ထွက်ပေါ်လာမည် ဖြစ်ပါသည်။</p>
+                            </div>
+                        </div>
+                        <div class="guide-feature-row">
+                            <div class="feature-badge-icon">🧠</div>
+                            <div>
+                                <strong>ပါဠိ ဝိဘတ်ဖြုတ်နည်းစနစ် (Smart Pali Stemming):</strong>
+                                <p>ဥပမာ- <code>ဗုဒ္ဓေါ</code> ဟု ကလစ်နှိပ်သော်လည်း အဆုံးသတ်ဝိဘတ် <code>-ော</code> ကို စနစ်က အလိုအလျောက် ဖြုတ်ပေးပြီး မူရင်းပုဒ် <code>ဗုဒ္ဓ</code> ၏ အနက်ကို ရှာဖွေပြသပေးပါသည်။ ထို့အတူ <code>ဓမ္မဿ</code>၊ <code>သမ္မာသမ္ဗုဒ္ဓဿ</code> စသည်တို့ကိုလည်း မူရင်းပုဒ်အနက် ထွက်ပေါ်စေပါသည်။</p>
+                            </div>
+                        </div>
+                        <div class="guide-feature-row">
+                            <div class="feature-badge-icon">📚</div>
+                            <div>
+                                <strong>အဘိဓာန် ၈ မျိုးလုံးမှ တစ်ပြိုင်နက် ပြသခြင်း:</strong>
+                                <p>တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်၊ ဦးဟုတ်စိန် ပါဠိ-မြန်မာ အဘိဓာန်၊ ဓာတွတ္ထပန်းကုံး၊ ပါဠိဓာတ်အဘိဓာန်၊ PTS Pali-English စသည့် အဘိဓာန် ၈ မျိုးစလုံးမှ ဖွင့်ဆိုချက်များကို တစ်နေရာတည်းတွင် စုံလင်စွာ ဖတ်ရှုနိုင်ပါသည်။</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Universal Search -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၄</span>
+                        <span>အလွန်လျင်မြန်သော ရှာဖွေမှုစနစ် (Universal Search - Ctrl + K)</span>
+                    </h4>
+                    <div class="guide-info-box">
+                        <p>Keyboard ပေါ်မှ <code>Ctrl + K</code> (သို့မဟုတ် <code>/</code> သို့မဟုတ် အပေါ်ဘားရှိ ရှာဖွေရန်ခလုတ်) ကို နှိပ်၍ အောက်ပါတို့ကို မီလီစက္ကန့်ပိုင်းအတွင်း ရှာဖွေနိုင်ပါသည် -</p>
+                        <ul style="margin-top:8px;">
+                            <li><strong>ပါဠိစကားလုံး (Word Index):</strong> စာလုံးပေါင်း <strong>၉ သိန်းကျော်</strong> ကို ကြိုတင် Index ပြုလုပ်ထားသဖြင့် စာလုံးတစ်ခု ကျမ်းစာများအတွင်း မည်သည့်နေရာတွင် ဘယ်နှစ်ကြိမ်ပါဝင်သည်ကို မျက်စိတစ်မှိတ်အတွင်း ရှာတွေ့နိုင်ပါသည်။</li>
+                            <li><strong>သုတ္တန်များ (Suttas):</strong> သုတ္တန်ပေါင်း <strong>၆,၈၈၁ ပုဒ်</strong> ကို အမည်ဖြင့် တိုက်ရိုက် ရှာဖွေနိုင်ပါသည်။</li>
+                            <li><strong>ကျမ်းစာအုပ်များ:</strong> ပါဠိကျမ်းစာ ၁၉၂ အုပ် နှင့် မြန်မာပြန်ကျမ်းစာ ၆၀ အုပ်ကို အမည်ဖြင့် အမြန်ရှာဖွေနိုင်ပါသည်။</li>
+                            <li><strong>မာတိကာများ:</strong> အခန်းကဏ္ဍပေါင်း <strong>၁ သောင်းကျော်</strong> ကို ရှာဖွေနိုင်ပါသည်။</li>
+                        </ul>
+                        <p style="margin-top:8px; color:var(--accent);"><em>* တွေ့ရှိသည့် ရလဒ်ကို နှိပ်လိုက်သည်နှင့် သက်ဆိုင်ရာ စာမျက်နှာသို့ တိုက်ရိုက်ရောက်ရှိပြီး စာလုံးကို အရောင်တင် (Highlight) ပြသပေးပါသည်။</em></p>
+                    </div>
+                </div>
+
+                <!-- Section 5: Reading Experience & Controls -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၅</span>
+                        <span>စာဖတ်ရှုရ လွယ်ကူစေသော အခြား အထောက်အကူများ</span>
+                    </h4>
+                    <div class="guide-cards-grid">
+                        <div class="guide-card">
+                            <h5>🎨 မျက်စိအေးစေသော Themes ၃ မျိုး</h5>
+                            <p><strong>📜 စက္ကူရောင် (Paper)</strong> - စာအုပ်အစစ်ဖတ်ရသကဲ့သို့ နွေးထွေးသော အဝါဖျော့ရောင်<br><strong>☀️ နေ့ရောင် (Day)</strong> - ကြည်လင်ပြတ်သားသော အဖြူရောင်<br><strong>🌙 ညရောင် (Night)</strong> - မျက်စိမညောင်းစေသော Dark Slate</p>
+                        </div>
+                        <div class="guide-card">
+                            <h5>🔤 စာလုံးအရွယ်အစား (Font Size)</h5>
+                            <p>အပေါ်ဘားရှိ <code>A-</code> နှင့် <code>A+</code> ခလုတ်များဖြင့် စာလုံးအရွယ်အစားကို ၇၀% မှ ၂၀၀% ထိ မိမိမျက်စိနှင့် ကိုက်ညီအောင် လွတ်လပ်စွာ ချိန်ညှိနိုင်ပါသည်။</p>
+                        </div>
+                        <div class="guide-card">
+                            <h5>🔖 စာမျက်နှာ မှတ်သားခြင်း (Bookmark)</h5>
+                            <p>ဖတ်လက်စ စာမျက်နှာကို Bookmark မှတ်ထားနိုင်ပြီး နောက်တစ်ကြိမ် App ဖွင့်သည့်အခါ နောက်ဆုံးဖတ်ခဲ့သည့် နေရာမှ အလိုအလျောက် ပြန်လည် စတင်ပေးပါသည်။</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Shortcuts -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၆</span>
+                        <span>လက်ကွက်ဖြတ်လမ်းများ (Keyboard Shortcuts)</span>
+                    </h4>
+                    <table class="guide-shortcut-table">
+                        <thead>
+                            <tr>
+                                <th>Shortcut ခလုတ်</th>
+                                <th>လုပ်ဆောင်ချက်</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>[</code> သို့မဟုတ် <code>Arrow Left (◀)</code></td>
+                                <td>ယခင် စာမျက်နှာသို့ ကူးပြောင်းရန် (Previous Page)</td>
+                            </tr>
+                            <tr>
+                                <td><code>]</code> သို့မဟုတ် <code>Arrow Right (▶)</code></td>
+                                <td>နောက် စာမျက်နှာသို့ ကူးပြောင်းရန် (Next Page)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Ctrl + K</code> သို့မဟုတ် <code>/</code></td>
+                                <td>ရှာဖွေရေး Modal ဖွင့်ရန် (Universal Search)</td>
+                            </tr>
+                            <tr>
+                                <td><code>Esc</code></td>
+                                <td>Modal များ၊ အသုံးပြုနည်း၊ အဘိဓာန် Popup ပိတ်ရန်</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Section 7: Mobile/Tablet Access -->
+                <div class="guide-section">
+                    <h4 class="guide-section-title">
+                        <span class="guide-step-num">၇</span>
+                        <span>ဖုန်း၊ Tablet နှင့် အင်တာနက်မှ အသုံးပြုနည်း</span>
+                    </h4>
+                    <div class="guide-info-box">
+                        <p>ဤ Web Application ကို သင်၏ ကွန်ပျူတာတင်မကဘဲ အင်တာနက်ရှိ မည်သည့် ဖုန်း၊ Tablet၊ iPad မှမဆို အောက်ပါ Link ဖြင့် လုံခြုံစွာနှင့် အခမဲ့ ဝင်ရောက်ဖတ်ရှုနိုင်ပါသည် -</p>
+                        <p style="margin-top:6px; font-weight:bold; font-size:1.05rem; color:var(--accent);">👉 https://tipitaka.upanna.top</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Floating Dictionary Popover -->
+    <div class="dict-quick-popover" id="dictQuickPopover" style="display: none;">
+        <div class="popover-header">
+            <span class="popover-word" id="popoverWord">ဗုဒ္ဓ</span>
+            <button id="btnClosePopover" class="popover-close">&times;</button>
+        </div>
+        <div class="popover-body" id="popoverBody"></div>
+        <div class="popover-footer">
+            <button id="btnOpenInFullDict" class="popover-full-btn">အဘိဓာန်အပြည့်အစုံတွင် ကြည့်ရန် →</button>
+        </div>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

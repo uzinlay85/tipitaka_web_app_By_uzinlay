@@ -1,0 +1,29 @@
+# ============================================
+# Git Ignore for Tipitaka Web Reader
+# ============================================
+
+# Database files (Over GitHub 100MB limit - already in place on VPS)
+*.db
+*.sqlite
+*.sqlite3
+tipitaka_pali.db
+tipitaka_mm.db
+
+# Archives and Large Binaries
+*.zip
+*.tar.gz
+*.apk
+base.apk
+tipitaka_vps.zip
+code_update.zip
+
+# Python virtual env & cache
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Raw data extraction directory
+Tipitak_MM/

@@ -1,0 +1,22 @@
+﻿@font-face {
+     font-family: Zawgyi-One;
+     src: url('Zawgyi-One.ttf');
+}
+body {
+	font-family: "Zawgyi-One";
+    font-size: 1.2em;
+    line-height: 1.6em;
+    background-color: #323232;
+    color: white;
+}
+.book {
+    background-color: #3f3f3f;
+    color: lightskyblue;
+    text-align: center;
+    line-height: 2em;
+}
+.word {color: lightskyblue; font-weight: bold;}
+.gender {color: silver; }
+.definition { color: white;}
+.reference { margin-left: 150px; color: #c0c0c0; text-align: right;}
+.source { margin-left: 150px; color: #c0c0c0; text-align: right;}
