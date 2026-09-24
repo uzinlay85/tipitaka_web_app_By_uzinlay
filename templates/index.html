@@ -67,6 +67,31 @@
                 <span class="btn-text" id="toggleNotesLabel">မူကွဲ: ပိတ်</span>
             </button>
 
+            <!-- Scroll / Page Navigation Mode (စာဖတ် လှန်လှောပုံစံ) -->
+            <div class="dropdown-wrapper" id="scrollModeDropdownWrapper">
+                <button id="btnScrollMode" class="tool-btn" title="စာဖတ် လှန်လှောပုံစံ (Scroll / Flip Mode)">
+                    <span id="scrollModeIcon">🔄</span>
+                    <span class="btn-text" id="scrollModeText">Scroll: တွဲဖက်</span>
+                </button>
+                <div class="dropdown-menu" id="scrollModeDropdownMenu" style="width: 250px;">
+                    <div class="dropdown-header">စာမျက်နှာ လှန်လှောပုံစံ</div>
+                    <div class="dropdown-list">
+                        <button class="dropdown-item scroll-opt-btn active" data-scroll-mode="both">
+                            <div><strong>🔄 အားလုံးတွဲဖက် (Both)</strong></div>
+                            <small style="color:var(--text-muted);">အပေါ်/အောက် Scroll ရော ဘယ်/ညာ Swipe ပါ ရွေးနိုင်သည်</small>
+                        </button>
+                        <button class="dropdown-item scroll-opt-btn" data-scroll-mode="vertical">
+                            <div><strong>↕️ အပေါ်/အောက် (Vertical Flow)</strong></div>
+                            <small style="color:var(--text-muted);">Mouse Wheel နှင့် Touch အပေါ်/အောက် ဆွဲလှိမ့်၍ ကူးပြောင်းမည်</small>
+                        </button>
+                        <button class="dropdown-item scroll-opt-btn" data-scroll-mode="horizontal">
+                            <div><strong>↔️ ဘယ်/ညာ (Horizontal Flip)</strong></div>
+                            <small style="color:var(--text-muted);">ဘယ်/ညာ Swipe သို့မဟုတ် ခလုတ်ဖြင့်သာ စာမျက်နှာလှန်မည်</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Search Trigger -->
             <button id="btnOpenSearch" class="tool-btn search-trigger-btn" title="ရှာဖွေရန် (Ctrl + K)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -159,6 +184,14 @@
                         <span id="toggleNotesLabelMobile">မူကွဲပါဠိတော်များ: ပိတ်ထားသည်</span>
                     </button>
                 </div>
+                <div class="mobile-scroll-mode-box" style="margin-top: 8px;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">စာမျက်နှာ လှန်လှောပုံစံ:</div>
+                    <div class="mobile-scroll-switcher" style="display: flex; gap: 4px;">
+                        <button class="edition-btn mobile-scroll-btn active" data-scroll-mode="both" style="flex:1; font-size:0.78rem; padding: 6px 2px;">🔄 တွဲဖက်</button>
+                        <button class="edition-btn mobile-scroll-btn" data-scroll-mode="vertical" style="flex:1; font-size:0.78rem; padding: 6px 2px;">↕️ အပေါ်/အောက်</button>
+                        <button class="edition-btn mobile-scroll-btn" data-scroll-mode="horizontal" style="flex:1; font-size:0.78rem; padding: 6px 2px;">↔️ ဘယ်/ညာ</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Sidebar Header Tabs -->
@@ -229,6 +262,11 @@
 
         <!-- Center Reading Canvas -->
         <main class="reader-container" id="readerContainer">
+            <!-- Floating Page Transition Toast -->
+            <div class="scroll-page-toast" id="scrollPageToast">
+                <span id="scrollPageToastText">⬇️ စာမျက်နှာ ၂ သို့ ရောက်ရှိပါသည်</span>
+            </div>
+
             <!-- Normal Single Reading Paper (Pali or Myanmar) -->
             <div class="reader-paper" id="readerPaper">
                 <div class="reader-header-meta">
@@ -242,6 +280,13 @@
                 <article class="pali-content" id="paliContent">
                     <div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>
                 </article>
+
+                <!-- Bottom Page Scroll Indicator -->
+                <div class="page-scroll-indicator" id="pageScrollIndicator">
+                    <span class="indicator-icon">▼</span>
+                    <span class="indicator-text" id="pageScrollIndicatorText">အောက်သို့ ဆက်လှိမ့်ပါက နောက်စာမျက်နှာသို့ ကူးပါမည်</span>
+                    <span class="indicator-icon">▼</span>
+                </div>
 
                 <!-- Page Footer Navigation -->
                 <div class="reader-footer-nav">

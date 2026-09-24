@@ -39,7 +39,8 @@ const state = {
     fontSize: parseInt(localStorage.getItem("tipitaka_font_size") || "100", 10),
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
     isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0"),
-    showNotes: localStorage.getItem("tipitaka_show_notes") === "1"
+    showNotes: localStorage.getItem("tipitaka_show_notes") === "1",
+    scrollMode: localStorage.getItem("tipitaka_scroll_mode") || "both"
 };
 
 // DOM Elements
@@ -61,6 +62,14 @@ const el = {
     btnToggleNotesMobile: document.getElementById("btnToggleNotesMobile"),
     toggleNotesLabelMobile: document.getElementById("toggleNotesLabelMobile"),
     mobileNotesRow: document.getElementById("mobileNotesRow"),
+    scrollModeDropdownWrapper: document.getElementById("scrollModeDropdownWrapper"),
+    btnScrollMode: document.getElementById("btnScrollMode"),
+    scrollModeIcon: document.getElementById("scrollModeIcon"),
+    scrollModeText: document.getElementById("scrollModeText"),
+    pageScrollIndicator: document.getElementById("pageScrollIndicator"),
+    pageScrollIndicatorText: document.getElementById("pageScrollIndicatorText"),
+    scrollPageToast: document.getElementById("scrollPageToast"),
+    scrollPageToastText: document.getElementById("scrollPageToastText"),
     metaEditionTag: document.getElementById("metaEditionTag"),
     paliBasketFilter: document.getElementById("paliBasketFilter"),
 
@@ -152,6 +161,7 @@ async function initApp() {
     setupTheme(state.theme);
     setupFontSize(state.fontSize);
     setNotesVisibility(state.showNotes);
+    setScrollMode(state.scrollMode);
     setupEventListeners();
     
     if (!state.isSidebarOpen) el.appSidebar.classList.add("collapsed");
@@ -290,7 +300,7 @@ function cleanPaliContent(html) {
     return html.replace(/,(?![^<]*>)/g, "");
 }
 
-async function loadPaliPage(bookId, pageNum, highlightWord = null) {
+async function loadPaliPage(bookId, pageNum, highlightWord = null, scrollToBottom = false) {
     state.paliBookId = bookId;
     state.paliPage = pageNum;
     
@@ -327,7 +337,15 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null) {
                 html = html.replace(regex, `<mark class="hit">$1</mark>`);
             }
             el.paliContent.innerHTML = html;
-            el.readerContainer.scrollTop = 0;
+            
+            if (scrollToBottom) {
+                requestAnimationFrame(() => {
+                    el.readerContainer.scrollTop = el.readerContainer.scrollHeight;
+                });
+            } else {
+                el.readerContainer.scrollTop = 0;
+            }
+            updateScrollIndicator(data.page, data.last_page);
             
             fetch("/api/recent", {
                 method: "POST",
@@ -382,7 +400,7 @@ async function loadMMBook(bookId, targetPage = 1) {
     await loadMMPage(bookId, targetPage);
 }
 
-async function loadMMPage(bookId, pageNum, isSplitRightPane = false) {
+async function loadMMPage(bookId, pageNum, isSplitRightPane = false, scrollToBottom = false) {
     state.mmBookId = bookId;
     state.mmPage = pageNum;
 
@@ -414,7 +432,16 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false) {
             el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
 
             el.paliContent.innerHTML = data.content;
-            el.readerContainer.scrollTop = 0;
+            
+            if (scrollToBottom) {
+                requestAnimationFrame(() => {
+                    el.readerContainer.scrollTop = el.readerContainer.scrollHeight;
+                });
+            } else {
+                el.readerContainer.scrollTop = 0;
+            }
+            updateScrollIndicator(data.page, data.last_page);
+
             highlightActiveToc(pageNum);
         }
 
@@ -993,31 +1020,118 @@ function setupEventListeners() {
     if (btnFontIncMobile) btnFontIncMobile.addEventListener("click", () => setupFontSize(state.fontSize + 10));
     
     // Page Navigation
-    function prevPage() {
+    function prevPage(scrollToBottom = false) {
         if (state.readerMode === "mm") {
-            if (state.mmPage > state.mmFirstPage) loadMMPage(state.mmBookId, state.mmPage - 1);
+            if (state.mmPage > state.mmFirstPage) {
+                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage - 1)} သို့ ပြောင်းနေပါသည်...`);
+                loadMMPage(state.mmBookId, state.mmPage - 1, false, scrollToBottom);
+            }
         } else {
-            if (state.paliPage > state.paliFirstPage) loadPaliPage(state.paliBookId, state.paliPage - 1);
+            if (state.paliPage > state.paliFirstPage) {
+                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage - 1)} သို့ ပြောင်းနေပါသည်...`);
+                loadPaliPage(state.paliBookId, state.paliPage - 1, null, scrollToBottom);
+            }
         }
     }
-    function nextPage() {
+    function nextPage(scrollToBottom = false) {
         if (state.readerMode === "mm") {
-            if (state.mmPage < state.mmLastPage) loadMMPage(state.mmBookId, state.mmPage + 1);
+            if (state.mmPage < state.mmLastPage) {
+                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage + 1)} သို့ ပြောင်းနေပါသည်...`);
+                loadMMPage(state.mmBookId, state.mmPage + 1, false, scrollToBottom);
+            }
         } else {
-            if (state.paliPage < state.paliLastPage) loadPaliPage(state.paliBookId, state.paliPage + 1);
+            if (state.paliPage < state.paliLastPage) {
+                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage + 1)} သို့ ပြောင်းနေပါသည်...`);
+                loadPaliPage(state.paliBookId, state.paliPage + 1, null, scrollToBottom);
+            }
         }
     }
 
-    el.btnPrevPage.addEventListener("click", prevPage);
-    el.btnNextPage.addEventListener("click", nextPage);
-    el.btnFooterPrev.addEventListener("click", prevPage);
-    el.btnFooterNext.addEventListener("click", nextPage);
+    el.btnPrevPage.addEventListener("click", () => prevPage(false));
+    el.btnNextPage.addEventListener("click", () => nextPage(false));
+    el.btnFooterPrev.addEventListener("click", () => prevPage(false));
+    el.btnFooterNext.addEventListener("click", () => nextPage(false));
 
-    // Mobile Touch Swipe Gesture for Page Navigation
+    if (el.pageScrollIndicator) {
+        el.pageScrollIndicator.addEventListener("click", () => nextPage(false));
+    }
+
+    // Scroll Mode Dropdown in Header
+    if (el.btnScrollMode && el.scrollModeDropdownWrapper) {
+        el.btnScrollMode.addEventListener("click", (e) => {
+            e.stopPropagation();
+            el.scrollModeDropdownWrapper.classList.toggle("open");
+        });
+        document.addEventListener("click", () => {
+            el.scrollModeDropdownWrapper.classList.remove("open");
+        });
+    }
+
+    // Scroll Mode Selection (Dropdown & Mobile Drawer)
+    document.querySelectorAll(".scroll-opt-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const mode = btn.getAttribute("data-scroll-mode");
+            setScrollMode(mode);
+            if (el.scrollModeDropdownWrapper) el.scrollModeDropdownWrapper.classList.remove("open");
+        });
+    });
+
+    document.querySelectorAll(".mobile-scroll-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const mode = btn.getAttribute("data-scroll-mode");
+            setScrollMode(mode);
+        });
+    });
+
+    // Mouse Wheel Continuous Page Scroll (for PC)
+    let wheelDeltaAccumulator = 0;
+    let wheelCooldown = false;
+    let wheelResetTimer = null;
+
+    el.readerContainer.addEventListener("wheel", (e) => {
+        if (state.readerMode === "split") return;
+        if (state.scrollMode === "horizontal") return;
+
+        const container = el.readerContainer;
+        const isAtBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) <= 8;
+        const isAtTop = container.scrollTop <= 5;
+
+        if (e.deltaY > 0 && isAtBottom) {
+            if (wheelCooldown) return;
+            wheelDeltaAccumulator += e.deltaY;
+            clearTimeout(wheelResetTimer);
+            wheelResetTimer = setTimeout(() => { wheelDeltaAccumulator = 0; }, 400);
+
+            if (wheelDeltaAccumulator >= 120) {
+                wheelCooldown = true;
+                wheelDeltaAccumulator = 0;
+                nextPage(false);
+                setTimeout(() => { wheelCooldown = false; }, 600);
+            }
+        } else if (e.deltaY < 0 && isAtTop) {
+            if (wheelCooldown) return;
+            wheelDeltaAccumulator += Math.abs(e.deltaY);
+            clearTimeout(wheelResetTimer);
+            wheelResetTimer = setTimeout(() => { wheelDeltaAccumulator = 0; }, 400);
+
+            if (wheelDeltaAccumulator >= 120) {
+                wheelCooldown = true;
+                wheelDeltaAccumulator = 0;
+                prevPage(true);
+                setTimeout(() => { wheelCooldown = false; }, 600);
+            }
+        } else {
+            wheelDeltaAccumulator = 0;
+        }
+    }, { passive: true });
+
+    // Touch Gestures: Horizontal Swipe & Continuous Vertical Pull
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
     let touchEndY = 0;
+    let touchStartAtTop = false;
+    let touchStartAtBottom = false;
 
     el.readerContainer.addEventListener("touchstart", (e) => {
         if (e.touches.length === 1) {
@@ -1025,6 +1139,10 @@ function setupEventListeners() {
             touchStartY = e.touches[0].clientY;
             touchEndX = touchStartX;
             touchEndY = touchStartY;
+
+            const c = el.readerContainer;
+            touchStartAtTop = c.scrollTop <= 8;
+            touchStartAtBottom = (c.scrollHeight - c.scrollTop - c.clientHeight) <= 15;
         }
     }, { passive: true });
 
@@ -1037,12 +1155,33 @@ function setupEventListeners() {
 
     el.readerContainer.addEventListener("touchend", () => {
         const diffX = touchEndX - touchStartX;
-        const diffY = Math.abs(touchEndY - touchStartY);
-        if (Math.abs(diffX) > 65 && diffY < 55) {
-            if (diffX < 0) {
-                nextPage();
-            } else {
-                prevPage();
+        const diffY = touchEndY - touchStartY;
+        const absX = Math.abs(diffX);
+        const absY = Math.abs(diffY);
+
+        // Horizontal Swipe (Left/Right)
+        if (state.scrollMode === "both" || state.scrollMode === "horizontal") {
+            if (absX > 65 && absY < 50) {
+                if (diffX < 0) {
+                    nextPage(false);
+                } else {
+                    prevPage(false);
+                }
+                return;
+            }
+        }
+
+        // Vertical Boundary Pull (Up/Down)
+        if (state.scrollMode === "both" || state.scrollMode === "vertical") {
+            // Pulled up while at bottom of page -> Next page
+            if (touchStartAtBottom && diffY < -70 && absX < 60) {
+                nextPage(false);
+                return;
+            }
+            // Pulled down while at top of page -> Prev page (and scroll to bottom of prev page)
+            if (touchStartAtTop && diffY > 70 && absX < 60) {
+                prevPage(true);
+                return;
             }
         }
     });
@@ -1280,6 +1419,55 @@ function setNotesVisibility(show) {
     }
 
     localStorage.setItem("tipitaka_show_notes", show ? "1" : "0");
+}
+
+function setScrollMode(mode) {
+    state.scrollMode = mode;
+    localStorage.setItem("tipitaka_scroll_mode", mode);
+    
+    // Update header dropdown button text & icon
+    const icons = {
+        both: "🔄",
+        vertical: "↕️",
+        horizontal: "↔️"
+    };
+    const labels = {
+        both: "တွဲဖက်",
+        vertical: "အပေါ်/အောက်",
+        horizontal: "ဘယ်/ညာ"
+    };
+    if (el.scrollModeIcon) el.scrollModeIcon.textContent = icons[mode] || "🔄";
+    if (el.scrollModeText) el.scrollModeText.textContent = labels[mode] || "တွဲဖက်";
+
+    // Update active class on dropdown options & mobile drawer options
+    document.querySelectorAll(".scroll-opt-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-scroll-mode") === mode);
+    });
+    document.querySelectorAll(".mobile-scroll-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-scroll-mode") === mode);
+    });
+}
+
+let scrollToastTimer = null;
+function showScrollToast(text) {
+    if (!el.scrollPageToast || !el.scrollPageToastText) return;
+    el.scrollPageToastText.textContent = text;
+    el.scrollPageToast.classList.add("show");
+    clearTimeout(scrollToastTimer);
+    scrollToastTimer = setTimeout(() => {
+        el.scrollPageToast.classList.remove("show");
+    }, 1800);
+}
+
+function updateScrollIndicator(curPage, lastPage) {
+    if (!el.pageScrollIndicator || !el.pageScrollIndicatorText) return;
+    if (curPage < lastPage) {
+        el.pageScrollIndicator.style.display = "flex";
+        el.pageScrollIndicatorText.textContent = `နောက်စာမျက်နှာ (${toMyanmarNum(curPage + 1)}) သို့ ဆက်ရန် အောက်သို့ လှိမ့်ပါ`;
+    } else {
+        el.pageScrollIndicator.style.display = "flex";
+        el.pageScrollIndicatorText.textContent = `ကျမ်းစာအုပ်၏ နောက်ဆုံးစာမျက်နှာသို့ ရောက်ရှိပါပြီ`;
+    }
 }
 
 function setupFontSize(size) {

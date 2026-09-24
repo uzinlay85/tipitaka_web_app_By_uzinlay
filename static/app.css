@@ -759,6 +759,80 @@ body.hide-notes .note {
     cursor: pointer;
 }
 
+/* Page Scroll Indicator & Floating Toast */
+.scroll-page-toast {
+    position: fixed;
+    top: calc(var(--header-height) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--accent);
+    color: white;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 0.88rem;
+    font-weight: bold;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scroll-page-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.page-scroll-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 14px;
+    margin-top: 28px;
+    margin-bottom: 8px;
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--transition-speed);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.page-scroll-indicator:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.page-scroll-indicator .indicator-icon {
+    font-size: 0.8rem;
+    color: var(--accent);
+    animation: bounceDown 1.6s infinite ease-in-out;
+}
+
+@keyframes bounceDown {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(3px); }
+}
+
+.scroll-opt-btn.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: bold;
+}
+
+.mobile-scroll-btn.active {
+    background: var(--accent);
+    color: white;
+    font-weight: bold;
+    border-color: var(--accent);
+}
+
 /* Footer Navigation */
 .reader-footer-nav {
     display: flex;
