@@ -285,6 +285,11 @@ async function loadPaliBook(bookId, targetPage = 1) {
     await loadPaliPage(bookId, targetPage);
 }
 
+function cleanPaliContent(html) {
+    if (!html) return "";
+    return html.replace(/,(?![^<]*>)/g, "");
+}
+
 async function loadPaliPage(bookId, pageNum, highlightWord = null) {
     state.paliBookId = bookId;
     state.paliPage = pageNum;
@@ -316,7 +321,7 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null) {
             el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
             el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
             
-            let html = data.content;
+            let html = cleanPaliContent(data.content);
             if (highlightWord) {
                 const regex = new RegExp(`(${highlightWord})`, "gi");
                 html = html.replace(regex, `<mark class="hit">$1</mark>`);
@@ -338,7 +343,7 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null) {
         if (state.readerMode === "split") {
             el.splitPaliTitle.textContent = data.book_name;
             el.splitPaliPage.textContent = toMyanmarNum(data.page);
-            el.splitPaliContent.innerHTML = data.content;
+            el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
             
             // Sync matching MM page
             if (data.matching_mm) {

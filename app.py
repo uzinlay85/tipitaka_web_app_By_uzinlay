@@ -291,6 +291,8 @@ def api_page(book_id, page_num):
     conn.close()
 
     content_html = page_row["content"] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
+    if content_html:
+        content_html = re.sub(r",(?![^<]*>)", "", content_html)
 
     return jsonify({
         "book_id": book_id,
