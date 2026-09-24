@@ -69,24 +69,20 @@
 
             <!-- Scroll / Page Navigation Mode (စာဖတ် လှန်လှောပုံစံ) -->
             <div class="dropdown-wrapper" id="scrollModeDropdownWrapper">
-                <button id="btnScrollMode" class="tool-btn" title="စာဖတ် လှန်လှောပုံစံ (Scroll / Flip Mode)">
-                    <span id="scrollModeIcon">🔄</span>
-                    <span class="btn-text" id="scrollModeText">Scroll: တွဲဖက်</span>
+                <button id="btnScrollMode" class="tool-btn" title="စာဖတ် လှန်လှောပုံစံ (Scroll Mode)">
+                    <span id="scrollModeIcon">📜</span>
+                    <span class="btn-text" id="scrollModeText">Facebook Scroll</span>
                 </button>
-                <div class="dropdown-menu" id="scrollModeDropdownMenu" style="width: 250px;">
+                <div class="dropdown-menu" id="scrollModeDropdownMenu" style="width: 270px;">
                     <div class="dropdown-header">စာမျက်နှာ လှန်လှောပုံစံ</div>
                     <div class="dropdown-list">
-                        <button class="dropdown-item scroll-opt-btn active" data-scroll-mode="both">
-                            <div><strong>🔄 အားလုံးတွဲဖက် (Both)</strong></div>
-                            <small style="color:var(--text-muted);">အပေါ်/အောက် Scroll ရော ဘယ်/ညာ Swipe ပါ ရွေးနိုင်သည်</small>
+                        <button class="dropdown-item scroll-opt-btn active" data-scroll-mode="feed">
+                            <div><strong>📜 Facebook Scroll (ဆက်တိုက်ဖတ်)</strong></div>
+                            <small style="color:var(--text-muted);">အောက်သို့ ဆက်တိုက် လှိမ့်ဖတ်နိုင်သည် (အကြံပြုထားသည်)</small>
                         </button>
-                        <button class="dropdown-item scroll-opt-btn" data-scroll-mode="vertical">
-                            <div><strong>↕️ အပေါ်/အောက် (Vertical Flow)</strong></div>
-                            <small style="color:var(--text-muted);">Mouse Wheel နှင့် Touch အပေါ်/အောက် ဆွဲလှိမ့်၍ ကူးပြောင်းမည်</small>
-                        </button>
-                        <button class="dropdown-item scroll-opt-btn" data-scroll-mode="horizontal">
-                            <div><strong>↔️ ဘယ်/ညာ (Horizontal Flip)</strong></div>
-                            <small style="color:var(--text-muted);">ဘယ်/ညာ Swipe သို့မဟုတ် ခလုတ်ဖြင့်သာ စာမျက်နှာလှန်မည်</small>
+                        <button class="dropdown-item scroll-opt-btn" data-scroll-mode="single">
+                            <div><strong>📖 တစ်မျက်နှာချင်း (Single Page)</strong></div>
+                            <small style="color:var(--text-muted);">ခလုတ် သို့မဟုတ် Swipe ဖြင့် တစ်မျက်နှာချင်း လှန်ဖတ်မည်</small>
                         </button>
                     </div>
                 </div>
@@ -186,10 +182,9 @@
                 </div>
                 <div class="mobile-scroll-mode-box" style="margin-top: 8px;">
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">စာမျက်နှာ လှန်လှောပုံစံ:</div>
-                    <div class="mobile-scroll-switcher" style="display: flex; gap: 4px;">
-                        <button class="edition-btn mobile-scroll-btn active" data-scroll-mode="both" style="flex:1; font-size:0.78rem; padding: 6px 2px;">🔄 တွဲဖက်</button>
-                        <button class="edition-btn mobile-scroll-btn" data-scroll-mode="vertical" style="flex:1; font-size:0.78rem; padding: 6px 2px;">↕️ အပေါ်/အောက်</button>
-                        <button class="edition-btn mobile-scroll-btn" data-scroll-mode="horizontal" style="flex:1; font-size:0.78rem; padding: 6px 2px;">↔️ ဘယ်/ညာ</button>
+                    <div class="mobile-scroll-switcher" style="display: flex; gap: 6px;">
+                        <button class="edition-btn mobile-scroll-btn active" data-scroll-mode="feed" style="flex:1; font-size:0.8rem; padding: 7px 4px;">📜 Facebook ပုံစံ</button>
+                        <button class="edition-btn mobile-scroll-btn" data-scroll-mode="single" style="flex:1; font-size:0.8rem; padding: 7px 4px;">📖 တစ်မျက်နှာချင်း</button>
                     </div>
                 </div>
             </div>
@@ -276,13 +271,32 @@
                     <span class="meta-edition-tag" id="metaEditionTag">ပါဠိတော်</span>
                 </div>
 
+                <!-- Load Previous Page Box (When in feed mode and not on first page) -->
+                <div class="load-prev-box" id="loadPrevBox" style="display: none;">
+                    <button class="load-prev-btn" id="btnLoadPrevPage">
+                        <span class="btn-arrow">▲</span>
+                        <span id="loadPrevText">ယခင်စာမျက်နှာ ဆွဲယူရန်</span>
+                    </button>
+                </div>
+
                 <!-- Page Content Area -->
                 <article class="pali-content" id="paliContent">
                     <div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>
                 </article>
 
-                <!-- Bottom Page Scroll Indicator -->
-                <div class="page-scroll-indicator" id="pageScrollIndicator">
+                <!-- Infinite Scroll Sentinel & Preloader (Facebook Scroll) -->
+                <div class="infinite-sentinel" id="infiniteSentinel">
+                    <div class="sentinel-loading" id="sentinelLoading" style="display: none;">
+                        <span class="sentinel-spinner"></span>
+                        <span class="sentinel-text">နောက်စာမျက်နှာ ဆွဲယူနေပါသည်...</span>
+                    </div>
+                    <div class="sentinel-end" id="sentinelEnd" style="display: none;">
+                        <span>✨ ဤကျမ်းစာအုပ်၏ နောက်ဆုံးစာမျက်နှာသို့ ရောက်ရှိပါပြီ ✨</span>
+                    </div>
+                </div>
+
+                <!-- Bottom Page Scroll Indicator (For Single Page Mode) -->
+                <div class="page-scroll-indicator" id="pageScrollIndicator" style="display: none;">
                     <span class="indicator-icon">▼</span>
                     <span class="indicator-text" id="pageScrollIndicatorText">အောက်သို့ ဆက်လှိမ့်ပါက နောက်စာမျက်နှာသို့ ကူးပါမည်</span>
                     <span class="indicator-icon">▼</span>

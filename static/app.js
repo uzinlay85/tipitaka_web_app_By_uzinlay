@@ -40,7 +40,11 @@ const state = {
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
     isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0"),
     showNotes: localStorage.getItem("tipitaka_show_notes") === "1",
-    scrollMode: localStorage.getItem("tipitaka_scroll_mode") || "both"
+    scrollMode: localStorage.getItem("tipitaka_scroll_mode") || "feed",
+    feedLoadedPages: new Set(),
+    feedFirstLoadedPage: 1,
+    feedLastLoadedPage: 1,
+    isLoadingMore: false
 };
 
 // DOM Elements
@@ -70,6 +74,12 @@ const el = {
     pageScrollIndicatorText: document.getElementById("pageScrollIndicatorText"),
     scrollPageToast: document.getElementById("scrollPageToast"),
     scrollPageToastText: document.getElementById("scrollPageToastText"),
+    loadPrevBox: document.getElementById("loadPrevBox"),
+    btnLoadPrevPage: document.getElementById("btnLoadPrevPage"),
+    loadPrevText: document.getElementById("loadPrevText"),
+    infiniteSentinel: document.getElementById("infiniteSentinel"),
+    sentinelLoading: document.getElementById("sentinelLoading"),
+    sentinelEnd: document.getElementById("sentinelEnd"),
     metaEditionTag: document.getElementById("metaEditionTag"),
     paliBasketFilter: document.getElementById("paliBasketFilter"),
 
@@ -300,13 +310,14 @@ function cleanPaliContent(html) {
     return html.replace(/,(?![^<]*>)/g, "");
 }
 
-async function loadPaliPage(bookId, pageNum, highlightWord = null, scrollToBottom = false) {
+async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = false, isPrepend = false) {
     state.paliBookId = bookId;
-    state.paliPage = pageNum;
     
-    if (state.readerMode !== "split") {
+    if (!isAppend && !isPrepend && state.readerMode !== "split") {
         el.paliContent.innerHTML = `<div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
         el.pageNumberInput.value = pageNum;
+        if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
+        if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
     }
     
     try {
@@ -318,43 +329,165 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, scrollToBotto
         state.matchingMM = data.matching_mm;
         
         if (state.readerMode === "pali") {
-            el.bookTitleDisplay.textContent = data.book_name;
-            el.chapterTitleDisplay.textContent = data.chapter_name || "";
-            el.totalPageDisplay.textContent = data.last_page;
-            el.metaBookName.textContent = data.book_name;
-            el.metaPageNum.textContent = toMyanmarNum(data.page);
-            el.footerCurrentPage.textContent = toMyanmarNum(data.page);
-            el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-            
-            el.btnPrevPage.disabled = !data.has_prev;
-            el.btnNextPage.disabled = !data.has_next;
-            el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
-            el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
-            
             let html = cleanPaliContent(data.content);
             if (highlightWord) {
                 const regex = new RegExp(`(${highlightWord})`, "gi");
                 html = html.replace(regex, `<mark class="hit">$1</mark>`);
             }
-            el.paliContent.innerHTML = html;
-            
-            if (scrollToBottom) {
-                requestAnimationFrame(() => {
-                    el.readerContainer.scrollTop = el.readerContainer.scrollHeight;
-                });
+
+            if (state.scrollMode === "feed") {
+                if (!isAppend && !isPrepend) {
+                    state.paliPage = pageNum;
+                    state.feedLoadedPages.clear();
+                    state.feedLoadedPages.add(pageNum);
+                    state.feedFirstLoadedPage = pageNum;
+                    state.feedLastLoadedPage = pageNum;
+
+                    el.bookTitleDisplay.textContent = data.book_name;
+                    el.chapterTitleDisplay.textContent = data.chapter_name || "";
+                    el.totalPageDisplay.textContent = data.last_page;
+                    el.metaBookName.textContent = data.book_name;
+                    el.metaPageNum.textContent = toMyanmarNum(data.page);
+                    el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                    el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
+                    el.pageNumberInput.value = pageNum;
+
+                    el.btnPrevPage.disabled = !data.has_prev;
+                    el.btnNextPage.disabled = !data.has_next;
+                    el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
+                    el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
+
+                    el.paliContent.innerHTML = `
+                        <section class="feed-page-item" id="pali-page-${pageNum}" data-page="${pageNum}">
+                            ${html}
+                        </section>
+                    `;
+                    el.readerContainer.scrollTop = 0;
+
+                    if (el.loadPrevBox && el.loadPrevText) {
+                        if (pageNum > data.first_page) {
+                            el.loadPrevBox.style.display = "flex";
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                        } else {
+                            el.loadPrevBox.style.display = "none";
+                        }
+                    }
+
+                    if (el.infiniteSentinel) el.infiniteSentinel.style.display = "flex";
+                    if (el.sentinelEnd) el.sentinelEnd.style.display = (pageNum >= data.last_page) ? "block" : "none";
+                    if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
+                    if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
+
+                    setupSentinelObserver();
+                    setupPageVisibilityObserver();
+                    debounceRecent(bookId, pageNum);
+                    updateBookmarkIconStatus();
+                    highlightActiveToc(pageNum);
+                } else if (isAppend) {
+                    if (!state.feedLoadedPages.has(pageNum)) {
+                        state.feedLoadedPages.add(pageNum);
+                        state.feedLastLoadedPage = Math.max(state.feedLastLoadedPage, pageNum);
+
+                        const div = document.createElement("div");
+                        div.className = "page-divider";
+                        div.setAttribute("data-page", pageNum);
+                        div.innerHTML = `
+                            <div class="divider-line"></div>
+                            <div class="divider-badge">
+                                <span class="badge-icon">📖</span>
+                                <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum)}</span>
+                            </div>
+                            <div class="divider-line"></div>
+                        `;
+
+                        const sec = document.createElement("section");
+                        sec.className = "feed-page-item";
+                        sec.id = `pali-page-${pageNum}`;
+                        sec.setAttribute("data-page", pageNum);
+                        sec.innerHTML = html;
+
+                        el.paliContent.appendChild(div);
+                        el.paliContent.appendChild(sec);
+
+                        if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+
+                        if (pageNum >= data.last_page) {
+                            if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
+                            if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
+                        }
+                    }
+                } else if (isPrepend) {
+                    if (!state.feedLoadedPages.has(pageNum)) {
+                        state.feedLoadedPages.add(pageNum);
+                        state.feedFirstLoadedPage = Math.min(state.feedFirstLoadedPage, pageNum);
+
+                        const div = document.createElement("div");
+                        div.className = "page-divider";
+                        div.setAttribute("data-page", pageNum + 1);
+                        div.innerHTML = `
+                            <div class="divider-line"></div>
+                            <div class="divider-badge">
+                                <span class="badge-icon">📖</span>
+                                <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum + 1)}</span>
+                            </div>
+                            <div class="divider-line"></div>
+                        `;
+
+                        const sec = document.createElement("section");
+                        sec.className = "feed-page-item";
+                        sec.id = `pali-page-${pageNum}`;
+                        sec.setAttribute("data-page", pageNum);
+                        sec.innerHTML = html;
+
+                        const oldScrollHeight = el.readerContainer.scrollHeight;
+                        const oldScrollTop = el.readerContainer.scrollTop;
+
+                        el.paliContent.insertBefore(div, el.paliContent.firstChild);
+                        el.paliContent.insertBefore(sec, div);
+
+                        const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
+                        el.readerContainer.scrollTop = oldScrollTop + heightAdded;
+
+                        if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+
+                        if (el.loadPrevBox && el.loadPrevText) {
+                            if (pageNum > data.first_page) {
+                                el.loadPrevBox.style.display = "flex";
+                                el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            } else {
+                                el.loadPrevBox.style.display = "none";
+                            }
+                        }
+                    }
+                }
             } else {
+                // Single page mode
+                state.paliPage = pageNum;
+                el.bookTitleDisplay.textContent = data.book_name;
+                el.chapterTitleDisplay.textContent = data.chapter_name || "";
+                el.totalPageDisplay.textContent = data.last_page;
+                el.metaBookName.textContent = data.book_name;
+                el.metaPageNum.textContent = toMyanmarNum(data.page);
+                el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
+                el.pageNumberInput.value = pageNum;
+                
+                el.btnPrevPage.disabled = !data.has_prev;
+                el.btnNextPage.disabled = !data.has_next;
+                el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
+                el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
+                
+                el.paliContent.innerHTML = html;
                 el.readerContainer.scrollTop = 0;
+                
+                if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
+                if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
+                updateScrollIndicator(data.page, data.last_page);
+                
+                debounceRecent(bookId, pageNum);
+                updateBookmarkIconStatus();
+                highlightActiveToc(pageNum);
             }
-            updateScrollIndicator(data.page, data.last_page);
-            
-            fetch("/api/recent", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ book_id: bookId, page_number: pageNum })
-            }).catch(() => {});
-            
-            updateBookmarkIconStatus();
-            highlightActiveToc(pageNum);
         }
 
         // Update split view if open
@@ -400,13 +533,14 @@ async function loadMMBook(bookId, targetPage = 1) {
     await loadMMPage(bookId, targetPage);
 }
 
-async function loadMMPage(bookId, pageNum, isSplitRightPane = false, scrollToBottom = false) {
+async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = false, isPrepend = false) {
     state.mmBookId = bookId;
-    state.mmPage = pageNum;
 
-    if (!isSplitRightPane && state.readerMode === "mm") {
+    if (!isSplitRightPane && !isAppend && !isPrepend && state.readerMode === "mm") {
         el.paliContent.innerHTML = `<div class="loading-state">မြန်မာပြန် စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
         el.pageNumberInput.value = pageNum;
+        if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
+        if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
     }
 
     try {
@@ -418,31 +552,155 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, scrollToBot
         state.matchingPali = data.matching_pali;
 
         if (state.readerMode === "mm" && !isSplitRightPane) {
-            el.bookTitleDisplay.textContent = data.book_name;
-            el.chapterTitleDisplay.textContent = data.chapter_name || "";
-            el.totalPageDisplay.textContent = data.last_page;
-            el.metaBookName.textContent = data.book_name;
-            el.metaPageNum.textContent = toMyanmarNum(data.page);
-            el.footerCurrentPage.textContent = toMyanmarNum(data.page);
-            el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
+            if (state.scrollMode === "feed") {
+                if (!isAppend && !isPrepend) {
+                    state.mmPage = pageNum;
+                    state.feedLoadedPages.clear();
+                    state.feedLoadedPages.add(pageNum);
+                    state.feedFirstLoadedPage = pageNum;
+                    state.feedLastLoadedPage = pageNum;
 
-            el.btnPrevPage.disabled = !data.has_prev;
-            el.btnNextPage.disabled = !data.has_next;
-            el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
-            el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
+                    el.bookTitleDisplay.textContent = data.book_name;
+                    el.chapterTitleDisplay.textContent = data.chapter_name || "";
+                    el.totalPageDisplay.textContent = data.last_page;
+                    el.metaBookName.textContent = data.book_name;
+                    el.metaPageNum.textContent = toMyanmarNum(data.page);
+                    el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                    el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
+                    el.pageNumberInput.value = pageNum;
 
-            el.paliContent.innerHTML = data.content;
-            
-            if (scrollToBottom) {
-                requestAnimationFrame(() => {
-                    el.readerContainer.scrollTop = el.readerContainer.scrollHeight;
-                });
+                    el.btnPrevPage.disabled = !data.has_prev;
+                    el.btnNextPage.disabled = !data.has_next;
+                    el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
+                    el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
+
+                    el.paliContent.innerHTML = `
+                        <section class="feed-page-item" id="mm-page-${pageNum}" data-page="${pageNum}">
+                            ${data.content}
+                        </section>
+                    `;
+                    el.readerContainer.scrollTop = 0;
+
+                    if (el.loadPrevBox && el.loadPrevText) {
+                        if (pageNum > data.first_page) {
+                            el.loadPrevBox.style.display = "flex";
+                            el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                        } else {
+                            el.loadPrevBox.style.display = "none";
+                        }
+                    }
+
+                    if (el.infiniteSentinel) el.infiniteSentinel.style.display = "flex";
+                    if (el.sentinelEnd) el.sentinelEnd.style.display = (pageNum >= data.last_page) ? "block" : "none";
+                    if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
+                    if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
+
+                    setupSentinelObserver();
+                    setupPageVisibilityObserver();
+                    highlightActiveToc(pageNum);
+                } else if (isAppend) {
+                    if (!state.feedLoadedPages.has(pageNum)) {
+                        state.feedLoadedPages.add(pageNum);
+                        state.feedLastLoadedPage = Math.max(state.feedLastLoadedPage, pageNum);
+
+                        const div = document.createElement("div");
+                        div.className = "page-divider";
+                        div.setAttribute("data-page", pageNum);
+                        div.innerHTML = `
+                            <div class="divider-line"></div>
+                            <div class="divider-badge">
+                                <span class="badge-icon">📖</span>
+                                <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum)}</span>
+                            </div>
+                            <div class="divider-line"></div>
+                        `;
+
+                        const sec = document.createElement("section");
+                        sec.className = "feed-page-item";
+                        sec.id = `mm-page-${pageNum}`;
+                        sec.setAttribute("data-page", pageNum);
+                        sec.innerHTML = data.content;
+
+                        el.paliContent.appendChild(div);
+                        el.paliContent.appendChild(sec);
+
+                        if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+
+                        if (pageNum >= data.last_page) {
+                            if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
+                            if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
+                        }
+                    }
+                } else if (isPrepend) {
+                    if (!state.feedLoadedPages.has(pageNum)) {
+                        state.feedLoadedPages.add(pageNum);
+                        state.feedFirstLoadedPage = Math.min(state.feedFirstLoadedPage, pageNum);
+
+                        const div = document.createElement("div");
+                        div.className = "page-divider";
+                        div.setAttribute("data-page", pageNum + 1);
+                        div.innerHTML = `
+                            <div class="divider-line"></div>
+                            <div class="divider-badge">
+                                <span class="badge-icon">📖</span>
+                                <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(pageNum + 1)}</span>
+                            </div>
+                            <div class="divider-line"></div>
+                        `;
+
+                        const sec = document.createElement("section");
+                        sec.className = "feed-page-item";
+                        sec.id = `mm-page-${pageNum}`;
+                        sec.setAttribute("data-page", pageNum);
+                        sec.innerHTML = data.content;
+
+                        const oldScrollHeight = el.readerContainer.scrollHeight;
+                        const oldScrollTop = el.readerContainer.scrollTop;
+
+                        el.paliContent.insertBefore(div, el.paliContent.firstChild);
+                        el.paliContent.insertBefore(sec, div);
+
+                        const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
+                        el.readerContainer.scrollTop = oldScrollTop + heightAdded;
+
+                        if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+
+                        if (el.loadPrevBox && el.loadPrevText) {
+                            if (pageNum > data.first_page) {
+                                el.loadPrevBox.style.display = "flex";
+                                el.loadPrevText.textContent = `ယခင်စာမျက်နှာ (${toMyanmarNum(pageNum - 1)}) ကို ဆွဲယူရန်`;
+                            } else {
+                                el.loadPrevBox.style.display = "none";
+                            }
+                        }
+                    }
+                }
             } else {
-                el.readerContainer.scrollTop = 0;
-            }
-            updateScrollIndicator(data.page, data.last_page);
+                // Single page mode
+                state.mmPage = pageNum;
+                el.bookTitleDisplay.textContent = data.book_name;
+                el.chapterTitleDisplay.textContent = data.chapter_name || "";
+                el.totalPageDisplay.textContent = data.last_page;
+                el.metaBookName.textContent = data.book_name;
+                el.metaPageNum.textContent = toMyanmarNum(data.page);
+                el.footerCurrentPage.textContent = toMyanmarNum(data.page);
+                el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
+                el.pageNumberInput.value = pageNum;
 
-            highlightActiveToc(pageNum);
+                el.btnPrevPage.disabled = !data.has_prev;
+                el.btnNextPage.disabled = !data.has_next;
+                el.btnFooterPrev.style.visibility = data.has_prev ? "visible" : "hidden";
+                el.btnFooterNext.style.visibility = data.has_next ? "visible" : "hidden";
+
+                el.paliContent.innerHTML = data.content;
+                el.readerContainer.scrollTop = 0;
+                
+                if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
+                if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
+                updateScrollIndicator(data.page, data.last_page);
+
+                highlightActiveToc(pageNum);
+            }
         }
 
         if (isSplitRightPane || state.readerMode === "split") {
@@ -1021,28 +1279,70 @@ function setupEventListeners() {
     
     // Page Navigation
     function prevPage(scrollToBottom = false) {
-        if (state.readerMode === "mm") {
-            if (state.mmPage > state.mmFirstPage) {
-                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage - 1)} သို့ ပြောင်းနေပါသည်...`);
-                loadMMPage(state.mmBookId, state.mmPage - 1, false, scrollToBottom);
+        if (state.scrollMode === "feed") {
+            const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            const first = (state.readerMode === "mm") ? state.mmFirstPage : state.paliFirstPage;
+            const target = cur - 1;
+            if (target >= first) {
+                const prevEl = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
+                if (prevEl) {
+                    prevEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                    handleLoadPrevPage().then(() => {
+                        const elTarget = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
+                        if (elTarget) elTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+                    });
+                }
             }
         } else {
-            if (state.paliPage > state.paliFirstPage) {
-                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage - 1)} သို့ ပြောင်းနေပါသည်...`);
-                loadPaliPage(state.paliBookId, state.paliPage - 1, null, scrollToBottom);
+            if (state.readerMode === "mm") {
+                if (state.mmPage > state.mmFirstPage) {
+                    showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage - 1)} သို့ ပြောင်းနေပါသည်...`);
+                    loadMMPage(state.mmBookId, state.mmPage - 1, false, scrollToBottom);
+                }
+            } else {
+                if (state.paliPage > state.paliFirstPage) {
+                    showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage - 1)} သို့ ပြောင်းနေပါသည်...`);
+                    loadPaliPage(state.paliBookId, state.paliPage - 1, null, scrollToBottom);
+                }
             }
         }
     }
+
     function nextPage(scrollToBottom = false) {
-        if (state.readerMode === "mm") {
-            if (state.mmPage < state.mmLastPage) {
-                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage + 1)} သို့ ပြောင်းနေပါသည်...`);
-                loadMMPage(state.mmBookId, state.mmPage + 1, false, scrollToBottom);
+        if (state.scrollMode === "feed") {
+            const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            const last = (state.readerMode === "mm") ? state.mmLastPage : state.paliLastPage;
+            const target = cur + 1;
+            if (target <= last) {
+                const nextEl = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
+                if (nextEl) {
+                    nextEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                    if (state.readerMode === "mm") {
+                        loadMMPage(state.mmBookId, target, false, true).then(() => {
+                            const elTarget = document.getElementById(`mm-page-${target}`);
+                            if (elTarget) elTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+                        });
+                    } else {
+                        loadPaliPage(state.paliBookId, target, null, true).then(() => {
+                            const elTarget = document.getElementById(`pali-page-${target}`);
+                            if (elTarget) elTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+                        });
+                    }
+                }
             }
         } else {
-            if (state.paliPage < state.paliLastPage) {
-                showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage + 1)} သို့ ပြောင်းနေပါသည်...`);
-                loadPaliPage(state.paliBookId, state.paliPage + 1, null, scrollToBottom);
+            if (state.readerMode === "mm") {
+                if (state.mmPage < state.mmLastPage) {
+                    showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.mmPage + 1)} သို့ ပြောင်းနေပါသည်...`);
+                    loadMMPage(state.mmBookId, state.mmPage + 1, false, scrollToBottom);
+                }
+            } else {
+                if (state.paliPage < state.paliLastPage) {
+                    showScrollToast(`စာမျက်နှာ ${toMyanmarNum(state.paliPage + 1)} သို့ ပြောင်းနေပါသည်...`);
+                    loadPaliPage(state.paliBookId, state.paliPage + 1, null, scrollToBottom);
+                }
             }
         }
     }
@@ -1051,6 +1351,10 @@ function setupEventListeners() {
     el.btnNextPage.addEventListener("click", () => nextPage(false));
     el.btnFooterPrev.addEventListener("click", () => prevPage(false));
     el.btnFooterNext.addEventListener("click", () => nextPage(false));
+
+    if (el.btnLoadPrevPage) {
+        el.btnLoadPrevPage.addEventListener("click", handleLoadPrevPage);
+    }
 
     if (el.pageScrollIndicator) {
         el.pageScrollIndicator.addEventListener("click", () => nextPage(false));
@@ -1083,14 +1387,14 @@ function setupEventListeners() {
         });
     });
 
-    // Mouse Wheel Continuous Page Scroll (for PC)
+    // Mouse Wheel Continuous Page Scroll (Only active in Single mode; Feed mode uses native scroll)
     let wheelDeltaAccumulator = 0;
     let wheelCooldown = false;
     let wheelResetTimer = null;
 
     el.readerContainer.addEventListener("wheel", (e) => {
         if (state.readerMode === "split") return;
-        if (state.scrollMode === "horizontal") return;
+        if (state.scrollMode !== "single") return; // Feed mode uses pure native 120Hz/60Hz smooth scroll
 
         const container = el.readerContainer;
         const isAtBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) <= 8;
@@ -1125,7 +1429,7 @@ function setupEventListeners() {
         }
     }, { passive: true });
 
-    // Touch Gestures: Horizontal Swipe & Continuous Vertical Pull
+    // Touch Gestures: Horizontal Swipe & Vertical Boundary Pull
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
@@ -1159,26 +1463,19 @@ function setupEventListeners() {
         const absX = Math.abs(diffX);
         const absY = Math.abs(diffY);
 
-        // Horizontal Swipe (Left/Right)
-        if (state.scrollMode === "both" || state.scrollMode === "horizontal") {
+        if (state.scrollMode === "single") {
+            // Horizontal Swipe (Left/Right)
             if (absX > 65 && absY < 50) {
-                if (diffX < 0) {
-                    nextPage(false);
-                } else {
-                    prevPage(false);
-                }
+                if (diffX < 0) nextPage(false);
+                else prevPage(false);
                 return;
             }
-        }
 
-        // Vertical Boundary Pull (Up/Down)
-        if (state.scrollMode === "both" || state.scrollMode === "vertical") {
-            // Pulled up while at bottom of page -> Next page
+            // Vertical Boundary Pull (Up/Down)
             if (touchStartAtBottom && diffY < -70 && absX < 60) {
                 nextPage(false);
                 return;
             }
-            // Pulled down while at top of page -> Prev page (and scroll to bottom of prev page)
             if (touchStartAtTop && diffY > 70 && absX < 60) {
                 prevPage(true);
                 return;
@@ -1427,17 +1724,15 @@ function setScrollMode(mode) {
     
     // Update header dropdown button text & icon
     const icons = {
-        both: "🔄",
-        vertical: "↕️",
-        horizontal: "↔️"
+        feed: "📜",
+        single: "📖"
     };
     const labels = {
-        both: "တွဲဖက်",
-        vertical: "အပေါ်/အောက်",
-        horizontal: "ဘယ်/ညာ"
+        feed: "Facebook Scroll",
+        single: "တစ်မျက်နှာချင်း"
     };
-    if (el.scrollModeIcon) el.scrollModeIcon.textContent = icons[mode] || "🔄";
-    if (el.scrollModeText) el.scrollModeText.textContent = labels[mode] || "တွဲဖက်";
+    if (el.scrollModeIcon) el.scrollModeIcon.textContent = icons[mode] || "📜";
+    if (el.scrollModeText) el.scrollModeText.textContent = labels[mode] || "Facebook Scroll";
 
     // Update active class on dropdown options & mobile drawer options
     document.querySelectorAll(".scroll-opt-btn").forEach(btn => {
@@ -1446,6 +1741,192 @@ function setScrollMode(mode) {
     document.querySelectorAll(".mobile-scroll-btn").forEach(btn => {
         btn.classList.toggle("active", btn.getAttribute("data-scroll-mode") === mode);
     });
+
+    if (mode === "feed") {
+        if (el.infiniteSentinel) el.infiniteSentinel.style.display = "flex";
+        if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
+        setupSentinelObserver();
+    } else {
+        if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
+        if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
+        if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "flex";
+        if (infiniteSentinelObserver) {
+            infiniteSentinelObserver.disconnect();
+            infiniteSentinelObserver = null;
+        }
+        const curPage = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+        if (state.readerMode === "mm") loadMMPage(state.mmBookId, curPage);
+        else if (state.readerMode === "pali") loadPaliPage(state.paliBookId, curPage);
+    }
+}
+
+let infiniteSentinelObserver = null;
+function setupSentinelObserver() {
+    if (infiniteSentinelObserver) {
+        infiniteSentinelObserver.disconnect();
+        infiniteSentinelObserver = null;
+    }
+    if (state.scrollMode !== "feed") return;
+
+    const sentinel = document.getElementById("infiniteSentinel");
+    if (!sentinel) return;
+
+    infiniteSentinelObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                loadNextFeedPage();
+            }
+        });
+    }, {
+        root: el.readerContainer,
+        rootMargin: "800px" // Preload next page 800px before bottom
+    });
+
+    infiniteSentinelObserver.observe(sentinel);
+}
+
+async function loadNextFeedPage() {
+    if (state.isLoadingMore) return;
+    if (state.scrollMode !== "feed") return;
+
+    if (state.readerMode === "pali") {
+        const nextPage = state.feedLastLoadedPage + 1;
+        if (nextPage > state.paliLastPage) {
+            showSentinelEnd();
+            return;
+        }
+        state.isLoadingMore = true;
+        showSentinelLoading(true);
+        try {
+            await loadPaliPage(state.paliBookId, nextPage, null, true);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            state.isLoadingMore = false;
+            showSentinelLoading(false);
+        }
+    } else if (state.readerMode === "mm") {
+        const nextPage = state.feedLastLoadedPage + 1;
+        if (nextPage > state.mmLastPage) {
+            showSentinelEnd();
+            return;
+        }
+        state.isLoadingMore = true;
+        showSentinelLoading(true);
+        try {
+            await loadMMPage(state.mmBookId, nextPage, false, true);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            state.isLoadingMore = false;
+            showSentinelLoading(false);
+        }
+    }
+}
+
+async function handleLoadPrevPage() {
+    if (state.isLoadingMore) return;
+    state.isLoadingMore = true;
+    if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = true;
+
+    try {
+        if (state.readerMode === "pali") {
+            const prevPageNum = state.feedFirstLoadedPage - 1;
+            if (prevPageNum >= state.paliFirstPage) {
+                await loadPaliPage(state.paliBookId, prevPageNum, null, false, true);
+            }
+        } else if (state.readerMode === "mm") {
+            const prevPageNum = state.feedFirstLoadedPage - 1;
+            if (prevPageNum >= state.mmFirstPage) {
+                await loadMMPage(state.mmBookId, prevPageNum, false, false, true);
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        state.isLoadingMore = false;
+        if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = false;
+    }
+}
+
+let pageVisibilityObserver = null;
+function setupPageVisibilityObserver() {
+    if (pageVisibilityObserver) {
+        pageVisibilityObserver.disconnect();
+        pageVisibilityObserver = null;
+    }
+
+    pageVisibilityObserver = new IntersectionObserver((entries) => {
+        let bestEntry = null;
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
+                    bestEntry = entry;
+                }
+            }
+        });
+
+        if (bestEntry) {
+            const p = parseInt(bestEntry.target.getAttribute("data-page"), 10);
+            if (!isNaN(p)) {
+                updateCurrentViewPage(p);
+            }
+        }
+    }, {
+        root: el.readerContainer,
+        rootMargin: "-5% 0px -40% 0px",
+        threshold: [0.1, 0.3, 0.6]
+    });
+
+    document.querySelectorAll(".feed-page-item").forEach(sec => {
+        pageVisibilityObserver.observe(sec);
+    });
+}
+
+function updateCurrentViewPage(pageNum) {
+    if (state.readerMode === "pali") {
+        if (state.paliPage === pageNum) return;
+        state.paliPage = pageNum;
+        el.metaPageNum.textContent = toMyanmarNum(pageNum);
+        el.pageNumberInput.value = pageNum;
+        el.footerCurrentPage.textContent = toMyanmarNum(pageNum);
+        el.btnPrevPage.disabled = (pageNum <= state.paliFirstPage);
+        el.btnNextPage.disabled = (pageNum >= state.paliLastPage);
+        updateBookmarkIconStatus();
+        highlightActiveToc(pageNum);
+        debounceRecent(state.paliBookId, pageNum);
+    } else if (state.readerMode === "mm") {
+        if (state.mmPage === pageNum) return;
+        state.mmPage = pageNum;
+        el.metaPageNum.textContent = toMyanmarNum(pageNum);
+        el.pageNumberInput.value = pageNum;
+        el.footerCurrentPage.textContent = toMyanmarNum(pageNum);
+        el.btnPrevPage.disabled = (pageNum <= state.mmFirstPage);
+        el.btnNextPage.disabled = (pageNum >= state.mmLastPage);
+        highlightActiveToc(pageNum);
+    }
+}
+
+let recentDebounceTimer = null;
+function debounceRecent(bookId, pageNum) {
+    clearTimeout(recentDebounceTimer);
+    recentDebounceTimer = setTimeout(() => {
+        fetch("/api/recent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ book_id: bookId, page_number: pageNum })
+        }).catch(() => {});
+    }, 800);
+}
+
+function showSentinelLoading(show) {
+    if (!el.sentinelLoading) return;
+    el.sentinelLoading.style.display = show ? "inline-flex" : "none";
+}
+
+function showSentinelEnd() {
+    if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
+    if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
 }
 
 let scrollToastTimer = null;

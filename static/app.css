@@ -833,6 +833,115 @@ body.hide-notes .note {
     border-color: var(--accent);
 }
 
+/* Facebook Style Continuous Feed Scroll */
+.feed-page-item {
+    margin-bottom: 24px;
+    animation: fadeInFeed 0.3s ease-out;
+}
+
+@keyframes fadeInFeed {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.page-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 40px 0 28px 0;
+    gap: 16px;
+    user-select: none;
+    position: relative;
+}
+
+.page-divider .divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border-color), transparent);
+}
+
+.page-divider .divider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    border-radius: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* Load Previous Page Box */
+.load-prev-box {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.load-prev-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    box-shadow: var(--shadow-sm);
+}
+
+.load-prev-btn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Infinite Sentinel & Loader */
+.infinite-sentinel {
+    min-height: 20px;
+    padding: 16px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.sentinel-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    padding: 10px 16px;
+}
+
+.sentinel-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: sentinelSpin 0.75s infinite linear;
+}
+
+@keyframes sentinelSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.sentinel-end {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 12px 0;
+}
+
 /* Footer Navigation */
 .reader-footer-nav {
     display: flex;
