@@ -30,6 +30,32 @@ def get_mm_db():
     conn.execute("PRAGMA cache_size = -32000")
     return conn
 
+def heal_databases():
+    """Auto-correct any known legacy page numbering offsets/duplicates in databases."""
+    try:
+        conn = get_pali_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE pages SET page = 121 WHERE id = 4838 AND book_id = 'mula_sa_03' AND page = 122")
+        cur.execute("UPDATE pages SET page = 195 WHERE id = 16896 AND book_id = 'attha_vi_01_01' AND page = 194")
+        cur.execute("UPDATE pages SET page = 57 WHERE id = 32354 AND book_id = 'attha_ku_zat_06' AND page = 58")
+        cur.execute("UPDATE books SET lastpage = 80 WHERE id = 'annya_sadda_17' AND lastpage = 81")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Pali DB self-heal notice: {e}")
+
+    try:
+        conn = get_mm_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE book SET last_page = 1 WHERE id = '06_khuddaka_01' AND last_page = 12")
+        cur.execute("UPDATE book SET last_page = 348 WHERE id = '08_jataka_07' AND last_page = 352")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"MM DB self-heal notice: {e}")
+
+heal_databases()
+
 # Cache category names and structure
 CATEGORIES_ORDER = ['vi', 'di', 'ma', 'sa', 'an', 'ku', 'bi', 'annya_vi', 'annya_bi', 'annya_sadda']
 BASKET_LABELS = {
