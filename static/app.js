@@ -40,7 +40,12 @@ const state = {
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
     isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0"),
     showNotes: localStorage.getItem("tipitaka_show_notes") === "1",
-    scrollMode: localStorage.getItem("tipitaka_scroll_mode") || "feed",
+    scrollMode: (function() {
+        const m = localStorage.getItem("tipitaka_scroll_mode");
+        if (m === "single") return "single";
+        localStorage.setItem("tipitaka_scroll_mode", "feed");
+        return "feed";
+    })(),
     feedLoadedPages: new Set(),
     feedFirstLoadedPage: 1,
     feedLastLoadedPage: 1,
@@ -383,6 +388,13 @@ async function loadPaliPage(bookId, pageNum, highlightWord = null, isAppend = fa
                     debounceRecent(bookId, pageNum);
                     updateBookmarkIconStatus();
                     highlightActiveToc(pageNum);
+
+                    requestAnimationFrame(() => {
+                        const c = el.readerContainer;
+                        if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) && (state.feedLastLoadedPage < data.last_page)) {
+                            loadNextFeedPage();
+                        }
+                    });
                 } else if (isAppend) {
                     if (!state.feedLoadedPages.has(pageNum)) {
                         state.feedLoadedPages.add(pageNum);
@@ -598,6 +610,13 @@ async function loadMMPage(bookId, pageNum, isSplitRightPane = false, isAppend = 
                     setupSentinelObserver();
                     setupPageVisibilityObserver();
                     highlightActiveToc(pageNum);
+
+                    requestAnimationFrame(() => {
+                        const c = el.readerContainer;
+                        if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) && (state.feedLastLoadedPage < data.last_page)) {
+                            loadNextFeedPage();
+                        }
+                    });
                 } else if (isAppend) {
                     if (!state.feedLoadedPages.has(pageNum)) {
                         state.feedLoadedPages.add(pageNum);
@@ -1482,6 +1501,20 @@ function setupEventListeners() {
             }
         }
     });
+
+    // Infinite Feed Scroll listener (Desktop mouse wheel & Mobile finger scroll)
+    el.readerContainer.addEventListener("scroll", () => {
+        if (state.scrollMode !== "feed") return;
+
+        // Auto load next page when scrolled near bottom (within 900px)
+        const c = el.readerContainer;
+        if (c.scrollHeight - c.scrollTop - c.clientHeight <= 900) {
+            loadNextFeedPage();
+        }
+
+        // Auto track and update reading page number
+        checkVisiblePageOnScroll();
+    }, { passive: true });
     
     // Page Number Input Jump
     el.pageNumberInput.addEventListener("keydown", (e) => {
@@ -1778,11 +1811,37 @@ function setupSentinelObserver() {
             }
         });
     }, {
-        root: el.readerContainer,
-        rootMargin: "800px" // Preload next page 800px before bottom
+        root: null,
+        threshold: 0.05
     });
 
     infiniteSentinelObserver.observe(sentinel);
+}
+
+let scrollPageCheckTimer = null;
+function checkVisiblePageOnScroll() {
+    if (scrollPageCheckTimer) return;
+    scrollPageCheckTimer = setTimeout(() => {
+        scrollPageCheckTimer = null;
+        const pageItems = document.querySelectorAll(".feed-page-item");
+        if (!pageItems.length) return;
+
+        const containerRect = el.readerContainer.getBoundingClientRect();
+        const triggerLine = containerRect.top + 220;
+
+        let activePage = null;
+        pageItems.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            if (rect.top <= triggerLine && rect.bottom >= triggerLine) {
+                const p = parseInt(item.getAttribute("data-page"), 10);
+                if (!isNaN(p)) activePage = p;
+            }
+        });
+
+        if (activePage) {
+            updateCurrentViewPage(activePage);
+        }
+    }, 50);
 }
 
 async function loadNextFeedPage() {
@@ -1804,6 +1863,10 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
+            const c = el.readerContainer;
+            if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 600) && (state.feedLastLoadedPage < state.paliLastPage)) {
+                setTimeout(loadNextFeedPage, 100);
+            }
         }
     } else if (state.readerMode === "mm") {
         const nextPage = state.feedLastLoadedPage + 1;
@@ -1820,6 +1883,10 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
+            const c = el.readerContainer;
+            if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 600) && (state.feedLastLoadedPage < state.mmLastPage)) {
+                setTimeout(loadNextFeedPage, 100);
+            }
         }
     }
 }
