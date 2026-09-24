@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=2.5">
+    <link rel="stylesheet" href="/static/app.css?v=2.6">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -65,7 +65,8 @@
         <div class="header-right">
             <!-- Quick Cross-link Button (Pali <-> Myanmar) -->
             <button id="btnCrossLink" class="tool-btn cross-link-btn" title="ပါဠိတော်နှင့် မြန်မာပြန် အပြန်အလှန် ကူးပြောင်းရန်">
-                <span id="crossLinkLabel">🇲🇲 မြန်မာပြန်သို့</span>
+                <span class="btn-icon" id="crossLinkIcon">🇲🇲</span>
+                <span class="btn-text" id="crossLinkLabel">မြန်မာပြန်သို့</span>
             </button>
 
             <!-- Toggle Variant Readings (မူကွဲပါဠိတော် ဖွင့်/ပိတ်) -->
@@ -193,6 +194,12 @@
                         <button class="edition-btn mobile-scroll-btn active" data-scroll-mode="feed" style="flex:1; font-size:0.8rem; padding: 7px 4px;">📜 စာမျက်နှာဆက်တိုက်</button>
                         <button class="edition-btn mobile-scroll-btn" data-scroll-mode="single" style="flex:1; font-size:0.8rem; padding: 7px 4px;">📖 တစ်မျက်နှာချင်း</button>
                     </div>
+                </div>
+                <div class="mobile-help-row" style="margin-top: 8px;">
+                    <button id="btnOpenHelpMobile" class="edition-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
+                        <span>💡</span>
+                        <span>အသုံးပြုနည်း လမ်းညွှန် (User Guide)</span>
+                    </button>
                 </div>
             </div>
 
@@ -425,10 +432,6 @@
                 </div>
             </div>
         </aside>
-        
-        <!-- Dark Backdrop for Mobile Drawers -->
-        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-
     </div>
 
     <!-- Universal Search Modal -->
@@ -695,23 +698,25 @@
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
             </span>
-            <span class="nav-label">မကြာမီက</span>
+            <span class="nav-label">မှတ်တမ်း</span>
         </button>
-        <button class="bottom-nav-item" data-nav="dict" id="btnNavDict" title="ရှာဖွေရေး နှင့် အဘိဓာန်">
+        <button class="bottom-nav-item" data-nav="dict" id="btnNavDict" title="ပါဠိ-မြန်မာ အဘိဓာန် ရှာဖွေရန်">
             <span class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    <circle cx="13" cy="10" r="2.5"></circle>
+                    <line x1="14.8" y1="11.8" x2="17.5" y2="14.5"></line>
                 </svg>
             </span>
-            <span class="nav-label">ရှာဖွေ/အဘိဓာန်</span>
+            <span class="nav-label">အဘိဓာန်</span>
         </button>
-        <button class="bottom-nav-item" data-nav="more" id="btnNavMore" title="ဆက်တင်နှင့် အခြားအရာများ">
+        <button class="bottom-nav-item" data-nav="more" id="btnNavMore" title="ဆက်တင်နှင့် မာတိကာ (Menu / Settings)">
             <span class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="19" cy="12" r="1"></circle>
-                    <circle cx="5" cy="12" r="1"></circle>
+                    <circle cx="6" cy="12" r="1.8" fill="currentColor"></circle>
+                    <circle cx="12" cy="12" r="1.8" fill="currentColor"></circle>
+                    <circle cx="18" cy="12" r="1.8" fill="currentColor"></circle>
                 </svg>
             </span>
             <span class="nav-label">အခြား</span>
@@ -719,6 +724,6 @@
     </nav>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=2.5"></script>
+    <script src="/static/app.js?v=2.6"></script>
 </body>
 </html>

@@ -1904,14 +1904,20 @@ body.hide-notes .note {
 
     /* Cross-link button: compact badge */
     .cross-link-btn {
-        padding: 4px 6px !important;
-        font-size: 0.8rem !important;
+        padding: 4px 8px !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Hide redundant tools from mobile header (Dict is in bottom nav, Help is in drawer) */
+    #btnOpenHelp,
+    #btnToggleDict {
+        display: none !important;
     }
 
     /* Page Navigation Controls on Mobile */
     .page-nav-controls {
         padding: 1px 2px;
-        gap: 1px;
+        gap: 2px;
     }
     .nav-btn {
         padding: 4px 6px;
@@ -1921,9 +1927,10 @@ body.hide-notes .note {
         display: none !important; /* Icon only (< and >) on mobile */
     }
     .page-indicator input {
-        width: 36px;
-        padding: 2px 2px;
+        width: 44px;
+        padding: 2px 0;
         font-size: 0.85rem;
+        text-align: center;
     }
     .page-total {
         font-size: 0.78rem;
@@ -1944,10 +1951,20 @@ body.hide-notes .note {
     #crossLinkLabel {
         font-size: 0.78rem;
     }
+
+    /* Dropdown Menus on Mobile (Ensure they never clip off-screen) */
+    .dropdown-menu {
+        position: fixed !important;
+        top: calc(var(--header-height) + 4px) !important;
+        right: 8px !important;
+        left: auto !important;
+        max-width: calc(100vw - 16px) !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+    }
     
     /* Reader Canvas on Mobile */
     .reader-container {
-        padding: 10px 8px 36px 8px !important;
+        padding: 10px 8px 84px 8px !important;
     }
     .reader-paper {
         padding: 18px 14px !important;
@@ -2028,12 +2045,20 @@ body.view-home .app-header {
     display: none !important;
 }
 
-body.view-home .dict-sidebar {
+body.view-home .dict-sidebar.collapsed {
     display: none !important;
 }
 
-body.view-home .app-sidebar {
+body.view-home .app-sidebar.collapsed {
     display: none !important;
+}
+
+body.view-home .dict-sidebar:not(.collapsed) {
+    display: flex !important;
+}
+
+body.view-home .app-sidebar:not(.collapsed) {
+    display: flex !important;
 }
 
 body.view-home .reader-container {

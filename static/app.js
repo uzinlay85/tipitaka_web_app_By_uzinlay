@@ -67,6 +67,7 @@ const el = {
     btnModeMM: document.getElementById("btnModeMM"),
     btnModeSplit: document.getElementById("btnModeSplit"),
     btnCrossLink: document.getElementById("btnCrossLink"),
+    crossLinkIcon: document.getElementById("crossLinkIcon"),
     crossLinkLabel: document.getElementById("crossLinkLabel"),
     btnToggleNotes: document.getElementById("btnToggleNotes"),
     toggleNotesLabel: document.getElementById("toggleNotesLabel"),
@@ -286,7 +287,8 @@ function setReaderMode(mode) {
         el.paliBasketFilter.style.display = "none";
         el.metaEditionTag.textContent = "မြန်မာပြန်";
         el.btnCrossLink.style.display = "inline-flex";
-        el.crossLinkLabel.textContent = "☸️ ပါဠိတော်သို့";
+        if (el.crossLinkIcon) el.crossLinkIcon.textContent = "☸️";
+        if (el.crossLinkLabel) el.crossLinkLabel.textContent = "ပါဠိတော်သို့";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "none";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "none";
         el.relatedDropdownWrapper.style.display = "none";
@@ -297,7 +299,8 @@ function setReaderMode(mode) {
         el.paliBasketFilter.style.display = "flex";
         el.metaEditionTag.textContent = "ပါဠိတော်";
         el.btnCrossLink.style.display = "inline-flex";
-        el.crossLinkLabel.textContent = "🇲🇲 မြန်မာပြန်သို့";
+        if (el.crossLinkIcon) el.crossLinkIcon.textContent = "🇲🇲";
+        if (el.crossLinkLabel) el.crossLinkLabel.textContent = "မြန်မာပြန်သို့";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         loadPaliBook(state.paliBookId, state.paliPage);
@@ -822,6 +825,9 @@ function setAppView(view) {
     // Update bottom navigation bar active states
     if (el.btnNavHome) el.btnNavHome.classList.toggle("active", isHome);
     if (el.btnNavReader) el.btnNavReader.classList.toggle("active", !isHome);
+    if (el.btnNavRecent) el.btnNavRecent.classList.remove("active");
+    if (el.btnNavDict) el.btnNavDict.classList.toggle("active", state.isDictOpen);
+    if (el.btnNavMore) el.btnNavMore.classList.toggle("active", state.isSidebarOpen);
 }
 
 // ----------------- Home Page Catalog (APK Style) -----------------
@@ -1399,6 +1405,17 @@ function closeSearchModal() {
     el.searchModal.classList.remove("open");
 }
 
+function toggleSidebar(forceState = null) {
+    state.isSidebarOpen = (forceState !== null) ? forceState : !state.isSidebarOpen;
+    el.appSidebar.classList.toggle("collapsed", !state.isSidebarOpen);
+    if (state.isSidebarOpen && window.innerWidth <= 992) {
+        toggleDictSidebar(false);
+    }
+    if (el.btnNavMore) el.btnNavMore.classList.toggle("active", state.isSidebarOpen);
+    localStorage.setItem("tipitaka_sidebar_open", state.isSidebarOpen ? "1" : "0");
+    updateSidebarBackdrop();
+}
+
 function updateSidebarBackdrop() {
     const isMobile = window.innerWidth <= 992;
     const backdrop = document.getElementById("sidebarBackdrop");
@@ -1408,13 +1425,16 @@ function updateSidebarBackdrop() {
     } else {
         backdrop.classList.remove("active");
     }
+    if (el.btnNavMore) el.btnNavMore.classList.toggle("active", state.isSidebarOpen);
+    if (el.btnNavDict) el.btnNavDict.classList.toggle("active", state.isDictOpen);
 }
 
 function closeSidebarMobile() {
-    if (window.innerWidth <= 992 && state.isSidebarOpen) {
-        state.isSidebarOpen = false;
-        el.appSidebar.classList.add("collapsed");
-        updateSidebarBackdrop();
+    if (state.isSidebarOpen) {
+        toggleSidebar(false);
+    }
+    if (state.isDictOpen) {
+        toggleDictSidebar(false);
     }
 }
 
@@ -1440,15 +1460,7 @@ function setupEventListeners() {
     }
 
     // Toggle Sidebar
-    el.btnToggleSidebar.addEventListener("click", () => {
-        state.isSidebarOpen = !state.isSidebarOpen;
-        el.appSidebar.classList.toggle("collapsed", !state.isSidebarOpen);
-        if (state.isSidebarOpen && window.innerWidth <= 992) {
-            toggleDictSidebar(false);
-        }
-        localStorage.setItem("tipitaka_sidebar_open", state.isSidebarOpen ? "1" : "0");
-        updateSidebarBackdrop();
-    });
+    el.btnToggleSidebar.addEventListener("click", () => toggleSidebar());
     
     // Toggle Dictionary
     el.btnToggleDict.addEventListener("click", () => toggleDictSidebar());
@@ -1458,21 +1470,14 @@ function setupEventListeners() {
     const sidebarBackdrop = document.getElementById("sidebarBackdrop");
     if (sidebarBackdrop) {
         sidebarBackdrop.addEventListener("click", () => {
-            state.isSidebarOpen = false;
-            el.appSidebar.classList.add("collapsed");
-            toggleDictSidebar(false);
-            updateSidebarBackdrop();
+            closeSidebarMobile();
         });
     }
 
     // Mobile Close Button inside Drawer
     const btnCloseSidebarMobile = document.getElementById("btnCloseSidebarMobile");
     if (btnCloseSidebarMobile) {
-        btnCloseSidebarMobile.addEventListener("click", () => {
-            state.isSidebarOpen = false;
-            el.appSidebar.classList.add("collapsed");
-            updateSidebarBackdrop();
-        });
+        btnCloseSidebarMobile.addEventListener("click", () => toggleSidebar(false));
     }
 
     // Mobile Mode Buttons inside Drawer
@@ -1480,13 +1485,21 @@ function setupEventListeners() {
         btn.addEventListener("click", () => {
             const mode = btn.getAttribute("data-mode");
             setReaderMode(mode);
+            setAppView("reader");
             if (window.innerWidth <= 768) {
-                state.isSidebarOpen = false;
-                el.appSidebar.classList.add("collapsed");
-                updateSidebarBackdrop();
+                closeSidebarMobile();
             }
         });
     });
+
+    // Mobile User Guide button inside Drawer
+    const btnOpenHelpMobile = document.getElementById("btnOpenHelpMobile");
+    if (btnOpenHelpMobile) {
+        btnOpenHelpMobile.addEventListener("click", () => {
+            closeSidebarMobile();
+            if (el.helpModal) el.helpModal.classList.add("open");
+        });
+    }
 
     // Mobile Font Adjustments in Drawer
     const btnFontDecMobile = document.getElementById("btnFontDecMobile");
@@ -1938,34 +1951,43 @@ function setupEventListeners() {
     if (el.btnFloatingSutta) {
         el.btnFloatingSutta.addEventListener("click", () => {
             openSearchModal();
-            const suttaTabBtn = document.querySelector('.modal-tab-btn[data-type="sutta"]');
+            const suttaTabBtn = document.querySelector('.modal-tab-btn[data-mode="sutta"]');
             if (suttaTabBtn) suttaTabBtn.click();
         });
     }
 
     if (el.btnNavHome) {
-        el.btnNavHome.addEventListener("click", () => setAppView("home"));
+        el.btnNavHome.addEventListener("click", () => {
+            closeSidebarMobile();
+            setAppView("home");
+        });
     }
     if (el.btnNavReader) {
-        el.btnNavReader.addEventListener("click", () => setAppView("reader"));
+        el.btnNavReader.addEventListener("click", async () => {
+            closeSidebarMobile();
+            if (!state.paliBookId && !state.mmBookId) {
+                await loadRecentOrFirst();
+            }
+            setAppView("reader");
+        });
     }
     if (el.btnNavRecent) {
         el.btnNavRecent.addEventListener("click", async () => {
+            closeSidebarMobile();
             await loadRecentOrFirst();
             setAppView("reader");
         });
     }
     if (el.btnNavDict) {
         el.btnNavDict.addEventListener("click", () => {
-            if (window.innerWidth <= 992) {
-                openSearchModal();
-            } else {
-                toggleDictSidebar();
+            toggleDictSidebar();
+            if (state.isDictOpen && el.dictSearchInput) {
+                setTimeout(() => el.dictSearchInput.focus(), 250);
             }
         });
     }
     if (el.btnNavMore) {
-        el.btnNavMore.addEventListener("click", toggleSidebar);
+        el.btnNavMore.addEventListener("click", () => toggleSidebar());
     }
 }
 
@@ -1973,9 +1995,11 @@ function toggleDictSidebar(forceState = null) {
     state.isDictOpen = (forceState !== null) ? forceState : !state.isDictOpen;
     el.dictSidebar.classList.toggle("collapsed", !state.isDictOpen);
     el.btnToggleDict.classList.toggle("active", state.isDictOpen);
+    if (el.btnNavDict) el.btnNavDict.classList.toggle("active", state.isDictOpen);
     if (state.isDictOpen && window.innerWidth <= 992) {
         state.isSidebarOpen = false;
         el.appSidebar.classList.add("collapsed");
+        if (el.btnNavMore) el.btnNavMore.classList.remove("active");
     }
     localStorage.setItem("tipitaka_dict_open", state.isDictOpen ? "1" : "0");
     updateSidebarBackdrop();
@@ -2007,7 +2031,7 @@ function setNotesVisibility(show) {
     if (el.btnToggleNotesMobile) {
         el.btnToggleNotesMobile.classList.toggle("active", show);
         if (el.toggleNotesLabelMobile) {
-            el.toggleNotesLabelMobile.textContent = show ? "📝 မူကွဲပါဠိတော်များ: ဖွင့်ထားသည်" : "📝 မူကွဲပါဠိတော်များ: ပိတ်ထားသည်";
+            el.toggleNotesLabelMobile.textContent = show ? "မူကွဲပါဠိတော်များ: ဖွင့်ထားသည်" : "မူကွဲပါဠိတော်များ: ပိတ်ထားသည်";
         }
     }
 
