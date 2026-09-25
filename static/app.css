@@ -735,30 +735,84 @@ button, input, select {
 .pali-content .gatha2,
 .pali-content .gatha3,
 .pali-content .gatha4,
-.pali-content .gathalast {
+.pali-content .gathalast,
+.split-pane-body .gatha1,
+.split-pane-body .gatha2,
+.split-pane-body .gatha3,
+.split-pane-body .gatha4,
+.split-pane-body .gathalast {
     margin-left: 4.8rem;
     text-indent: 0 !important;
     text-align: left;
     margin-top: 0;
-    margin-bottom: 0.25em;
+    margin-bottom: 0.35em;
     color: var(--text-primary);
 }
 
-.pali-content .gathalast {
+.pali-content .gathalast,
+.split-pane-body .gathalast {
     margin-bottom: 1.4em;
 }
 
-@media (max-width: 600px) {
-    .pali-content .hangnum {
+/* Gāthā Pāda Styling: Desktop inline couplets (အတွဲလိုက်), Mobile/Split one-pāda-per-line (တစ်ပါဒ တစ်ကြောင်း) */
+.gatha-pada {
+    display: inline;
+}
+.gatha-pada.pada1 {
+    margin-right: 0.8em;
+}
+
+@media (max-width: 768px) {
+    .pali-content .hangnum,
+    .split-pane-body .hangnum {
         width: 3.4rem;
     }
     .pali-content .gatha1,
     .pali-content .gatha2,
     .pali-content .gatha3,
     .pali-content .gatha4,
-    .pali-content .gathalast {
+    .pali-content .gathalast,
+    .split-pane-body .gatha1,
+    .split-pane-body .gatha2,
+    .split-pane-body .gatha3,
+    .split-pane-body .gatha4,
+    .split-pane-body .gathalast {
         margin-left: 3.6rem;
     }
+
+    /* Mobile: တစ်ပါဒ ပြီးလျှင် နောက်တစ်ကြောင်းတွင် တစ်ပါဒ ပြသခြင်း */
+    .gatha-pada {
+        display: block !important;
+        margin-right: 0 !important;
+    }
+    .gatha-pada.pada1 {
+        margin-bottom: 0.2em;
+    }
+    .pali-content .gatha1,
+    .pali-content .gatha2,
+    .pali-content .gatha3,
+    .pali-content .gatha4,
+    .split-pane-body .gatha1,
+    .split-pane-body .gatha2,
+    .split-pane-body .gatha3,
+    .split-pane-body .gatha4 {
+        margin-bottom: 0.65em;
+    }
+}
+
+/* Split View: Panes are narrow, display one pāda per line */
+.split-pane-body .gatha-pada {
+    display: block !important;
+    margin-right: 0 !important;
+}
+.split-pane-body .gatha-pada.pada1 {
+    margin-bottom: 0.2em;
+}
+.split-pane-body .gatha1,
+.split-pane-body .gatha2,
+.split-pane-body .gatha3,
+.split-pane-body .gatha4 {
+    margin-bottom: 0.65em;
 }
 
 /* Footnotes / Variant Readings */

@@ -456,28 +456,41 @@ function cleanPaliContent(html) {
             const clsMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
             const clsName = clsMatch ? clsMatch[1].toLowerCase() : "";
             
+            // If already wrapped in gatha-pada, preserve
+            if (content.includes('<span class="gatha-pada')) {
+                return `<p${attrs}>${content}</p>`;
+            }
+
             // ၁။ ဂါထာစာကြောင်း အစရှိ မလိုအပ်သော space များကို ဖယ်ရှား၍ ညီညာစေပါမည်
             content = content.replace(/^\s+/, "");
             content = content.replace(/^((?:<a\b[^>]*>.*?<\/a>)*)\s+/, "$1");
 
-            // ၂။ ဂါထာစာပိုဒ်အတွင်းရှိ အင်္ဂလိပ်ကော်မာ (comma) များကို ပုဒ်ထီး "၊ " သို့ ပြောင်းလဲပါမည်
-            const hasComma = /,(?![^<]*>)/.test(content);
-            let res = content.replace(/,(?![^<]*>)\s*/g, "၊ ");
-            
-            // ၃။ ပုဒ်ထီး "၊" သို့မဟုတ် ပုဒ်မ "။" ရှေ့ရှိ ပိုနေသော space များကို ရှင်းထုတ်ပါမည် (ဥပမာ "အမတပဒံ ၊" -> "အမတပဒံ၊")
-            res = res.replace(/\s+([၊။])/g, "$1");
-            res = res.replace(/([၊])(?=[^\s<၊။])/g, "$1 ");
-
-            // ၄။ စာကြောင်းတစ်ခုတည်းတွင် အပုဒ် ၂ ခုတွဲပါဝင်နေပါက ဒုတိယပုဒ်/စတုတ္ထပုဒ် အဆုံးသတ်ဖြစ်သော
-            // စာကြောင်းအဆုံးရှိ "၊" ကို ပုဒ်မ "။" သို့ ပြောင်းလဲပေးပါမည်
-            if (hasComma) {
-                res = res.replace(/၊([’"”’]*\s*(?:<[^>]+>\s*)*)$/, "။$1");
-            } else if (clsName.includes("gatha2") || clsName.includes("gatha4")) {
-                // စာကြောင်းတစ်ကြောင်းချင်း ခွဲထားသော ၄ ကြောင်းပါ ဂါထာမျိုးတွင်
-                // ဒုတိယပုဒ် (gatha2) နှင့် စတုတ္ထပုဒ် (gatha4) တို့သည် ပုဒ်မ "။" ဖြင့် ဆုံးရပါမည်
-                res = res.replace(/၊([’"”’]*\s*(?:<[^>]+>\s*)*)$/, "။$1");
+            // ၂။ အပုဒ်များ ခွဲခြားထားသော comma ပါဝင်ပါက တစ်ပါဒစီ ခွဲခြား wrap လုပ်ပါမည်
+            if (/,+(?![^<]*>)/.test(content)) {
+                const parts = content.split(/,(?![^<]*>)\s*/);
+                const padas = parts.map((part, i) => {
+                    let p = part.trim();
+                    if (i < parts.length - 1) {
+                        p = p.replace(/[၊။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "၊$1");
+                        if (!/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
+                            p = p + "၊";
+                        }
+                    } else {
+                        p = p.replace(/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
+                        if (!/[။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
+                            p = p + "။";
+                        }
+                    }
+                    return `<span class="gatha-pada pada${i + 1}">${p}</span>`;
+                });
+                return `<p${attrs}>${padas.join(" ")}</p>`;
+            } else {
+                let p = content.trim();
+                if (clsName.includes("gatha2") || clsName.includes("gatha4") || clsName.includes("gathalast")) {
+                    p = p.replace(/၊([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
+                }
+                return `<p${attrs}><span class="gatha-pada">${p}</span></p>`;
             }
-            return `<p${attrs}>${res}</p>`;
         }
         
         // စကားပြေ (Prose / Bodytext) တွင် မလိုအပ်သော English comma များကို ဖယ်ရှားပါမည်

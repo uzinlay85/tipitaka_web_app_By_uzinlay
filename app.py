@@ -104,24 +104,38 @@ def format_chattasangayana_pali(html):
             cls_m = re.search(r'\bclass\s*=\s*["\']([^"\']+)["\']', attrs, re.I)
             cls_name = cls_m.group(1).lower() if cls_m else ""
             
+            # If already wrapped in gatha-pada, preserve
+            if '<span class="gatha-pada' in content:
+                return f'<p{attrs}>{content}</p>'
+
             # 1. Clean leading whitespace inside gatha paragraph so lines align perfectly
             content = re.sub(r'^\s+', '', content)
             content = re.sub(r'^((?:<a\b[^>]*>.*?</a>)*)\s+', r'\1', content)
             
-            # 2. Convert comma to ၊
-            has_comma = bool(re.search(r',(?![^<]*>)', content))
-            res = re.sub(r',(?![^<]*>)\s*', '၊ ', content)
-            
-            # 3. Clean any whitespace before ၊ or ။ (e.g. "အမတပဒံ ၊" -> "အမတပဒံ၊")
-            res = re.sub(r'\s+([၊။])', r'\1', res)
-            # Ensure space after ၊ when followed by text
-            res = re.sub(r'([၊])(?=[^\s<၊။])', r'\1 ', res)
-            
-            if has_comma:
-                res = re.sub(r'၊([’"”’]*\s*(?:<[^>]+>\s*)*)$', r'။\1', res)
-            elif 'gatha2' in cls_name or 'gatha4' in cls_name:
-                res = re.sub(r'၊([’"”’]*\s*(?:<[^>]+>\s*)*)$', r'။\1', res)
-            return f'<p{attrs}>{res}</p>'
+            # 2. Process padas: if separated by comma, wrap each pada in <span class="gatha-pada">
+            if re.search(r',(?![^<]*>)', content):
+                parts = re.split(r',(?![^<]*>)\s*', content)
+                padas = []
+                for i, part in enumerate(parts):
+                    p = part.strip()
+                    if i < len(parts) - 1:
+                        # Non-final pada ends with ၊
+                        p = re.sub(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'၊\1', p)
+                        if not re.search(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                            p = p + '၊'
+                    else:
+                        # Final pada in couplet ends with ။
+                        p = re.sub(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
+                        if not re.search(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                            p = p + '။'
+                    padas.append(f'<span class="gatha-pada pada{i+1}">{p}</span>')
+                res = ' '.join(padas)
+                return f'<p{attrs}>{res}</p>'
+            else:
+                p = content.strip()
+                if 'gatha2' in cls_name or 'gatha4' in cls_name or 'gathalast' in cls_name:
+                    p = re.sub(r'၊([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
+                return f'<p{attrs}><span class="gatha-pada">{p}</span></p>'
         else:
             cleaned = re.sub(r',(?![^<]*>)', '', content)
             return f'<p{attrs}>{cleaned}</p>'
