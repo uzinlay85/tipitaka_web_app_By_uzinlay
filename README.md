@@ -203,6 +203,80 @@ sudo systemctl restart tipitaka
 
 ---
 
+## 🛠️ အသုံးပြုထားသော နည်းပညာများနှင့် စနစ်တည်ဆောက်ပုံ (Detailed Technology Stack & Architecture)
+
+ဤ Application သည် သိုလှောင်မှုပမာဏ အနည်းငယ်မျှဖြင့် အလွန်လျင်မြန်စွာ အလုပ်လုပ်နိုင်စေရန်နှင့် မည်သည့် ကွန်ပျူတာ၊ ဖုန်း၊ Tablet မဆို ချောမွေ့စွာ အသုံးပြုနိုင်စေရန် ခေတ်မီ နည်းပညာများကို စနစ်တကျ ပေါင်းစပ် တည်ဆောက်ထားပါသည် -
+
+### ၁။ Frontend Architecture & Client-Side Technologies
+- **Pure Vanilla JavaScript (ES6+ Single Page Application):**
+  - React, Vue, Angular ကဲ့သို့သော လေးလံသည့် Node.js / npm frontend framework များ မသုံးဘဲ သန့်စင်သော Vanilla JavaScript ဖြင့်သာ တည်ဆောက်ထားသောကြောင့် Bundle Size (MB များစွာ) မရှိဘဲ စက္ကန့်ပိုင်းအတွင်း ဖွင့်လှစ်နိုင်ခြင်း။
+  - မမ်မိုရီ (RAM) စားသုံးမှု အလွန်နည်းပါးပြီး ဖုန်းဟောင်းများနှင့် စွမ်းဆောင်ရည်နိမ့် စက်များတွင်ပါ ချောမွေ့စွာ အလုပ်လုပ်နိုင်ခြင်း။
+- **Semantic HTML5 & Modern CSS3 (Custom Properties):**
+  - CSS Variables (`--bg-primary`, `--text-primary`, `--accent-color`, `--gatha-color`, etc.) ကို အသုံးပြု၍ နေ့ရောင် (Day)၊ ညရောင် (Dark) နှင့် စက္ကူရောင် (Parchment Paper) Themes များကို Instant Switching ပြုလုပ်နိုင်ခြင်း။
+  - Flexbox နှင့် CSS Grid စနစ်များဖြင့် စနစ်တကျ အချိုးကျ ခင်းကျင်းထားခြင်း။
+- **Progressive Responsive Toolbar & Mobile Layout:**
+  - Screen အကျယ်အဝန်းအလိုက် ၄ ဆင့်ခွဲ၍ ခလုတ်စာသားများကို အလိုအလျောက် ပုန်းကွယ်ပေးသော CSS Media Queries (`≤1720px`, `≤1560px`, `≤1380px`, `≤1180px`)။
+  - ဖုန်းစခရင်များအတွက် အောက်ခြေ Floating Bottom Navigation Bar နှင့် ဘယ်ဘက် Off-canvas Navigation Drawer။
+  - iPhone / Modern Android ဖုန်းများ၏ Gesture Bar အောက် မရောက်စေရန် Safe-Area Inset (`env(safe-area-inset-bottom)`) အပြည့်အဝ ထည့်သွင်းထားခြင်း။
+- **Advanced DOM & Scroll Engineering:**
+  - **Continuous Stream Feed:** စာမျက်နှာများကို Facebook ပုံစံ ဆက်တိုက်ဖတ်ရှုနိုင်ရန် Browser ၏ `IntersectionObserver` API နှင့် Passive Scroll Event Optimization ဖြင့် DOM rendering ကို ဝန်မပိစေဘဲ စီမံထားခြင်း။
+  - **Real-Time ScrollSpy & TOC Highlight:** ဖတ်ရှုနေသော စာမျက်နှာအလိုက် မာတိကာ ခေါင်းစဉ်ကို `scrollIntoView({ behavior: 'smooth', block: 'nearest' })` ဖြင့် မျက်စိရှေ့သို့ ချောမွေ့စွာ အလိုအလျောက် ရွှေ့ပေးခြင်း။
+  - **Line-Break Virama Conjunct Shield:** မြန်မာစာ/ပါဠိ စာလုံးဆင့်များ (`\u1039`) စာကြောင်းအဆုံးတွင် ဖြတ်မကျဘဲ `+` ဝိရာမသင်္ကေတ လုံးဝ မထွက်ပေါ်စေရန် CSS `white-space: nowrap` ဖြင့် စကားလုံးအလိုက် လုံခြုံစွာ ထိန်းကျောင်းထားခြင်း။
+  - **Native Fullscreen API:** မျက်နှာပြင်ပြည့် (Zen / Focus Mode) တွင် စာဖတ်မျက်နှာပြင်ကို Tap လုပ်ရုံဖြင့် ဘားများ ပုန်း/ပေါ် ပြုလုပ်ပေးသည့် Touch Event Handling။
+- **Client-Side Storage Engine (LocalStorage):**
+  - ဖတ်ရှုခဲ့မှု မှတ်တမ်းများ (Reading History)၊ ရှာဖွေမှု မှတ်တမ်းများ (Search History)၊ စာညှပ်များ (Bookmarks)၊ Theme နှင့် Font Size ချိန်ညှိချက်များကို LocalStorage တွင် Key-Value Store အဖြစ် သိမ်းဆည်းထားခြင်း။
+  - Backup & Restore အတွက် HTML5 `FileReader` API နှင့် JSON Blob `URL.createObjectURL` နည်းပညာဖြင့် ဖိုင်ဒေါင်းလုဒ်/တင်သွင်းမှု ပြုလုပ်ခြင်း။
+
+### ၂။ Backend Architecture & Server-Side Technologies
+- **Runtime & Web Framework:**
+  - **Python 3 (3.8 ~ 3.12+):** ခေတ်မီ Python Runtime ဖြင့် ရေးသားထားခြင်း။
+  - **Flask Microframework:** လိုအပ်သော Core အစိတ်အပိုင်းများကိုသာ ပေါ့ပါးစွာ စုစည်းထားသည့် Flask Framework ဖြင့် RESTful JSON API များကို တည်ဆောက်ထားခြင်း။
+- **Production WSGI Application Server:**
+  - **Gunicorn (Green Unicorn):** Python Web Server Gateway Interface (WSGI) အဖြစ် Multi-Worker Pre-fork Model (`gunicorn -w 3 -b 127.0.0.1:5005 app:app`) ဖြင့် အသုံးပြုထားသဖြင့် အသုံးပြုသူ အများအပြား တစ်ပြိုင်နက် ဝင်ရောက်ဖတ်ရှုနိုင်ခြင်း။
+- **High-Performance RESTful API Endpoints:**
+  - `/api/books` - ကျမ်းစာအုပ် ကတ်တလောက်နှင့် နိကာယ်အလိုက် ခွဲခြားမှု။
+  - `/api/book/<book_id>` - ကျမ်းစာ မာတိကာ အဆင့်ဆင့်နှင့် ဆက်စပ်ကျမ်းစာ စာရင်းများ။
+  - `/api/page/<book_id>/<page_no>` - စာမျက်နှာအလိုက် စာသားများအား ဆဋ္ဌမူ ဂါထာသတ်ပုံနှင့် ပေယျာလများ အချိန်နှင့်တပြေးညီ သန့်စင်ပေးပို့ခြင်း။
+  - `/api/pali/companions/<book_id>` - မူလပါဠိတော်နှင့် ကိုက်ညီသော အဋ္ဌကထာ၊ ဋီကာ၊ မြန်မာပြန် ကျမ်းများကို Dynamic ရွေးထုတ်ပေးခြင်း။
+  - `/api/match/pali_to_companion` - စာပိုဒ်နံပါတ် (`paranum`) အလိုက် သက်ဆိုင်ရာ အဋ္ဌကထာ/ဋီကာ စာမျက်နှာနှင့် အတွဲ (Volume) ကို အတိအကျ ချိန်ညှိပေးခြင်း။
+  - `/api/search/word`, `/api/search/sutta`, `/api/dictionary/lookup` - မီလီစက္ကန့်ပိုင်းအတွင်း ရှာဖွေပေးနိုင်သော Query APIs။
+- **Caching & Compression:**
+  - Browser များတွင် စာအုပ်မာတိကာများနှင့် ဒေတာများကို ခဏခဏ ပြန်မဆွဲစေရန် HTTP `Cache-Control` header များကို သင့်လျော်စွာ သတ်မှတ်ထားခြင်း။
+
+### ၃။ Database Architecture & Data Engineering (SQLite)
+- **Database Engine:**
+  - **SQLite 3:** C-language ဖြင့် တည်ဆောက်ထားသော Embedded Relational Database ဖြစ်ပြီး သီးခြား Database Daemon (MySQL/PostgreSQL) run ရန်မလိုသဖြင့် Server Memory (RAM) ကို မထိခိုက်စေဘဲ အလွန်ပေါ့ပါးခြင်း။
+- **ဒေတာဘေ့စ် ဖိုင် ၃ ခု စနစ်တကျ ခွဲခြားထားရှိမှု:**
+  1. **`tipitaka_pali.db` (~62 MB):** မူလ၊ အဋ္ဌကထာ၊ ဋီကာ ပါဠိတော် ၁၉၂ အုပ် (စာမျက်နှာ ၅၉,၀၀၈ မျက်နှာ)၊ အပြန်အလှန် ချိတ်ဆက်မှု ဇယား (`pali_attha_tika_match` ၁၄၉ ကျမ်းဆက်စပ်မှု) နှင့် စာပိုဒ်နံပါတ်အညွှန်း (`paranum`)။
+  2. **`tipitaka_myanmar.db` (~85 MB):** တိပိဋက မြန်မာပြန် ၆၀ အုပ် (စာမျက်နှာ ၂၃,၃၉၀ မျက်နှာ)၊ မာတိကာဇယား (`toc_index` ၁၃,၈၄၈ ခု) နှင့် ပါဠိ-မြန်မာ အပြန်အလှန် စာမျက်နှာ ချိန်ညှိဇယားများ။
+  3. **`pali_dictionary.db` (~5 MB):** ပါဠိ-မြန်မာ အဘိဓာန် ၈ မျိုး၊ စကားလုံးပေါင်း ၉၂၃,၆၉၅ လုံး။
+- **High-Performance SQLite PRAGMA Optimizations:**
+  - `PRAGMA journal_mode = WAL;` (Write-Ahead Logging ဖြင့် Read/Write ပြိုင်ဆိုင်မှု မရှိဘဲ တစ်ပြိုင်နက် ဖတ်ရှုမှု စွမ်းဆောင်ရည် အဆများစွာ မြှင့်တင်ခြင်း)။
+  - `PRAGMA synchronous = NORMAL;` (Disk I/O Latency ကို အနိမ့်ဆုံး လျှော့ချခြင်း)။
+  - `PRAGMA cache_size = -64000;` (Connection တစ်ခုစီအတွက် 64MB In-Memory Page Cache အသုံးပြုခြင်း)။
+  - `PRAGMA mmap_size = 268435456;` (Direct Memory-Mapped I/O ဖြင့် စာမျက်နှာများကို Memory ပေါ်မှ မီလီစက္ကန့်ပိုင်းအတွင်း တိုက်ရိုက်ဆွဲထုတ်ခြင်း)။
+  - `PRAGMA temp_store = MEMORY;` (ယာယီ Index များကို Memory ပေါ်တွင်သာ တွက်ချက်ခြင်း)။
+- **Algorithmic Data Engineering:**
+  - **Pali Morphological Stemmer (ဝိဘတ်ဖြုတ် ရှာဖွေမှု):** ပါဠိစာလုံးများ၏ နာမ်ဝိဘတ်၊ အာချာတ်ဝိဘတ်များ (`-ဿ`, `-သ္မိံ`, `-မှိ`, `-သု`, `-နံ`, `-ယ`, `-ေတာ`, `-ေဟိ`, `-ေဘိ`, etc.) ကို Regex Rules ဖြင့် ဖြုတ်ချပြီး အဘိဓာန် ပင်စည်မူရင်းပုဒ်ကို အလိုအလျောက် ရှာဖွေပေးခြင်း။
+  - **Majority Paragraph Voting Algorithm:** စာမျက်နှာတစ်ခုတွင် စာပိုဒ်များစွာ ပါဝင်နေပါက အများဆုံး ပါဝင်သော စာပိုဒ်နှင့် စာမျက်နှာကို Server မှ စစ်ဆေး၍ ပါဠိနှင့် မြန်မာပြန် စာမျက်နှာများကို တိကျစွာ ချိန်ညှိပေးခြင်း။
+
+### ၄။ Server, Security & Deployment Infrastructure
+- **Operating System:** Ubuntu Server / Debian Linux (LTS)။
+- **Daemon Process Management:**
+  - Linux `systemd` Service (`/etc/systemd/system/tipitaka.service`) ဖြင့် Background Daemon အဖြစ် ၂၄ နာရီ အလိုအလျောက် Run ထားပြီး Server Reboot ဖြစ်ခြင်း သို့မဟုတ် Error ဖြစ်ပါက အလိုအလျောက် Restart ပြုလုပ်ပေးခြင်း (`Restart=always`)။
+- **Nginx Reverse Proxy & Web Server:**
+  - Port 80 / 443 မှ ဝင်လာသော HTTP/HTTPS Request များကို Gunicorn (Port 5005) ဆီသို့ ချောမွေ့စွာ Proxy Pass ပြုလုပ်ပေးခြင်း။
+  - Client Max Body Size 50M၊ Proxy Read Timeout 300s နှင့် Gzip Static Compression ပေါင်းစပ်ထားခြင်း။
+- **SSL / TLS Security:**
+  - Let's Encrypt Certbot ဖြင့် Automated Free SSL Certificate တပ်ဆင်ထားပြီး လုံခြုံသော HTTPS Protocol ဖြင့် ကာကွယ်ထားခြင်း။
+- **Cloudflare Zero Trust Tunnel Support:**
+  - VPS တွင် Public Port ဖွင့်ရန် မလိုဘဲ `cloudflared` daemon ဖြင့် အင်တာနက်ပေါ်သို့ လုံခြုံစွာ ထုတ်လွှင့်နိုင်ခြင်း။
+- **Modular Data-Code Decoupling:**
+  - အမြဲတမ်း ပုံသေဖြစ်သော Database ဖိုင်ကြီးများ (~150MB) ကို Google Drive ပေါ်တွင် တင်ထားပြီး Bash Script ဖြင့် ဒေါင်းလုဒ်ဆွဲကာ၊ Code ပြင်ဆင်ချက်များကိုသာ GitHub မှတစ်ဆင့် ၂ စက္ကန့်အတွင်း Update ပြုလုပ်နိုင်သော စနစ်။
+  - အင်တာနက်မရှိသော အခြေအနေများအတွက် Offline USB Stick / Local File Deploy စနစ် အသင့်ပါဝင်ခြင်း။
+
+---
+
 ## 🙏 မူရင်းရေးသားသူအား အလေးထား အသိအမှတ်ပြုခြင်းနှင့် ကျေးဇူးတင်လွှာ (Dedication & Credits to Original Creator)
 
 ### မူရင်း Android Application များ နှင့် ရေးသားသူ
