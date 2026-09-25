@@ -140,7 +140,45 @@ curl -I http://127.0.0.1:5005
 
 Database ဖိုင်များ (`tipitaka_pali.db` နှင့် `tipitaka_mm.db`) သည် အရွယ်အစားကြီးမားပြီး မကြာခဏ ပြင်ဆင်ရန် မလိုသဖြင့် UI / CSS / JS / Python Code များကိုသာ **စက္ကန့်ပိုင်းအတွင်း အလွယ်တကူ Update လုပ်နိုင်သော နည်းလမ်း** ဖြစ်ပါသည်။
 
-### နည်းလမ်း (A) - UI, CSS, JS နှင့် Code များသာ Update ပြုလုပ်ခြင်း (အကြံပြုဆုံး & အမြန်ဆုံး)
+### နည်းလမ်း (A) - GitHub ဖြင့် တိုက်ရိုက် Update ပြုလုပ်ခြင်း (အလွယ်ကူဆုံးနှင့် အကြံပြုဆုံး နည်းလမ်း)
+
+GitHub Repo သို့ Code များ Push တင်ပြီးသည့်အခါတိုင်း VPS Terminal (SSH) သို့ ဝင်ရောက်ပြီး အောက်ပါ command (၃) ကြောင်းကိုသာ Run ပေးရုံဖြင့် စက္ကန့်ပိုင်းအတွင်း Update ပြီးစီးပါသည် -
+
+```bash
+cd /opt/tipitaka
+git pull origin main
+sudo systemctl restart tipitaka
+```
+
+> [!TIP]
+> **အမြန် Run ရန် (တစ်ကြောင်းတည်း Run နည်း):**
+> ```bash
+> cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka
+> ```
+
+#### ⚠️ `git pull` ပြုလုပ်စဉ် Error (Conflict / Local Changes) ပေါ်ခဲ့ပါက ဖြေရှင်းနည်း:
+အကယ်၍ VPS ပေါ်တွင် ဖိုင်တစ်ခုခု အမှတ်မထင် ပြင်ဆင်မိထား၍ `error: Your local changes to the following files would be overwritten by merge` ဟု ပြပါက GitHub ရှိ မူရင်းအတိုင်း အသစ်ပြန်လဲလှယ်ရန် အောက်ပါ command ကို Run ပါ -
+
+```bash
+cd /opt/tipitaka
+git fetch origin main
+git reset --hard origin/main
+sudo systemctl restart tipitaka
+```
+
+#### 📦 Python Library အသစ်များ (`requirements.txt`) ပါဝင်လာသည့် အခါမျိုးတွင်:
+```bash
+cd /opt/tipitaka
+git pull origin main
+./venv/bin/pip install -r requirements.txt
+sudo systemctl restart tipitaka
+```
+
+---
+
+### နည်းလမ်း (B) - `code_update.zip` Upload တင်၍ Update ပြုလုပ်ခြင်း (Zip Method)
+
+အကယ်၍ Git မသုံးလိုဘဲ ဖိုင်များကို Zip ဖြင့်သာ Upload တင်လိုပါက -
 
 #### အဆင့် ၁ (Local PC တွင်):
 Windows PowerShell တွင် အောက်ပါ command ဖြင့် Code ဖိုင်များကိုသာ သီးသန့် Zip အသေးလေး လုပ်ပါ (~1 MB သာ ရှိပါသည်) -
@@ -170,12 +208,11 @@ scp -P 2213 "C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app\code_
 ```
 
 #### အဆင့် ၃ (VPS Terminal တွင် ဖြည်ချပြီး Service Restart လုပ်ခြင်း):
-VPS Terminal တွင် အောက်ပါ ၂ ကြောင်းသာ ရိုက်ထည့်လိုက်ပါ -
+VPS Terminal တွင် အောက်ပါ command ကို Run ပါ -
 ```bash
 cd /opt/tipitaka
 unzip -o code_update.zip && sudo systemctl restart tipitaka
 ```
-*(၁ စက္ကန့်အတွင်း Update ပြီးစီးပြီး Live ဖြစ်သွားပါမည်။)*
 
 ---
 

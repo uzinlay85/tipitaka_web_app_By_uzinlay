@@ -42,3 +42,23 @@
 VPS (Cloudflare Tunnel) တွင် ၂၄ နာရီ ချိတ်ဆက်ထားပြီးဖြစ်၍ အင်တာနက်ပေါ်ရှိ မည်သည့်ဖုန်း၊ Tablet၊ ကွန်ပျူတာမှမဆို အောက်ပါ Link ဖြင့် တိုက်ရိုက် အသုံးပြုနိုင်ပါသည် -
 
 👉 **https://tipi.upanna.top**
+
+---
+
+## 🔄 VPS Server ပေါ်တွင် Update ပြုလုပ်နည်း (GitHub Workflow)
+
+GitHub ပေါ်တွင် Code အသစ်များ ပြင်ဆင်ပြီးသည့်အခါတိုင်း VPS Terminal (SSH) သို့ ဝင်ရောက်ပြီး အောက်ပါ command များကို Run ပေးရုံဖြင့် ၂ စက္ကန့်အတွင်း Update ပြီးစီးပါသည် -
+
+```bash
+cd /opt/tipitaka
+git pull origin main
+sudo systemctl restart tipitaka
+```
+
+> **တစ်ကြောင်းတည်း အမြန် Run ရန်:**
+> ```bash
+> cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka
+> ```
+
+အသေးစိတ် လမ်းညွှန်ချက်များနှင့် Error ဖြေရှင်းနည်းများကို [VPS_DEPLOYMENT_GUIDE.md](VPS_DEPLOYMENT_GUIDE.md) တွင် ဆက်လက်ဖတ်ရှုနိုင်ပါသည်။
+
