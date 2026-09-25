@@ -126,7 +126,7 @@ sudo systemctl restart tipitaka
 
 ## 🤖 နည်းပညာ တည်ဆောက်မှု နှင့် AI အကူအညီ (Development & AI Collaboration)
 
-ဤ Web Application ကို စီစဉ်ဆောင်ရွက်သူ **ဦးဇင်းလေး (U Zin Lay)** သည် Web Development နည်းပညာကို အခြေခံမျှသာ သိရှိနားလည်သူ ဖြစ်သည့်အတွက်၊ ဤစနစ်ကြီးတစ်ခုလုံး၏ -
+ဤ Web Application ကို ပြုပြင်အသုံးပြုထားသူ **Ashin Pannsetthalankara (ဦးဇင်းလေး - uzinlay85)** သည် Web Development နည်းပညာကို အခြေခံမျှသာ သိရှိနားလည်သူ ဖြစ်သည့်အတွက်၊ ဤစနစ်ကြီးတစ်ခုလုံး၏ -
 - **Backend Architecture:** Python (Flask), SQLite Database optimizations, Multi-book indexing, Cache-Control and API endpoints
 - **Frontend Modern Web UI:** Responsive Drawer Navigation, Split-screen Dual Reader, Dynamic Continuous Stream Feed (Auto-scroll pagination)
 - **Authentic Typography Engine:** ဆဋ္ဌမူ မူရင်းစာအုပ်ကြီးအတိုင်း ဂါထာပါဠိတော်များ၏ ပုဒ်ထီး ( ၊ )၊ ပုဒ်မ ( ။ ) နှင့် ပေယျာလ (`။ ပ ။`) အလိုအလျောက် သန့်စင်စနစ်
@@ -134,8 +134,9 @@ sudo systemctl restart tipitaka
 
 အစရှိသော အဆင့်မြင့် နည်းပညာပိုင်းဆိုင်ရာများနှင့် ပြဿနာဖြေရှင်းမှုများကို **Google DeepMind ၏ Antigravity AI** အကူအညီဖြင့် အသေးစိတ် အဆင့်ဆင့် တိုင်ပင်ဆွေးနွေးကာ ရေးသားတည်ဆောက်ခဲ့ခြင်း ဖြစ်ပါသည်။ နည်းပညာ အခက်အခဲများကို လွယ်ကူလျင်မြန်စွာ ကျော်လွှားနိုင်စေခဲ့သော AI နည်းပညာအားလည်း အထူးပင် မှတ်တမ်းတင် ဂုဏ်ပြုအပ်ပါသည်။
 
-- **စီစဉ်ဆောင်ရွက်သူ (Developer & Maintainer):** [U Zin Lay (uzinlay85)](https://github.com/uzinlay85)
+- **ပြုပြင်အသုံးပြုထားသူ (Customized & Maintained by):** Ashin Pannsetthalankara ([U Zin Lay / uzinlay85](https://github.com/uzinlay85))
 - **နည်းပညာ အကူအညီ (AI Technical Assistant):** Antigravity AI (Google DeepMind)
+
 
 
 
