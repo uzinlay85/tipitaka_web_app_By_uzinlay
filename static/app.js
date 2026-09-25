@@ -381,7 +381,15 @@ async function loadPaliBook(bookId, targetPage = null) {
 
 function cleanPaliContent(html) {
     if (!html) return "";
-    return html.replace(/,(?![^<]*>)/g, "");
+    return html.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
+        // ဂါထာပါဠိတော်များ (Gāthā) တွင် စာပိုဒ် (၄) ပုဒ်ကို ပိုင်းခြားထားသော အလယ်ကော်မာများကို မူရင်း APK အတိုင်း မဖြုတ်ဘဲ ထားရှိပါမည်
+        if (/\bclass\s*=\s*["'][^"']*gatha[^"']*["']/i.test(attrs)) {
+            return match;
+        }
+        // စကားပြေ (Prose / Bodytext) တွင် မလိုအပ်သော English comma များကို ဖယ်ရှားပါမည်
+        const cleaned = content.replace(/,(?![^<]*>)/g, "");
+        return `<p${attrs}>${cleaned}</p>`;
+    });
 }
 
 async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppend = false, isPrepend = false) {
