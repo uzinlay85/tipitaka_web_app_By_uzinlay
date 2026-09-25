@@ -17,6 +17,14 @@ const state = {
     paliSuttas: [],
     paliRelated: [],
     matchingMM: null,
+    companionData: null,
+
+    // Dynamic Companion Split View State
+    splitRightType: localStorage.getItem("tipitaka_split_comp_type") || "attha", // 'attha' | 'tika' | 'mula' | 'mm'
+    splitRightBookId: null,
+    splitRightBookName: "",
+    splitRightPage: 1,
+    splitRightLastPage: 1,
 
     // Myanmar State
     mmBookId: "01_vinaya_01",
@@ -140,7 +148,7 @@ const el = {
     footerCurrentPage: document.getElementById("footerCurrentPage"),
     footerTotalPage: document.getElementById("footerTotalPage"),
     
-    // Split View
+    // Split View (Left: Current Pali / Right: Dynamic Companion)
     splitViewContainer: document.getElementById("splitViewContainer"),
     splitPaliTitle: document.getElementById("splitPaliTitle"),
     splitPaliContent: document.getElementById("splitPaliContent"),
@@ -148,12 +156,26 @@ const el = {
     btnSplitPaliNext: document.getElementById("btnSplitPaliNext"),
     splitPaliPageInput: document.getElementById("splitPaliPageInput"),
     splitPaliTotalDisplay: document.getElementById("splitPaliTotalDisplay"),
+
+    // Dynamic Companion Elements (Right Pane)
+    companionTabsBar: document.getElementById("companionTabsBar"),
+    compVolumeBox: document.getElementById("compVolumeBox"),
+    compVolumeSelect: document.getElementById("compVolumeSelect"),
+    splitRightPane: document.getElementById("splitRightPane"),
+    splitRightContent: document.getElementById("splitRightContent") || document.getElementById("splitMMContent"),
+    btnSplitRightPrev: document.getElementById("btnSplitRightPrev") || document.getElementById("btnSplitMMPrev"),
+    btnSplitRightNext: document.getElementById("btnSplitRightNext") || document.getElementById("btnSplitMMNext"),
+    splitRightPageInput: document.getElementById("splitRightPageInput") || document.getElementById("splitMMPageInput"),
+    splitRightTotalDisplay: document.getElementById("splitRightTotalDisplay") || document.getElementById("splitMMTotalDisplay"),
+    btnOpenCompanionMobile: document.getElementById("btnOpenCompanionMobile"),
+
+    // Aliases for backwards compatibility
     splitMMTitle: document.getElementById("splitMMTitle"),
-    splitMMContent: document.getElementById("splitMMContent"),
-    btnSplitMMPrev: document.getElementById("btnSplitMMPrev"),
-    btnSplitMMNext: document.getElementById("btnSplitMMNext"),
-    splitMMPageInput: document.getElementById("splitMMPageInput"),
-    splitMMTotalDisplay: document.getElementById("splitMMTotalDisplay"),
+    splitMMContent: document.getElementById("splitRightContent") || document.getElementById("splitMMContent"),
+    btnSplitMMPrev: document.getElementById("btnSplitRightPrev") || document.getElementById("btnSplitMMPrev"),
+    btnSplitMMNext: document.getElementById("btnSplitRightNext") || document.getElementById("btnSplitMMNext"),
+    splitMMPageInput: document.getElementById("splitRightPageInput") || document.getElementById("splitMMPageInput"),
+    splitMMTotalDisplay: document.getElementById("splitRightTotalDisplay") || document.getElementById("splitMMTotalDisplay"),
     btnSplitSync: document.getElementById("btnSplitSync"),
 
     // Sidebar Tabs
@@ -440,6 +462,7 @@ async function loadPaliBook(bookId, targetPage = null) {
             state.paliTocs = data.tocs || [];
             state.paliSuttas = data.suttas || [];
             state.paliRelated = data.related || [];
+            state.companionData = data.companions || null;
             
             renderTOC();
             renderSuttas();
@@ -833,12 +856,8 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
             if (el.btnSplitPaliNext) el.btnSplitPaliNext.disabled = !data.has_next;
             if (el.splitPaliContent) el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
             
-            // Sync matching MM page
-            if (data.matching_mm) {
-                state.mmBookId = data.matching_mm.book_id;
-                state.mmPage = data.matching_mm.page;
-                await loadMMPage(data.matching_mm.book_id, data.matching_mm.page, true);
-            }
+            // Sync matching Companion page (Attha, Tika, Mula, or MM)
+            await syncSplitCompanionPane(bookId, actualPage);
             attachSplitViewParagraphListeners();
         }
 
@@ -1132,25 +1151,270 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
     }
 }
 
-// ----------------- Split View Logic & Paragraph Sync -----------------
+// ----------------- Split View Logic & Dynamic Companion Tabs -----------------
 
 async function renderSplitView() {
-    el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ ${state.mmBookName || 'မြန်မာပြန်'}`;
-    el.chapterTitleDisplay.textContent = "ပါဠိတော်နှင့် မြန်မာပြန် ယှဉ်တွဲဖတ်ရှုခြင်း";
+    el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ တွဲဖက်ကျမ်း`;
+    el.chapterTitleDisplay.textContent = "ကျမ်းစာ ယှဉ်တွဲဖတ်ရှုခြင်း (Split View)";
     el.pageNumberInput.value = state.paliPage;
     el.totalPageDisplay.textContent = toMyanmarNum(state.paliLastPage || 1);
+
+    // 1. Ensure companion metadata is loaded for current book
+    if (!state.companionData || (state.companionData.current && state.companionData.current.id !== state.paliBookId)) {
+        try {
+            const res = await fetch(`/api/pali/companions/${state.paliBookId}`);
+            if (res.ok) {
+                state.companionData = await res.json();
+                renderRelatedDropdown();
+            }
+        } catch (e) {
+            console.error("Failed to load companion data:", e);
+        }
+    }
+
+    // 2. Render dynamic companion tabs in right pane header
+    renderCompanionTabs();
+
+    // 3. Load left Pali page
     await loadPaliPage(state.paliBookId, state.paliPage);
+
+    // 4. Sync right companion pane
+    await syncSplitCompanionPane(state.paliBookId, state.paliPage);
+
     debounceRecent(state.paliBookId, state.paliPage);
+}
+
+function renderCompanionTabs() {
+    const comp = state.companionData;
+    if (!el.companionTabsBar) return;
+
+    const availableTabs = [];
+    if (comp) {
+        if (comp.attha && comp.attha.length > 0) availableTabs.push({ type: "attha", label: "📖 အဋ္ဌကထာ", books: comp.attha });
+        if (comp.tika && comp.tika.length > 0) availableTabs.push({ type: "tika", label: "📜 ဋီကာ", books: comp.tika });
+        if (comp.mula && comp.mula.length > 0) availableTabs.push({ type: "mula", label: "☸️ မူလပါဠိ", books: comp.mula });
+        if (comp.mm && comp.mm.length > 0) availableTabs.push({ type: "mm", label: "🇲🇲 မြန်မာပြန်", books: comp.mm });
+    }
+
+    if (availableTabs.length === 0) {
+        availableTabs.push({ type: "mm", label: "🇲🇲 မြန်မာပြန်", books: [] });
+    }
+
+    // If current selected type is not available, pick first
+    if (!availableTabs.some(t => t.type === state.splitRightType)) {
+        state.splitRightType = availableTabs[0].type;
+    }
+
+    let tabsHtml = "";
+    availableTabs.forEach(t => {
+        const isActive = t.type === state.splitRightType;
+        tabsHtml += `<button class="comp-tab ${isActive ? 'active' : ''}" data-type="${t.type}">${t.label}</button>`;
+    });
+    el.companionTabsBar.innerHTML = tabsHtml;
+
+    // Attach click listeners to companion tabs
+    el.companionTabsBar.querySelectorAll(".comp-tab").forEach(tab => {
+        tab.addEventListener("click", async () => {
+            const type = tab.getAttribute("data-type");
+            if (type === state.splitRightType) return;
+            state.splitRightType = type;
+            state.splitRightBookId = null;
+            localStorage.setItem("tipitaka_split_comp_type", type);
+            renderCompanionTabs();
+            await syncSplitCompanionPane(state.paliBookId, state.paliPage);
+        });
+    });
+
+    updateCompanionVolumeSelector();
+}
+
+function updateCompanionVolumeSelector() {
+    if (!el.compVolumeBox || !el.compVolumeSelect) return;
+    const comp = state.companionData;
+    if (!comp) {
+        el.compVolumeBox.style.display = "none";
+        return;
+    }
+
+    let books = [];
+    if (state.splitRightType === "attha") books = comp.attha || [];
+    else if (state.splitRightType === "tika") books = comp.tika || [];
+    else if (state.splitRightType === "mula") books = comp.mula || [];
+    else if (state.splitRightType === "mm") books = comp.mm || [];
+
+    if (books.length <= 1) {
+        el.compVolumeBox.style.display = "none";
+        return;
+    }
+
+    el.compVolumeBox.style.display = "inline-flex";
+    let optHtml = "";
+    books.forEach(b => {
+        const isSelected = (b.id === state.splitRightBookId);
+        optHtml += `<option value="${b.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(b.name)}</option>`;
+    });
+    el.compVolumeSelect.innerHTML = optHtml;
+
+    // Remove old listeners by cloning
+    const newSelect = el.compVolumeSelect.cloneNode(true);
+    el.compVolumeSelect.parentNode.replaceChild(newSelect, el.compVolumeSelect);
+    el.compVolumeSelect = newSelect;
+
+    el.compVolumeSelect.addEventListener("change", async (e) => {
+        state.splitRightBookId = e.target.value;
+        await syncSplitCompanionPane(state.paliBookId, state.paliPage, state.splitRightBookId);
+    });
+}
+
+async function openSplitCompanion(compType, compId) {
+    state.splitRightType = compType;
+    state.splitRightBookId = compId;
+    localStorage.setItem("tipitaka_split_comp_type", compType);
+    setReaderMode("split");
+}
+
+async function syncSplitCompanionPane(sourceBook, sourcePage, specificTargetBook = null) {
+    if (state.readerMode !== "split") return;
+
+    const comp = state.companionData;
+    const type = state.splitRightType || "attha";
+    let candidateBooks = [];
+
+    if (specificTargetBook) {
+        candidateBooks = [specificTargetBook];
+    } else if (comp) {
+        if (type === "attha" && comp.attha) candidateBooks = comp.attha.map(b => b.id);
+        else if (type === "tika" && comp.tika) candidateBooks = comp.tika.map(b => b.id);
+        else if (type === "mula" && comp.mula) candidateBooks = comp.mula.map(b => b.id);
+        else if (type === "mm" && comp.mm) candidateBooks = comp.mm.map(b => b.id);
+    }
+
+    if (candidateBooks.length === 0) {
+        if (type === "mm" && state.mmBookId) candidateBooks = [state.mmBookId];
+    }
+
+    const targetTypeParam = (type === "mm") ? "mm" : "pali";
+    const targetBooksParam = candidateBooks.join(",");
+
+    try {
+        const url = `/api/match/pali_to_companion?source_book=${encodeURIComponent(sourceBook)}&source_page=${sourcePage}&target_type=${targetTypeParam}&target_books=${encodeURIComponent(targetBooksParam)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const matchData = await res.json();
+            const targetBid = matchData.target_book || (candidateBooks.length > 0 ? candidateBooks[0] : null);
+            const targetPg = matchData.target_page || 1;
+
+            if (targetBid) {
+                state.splitRightBookId = targetBid;
+                state.splitRightPage = targetPg;
+
+                if (el.compVolumeSelect) {
+                    el.compVolumeSelect.value = targetBid;
+                }
+
+                await loadSplitRightPage(targetBid, targetPg, type, matchData.matched_para);
+            }
+        }
+    } catch (err) {
+        console.error("Failed to sync companion pane:", err);
+    }
+}
+
+async function loadSplitRightPage(bookId, pageNum, type, matchedPara = null) {
+    if (!el.splitRightContent) return;
+
+    if (type === "mm") {
+        try {
+            const res = await fetch(`/api/mm/page/${bookId}/${pageNum}`);
+            if (res.ok) {
+                const data = await res.json();
+                state.splitRightBookName = data.book_name;
+                state.splitRightPage = data.page;
+                state.splitRightLastPage = data.last_page;
+
+                if (el.splitRightPageInput) {
+                    el.splitRightPageInput.value = data.page;
+                    el.splitRightPageInput.min = data.first_page;
+                    el.splitRightPageInput.max = data.last_page;
+                }
+                if (el.splitRightTotalDisplay) el.splitRightTotalDisplay.textContent = toMyanmarNum(data.last_page);
+                if (el.btnSplitRightPrev) el.btnSplitRightPrev.disabled = !data.has_prev;
+                if (el.btnSplitRightNext) el.btnSplitRightNext.disabled = !data.has_next;
+
+                el.splitRightContent.className = "split-pane-body mm-content";
+                el.splitRightContent.innerHTML = cleanMMContent(data.content);
+
+                attachSplitViewParagraphListeners();
+
+                if (matchedPara) {
+                    highlightMatchingParagraphInRight(matchedPara);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load MM companion page:", e);
+        }
+    } else {
+        try {
+            const res = await fetch(`/api/page/${bookId}/${pageNum}`);
+            if (res.ok) {
+                const data = await res.json();
+                state.splitRightBookName = data.book_name;
+                state.splitRightPage = data.page;
+                state.splitRightLastPage = data.last_page;
+
+                if (el.splitRightPageInput) {
+                    el.splitRightPageInput.value = data.page;
+                    el.splitRightPageInput.min = data.first_page;
+                    el.splitRightPageInput.max = data.last_page;
+                }
+                if (el.splitRightTotalDisplay) el.splitRightTotalDisplay.textContent = toMyanmarNum(data.last_page);
+                if (el.btnSplitRightPrev) el.btnSplitRightPrev.disabled = !data.has_prev;
+                if (el.btnSplitRightNext) el.btnSplitRightNext.disabled = !data.has_next;
+
+                el.splitRightContent.className = "split-pane-body pali-content";
+                el.splitRightContent.innerHTML = cleanPaliContent(data.content);
+
+                attachSplitViewParagraphListeners();
+
+                if (matchedPara) {
+                    highlightMatchingParagraphInRight(matchedPara);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load Pali companion page:", e);
+        }
+    }
+}
+
+function highlightMatchingParagraphInRight(paraNum) {
+    if (!el.splitRightContent) return;
+    const numStr = toMyanmarNum(paraNum);
+    let target = el.splitRightContent.querySelector(`a[name="para${paraNum}"]`);
+    if (!target) {
+        const markers = el.splitRightContent.querySelectorAll(".paranum, .hangnum, .paragraph");
+        for (const m of markers) {
+            if (m.textContent.includes(numStr) || fromMyanmarNum(m.textContent.trim()) === paraNum) {
+                target = m;
+                break;
+            }
+        }
+    }
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const p = target.closest("p") || target;
+        p.classList.add("para-highlight-pulse");
+        setTimeout(() => p.classList.remove("para-highlight-pulse"), 2400);
+    }
 }
 
 function attachSplitViewParagraphListeners() {
     if (state.readerMode !== "split") return;
 
-    // 1. Click on Pali paragraph marker to jump/scroll to matching Myanmar translation
+    // 1. Click on Pali paragraph marker in left pane to jump/scroll in right pane
     if (el.splitPaliContent) {
         el.splitPaliContent.querySelectorAll(".paranum, .hangnum, a[name^='para']").forEach(elem => {
             elem.style.cursor = "pointer";
-            elem.title = "ကလစ်နှိပ်ပါက မြန်မာပြန်ရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
+            elem.title = "ကလစ်နှိပ်ပါက ညာဘက်တွဲဖက်ကျမ်းရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
             elem.onclick = (e) => {
                 e.stopPropagation();
                 let text = elem.textContent.trim();
@@ -1164,21 +1428,33 @@ function attachSplitViewParagraphListeners() {
                     if (pn) num = fromMyanmarNum(pn.textContent.trim());
                 }
                 if (num) {
-                    scrollToMatchingMMParagraph(num);
+                    if (state.splitRightType === "mm") {
+                        scrollToMatchingMMParagraph(num);
+                    } else {
+                        scrollToMatchingPaliCompanionParagraph(num);
+                    }
                 }
             };
         });
     }
 
-    // 2. Click on Myanmar paragraph number to jump/scroll to matching Pali text
-    if (el.splitMMContent) {
-        el.splitMMContent.querySelectorAll(".paragraph").forEach(elem => {
+    // 2. Click on paragraph number in right pane to jump/scroll to matching Left Pali text
+    if (el.splitRightContent) {
+        el.splitRightContent.querySelectorAll(".paranum, .hangnum, .paragraph, a[name^='para']").forEach(elem => {
             elem.style.cursor = "pointer";
-            elem.title = "ကလစ်နှိပ်ပါက ပါဠိတော်ရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
+            elem.title = "ကလစ်နှိပ်ပါက ဘယ်ဘက်ပါဠိတော်ရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
             elem.onclick = (e) => {
                 e.stopPropagation();
                 let text = elem.textContent.trim();
                 let num = fromMyanmarNum(text);
+                if (!num && elem.name) {
+                    const m = elem.name.match(/\d+/);
+                    if (m) num = parseInt(m[0], 10);
+                }
+                if (!num && elem.querySelector) {
+                    const pn = elem.querySelector(".paranum");
+                    if (pn) num = fromMyanmarNum(pn.textContent.trim());
+                }
                 if (num) {
                     scrollToMatchingPaliParagraph(num);
                 }
@@ -1187,13 +1463,50 @@ function attachSplitViewParagraphListeners() {
     }
 }
 
+async function scrollToMatchingPaliCompanionParagraph(paraNum) {
+    if (!el.splitRightContent) return;
+    const numStr = toMyanmarNum(paraNum);
+
+    let target = el.splitRightContent.querySelector(`a[name="para${paraNum}"]`);
+    if (!target) {
+        const markers = el.splitRightContent.querySelectorAll(".paranum, .hangnum");
+        for (const m of markers) {
+            if (m.textContent.includes(numStr) || fromMyanmarNum(m.textContent.trim()) === paraNum) {
+                target = m;
+                break;
+            }
+        }
+    }
+
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const p = target.closest("p") || target;
+        p.classList.add("para-highlight-pulse");
+        setTimeout(() => p.classList.remove("para-highlight-pulse"), 2400);
+        showScrollToast(`တွဲဖက်ကျမ်း အပိုဒ် (${numStr}) သို့ ရွေ့ပြီးပါပြီ`);
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.splitRightBookId}&para=${paraNum}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.pali_page) {
+                showScrollToast(`တွဲဖက်ကျမ်း စာမျက်နှာ ${toMyanmarNum(data.pali_page)} (အပိုဒ် ${numStr}) သို့ ပြောင်းနေပါသည်...`);
+                await loadSplitRightPage(state.splitRightBookId, data.pali_page, state.splitRightType, paraNum);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to match para to companion page:", e);
+    }
+}
+
 async function scrollToMatchingMMParagraph(paraNum) {
-    if (!el.splitMMContent) return;
+    if (!el.splitRightContent) return;
     const mmNumStr = toMyanmarNum(paraNum);
 
-    // Look for paragraph element in current Myanmar pane
     let target = null;
-    const spans = el.splitMMContent.querySelectorAll(".paragraph");
+    const spans = el.splitRightContent.querySelectorAll(".paragraph");
     for (const s of spans) {
         if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
             target = s;
@@ -1210,28 +1523,13 @@ async function scrollToMatchingMMParagraph(paraNum) {
         return;
     }
 
-    // If not found on current Myanmar page, lookup the page where this paragraph is
     try {
-        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&mm_book_id=${state.mmBookId}&para=${paraNum}`);
+        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&mm_book_id=${state.splitRightBookId || state.mmBookId}&para=${paraNum}`);
         if (res.ok) {
             const data = await res.json();
             if (data.mm_page) {
                 showScrollToast(`မြန်မာပြန် စာမျက်နှာ ${toMyanmarNum(data.mm_page)} (အပိုဒ် ${mmNumStr}) သို့ ပြောင်းနေပါသည်...`);
-                await loadMMPage(data.mm_book_id || state.mmBookId, data.mm_page, true);
-                setTimeout(() => {
-                    if (el.splitMMContent) {
-                        const newSpans = el.splitMMContent.querySelectorAll(".paragraph");
-                        for (const s of newSpans) {
-                            if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
-                                s.scrollIntoView({ behavior: "smooth", block: "center" });
-                                const p = s.closest("p") || s;
-                                p.classList.add("para-highlight-pulse");
-                                setTimeout(() => p.classList.remove("para-highlight-pulse"), 2400);
-                                break;
-                            }
-                        }
-                    }
-                }, 150);
+                await loadSplitRightPage(data.mm_book_id || state.splitRightBookId || state.mmBookId, data.mm_page, "mm", paraNum);
             }
         }
     } catch (e) {
@@ -1243,7 +1541,6 @@ async function scrollToMatchingPaliParagraph(paraNum) {
     if (!el.splitPaliContent) return;
     const mmNumStr = toMyanmarNum(paraNum);
 
-    // Look for element in current Pali pane
     let target = el.splitPaliContent.querySelector(`a[name="para${paraNum}"]`);
     if (!target) {
         const spans = el.splitPaliContent.querySelectorAll(".paranum");
@@ -1264,9 +1561,8 @@ async function scrollToMatchingPaliParagraph(paraNum) {
         return;
     }
 
-    // If not found on current Pali page, lookup target page
     try {
-        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&mm_book_id=${state.mmBookId}&para=${paraNum}`);
+        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&para=${paraNum}`);
         if (res.ok) {
             const data = await res.json();
             if (data.pali_page) {
@@ -1300,28 +1596,9 @@ async function scrollToMatchingPaliParagraph(paraNum) {
 }
 
 async function handleSplitSync() {
-    showScrollToast("ပါဠိနှင့် မြန်မာပြန်ကို အလိုအလျောက် ချိန်ညှိနေပါသည်...");
-    let firstPara = null;
-    if (el.splitPaliContent) {
-        const spans = el.splitPaliContent.querySelectorAll(".paranum");
-        if (spans.length > 0) {
-            firstPara = fromMyanmarNum(spans[0].textContent.trim());
-        }
-        if (!firstPara) {
-            const anchor = el.splitPaliContent.querySelector("a[name^='para']");
-            if (anchor && anchor.name) {
-                const m = anchor.name.match(/\d+/);
-                if (m) firstPara = parseInt(m[0], 10);
-            }
-        }
-    }
-
-    if (firstPara) {
-        await scrollToMatchingMMParagraph(firstPara);
-    } else {
-        await loadPaliPage(state.paliBookId, state.paliPage);
-        showScrollToast("ပြန်လည်ချိန်ညှိပြီးပါပြီ");
-    }
+    showScrollToast("တွဲဖက်ကျမ်းစာနှင့် ပြန်လည်ချိန်ညှိနေပါသည်...");
+    await syncSplitCompanionPane(state.paliBookId, state.paliPage);
+    showScrollToast("တွဲဖက်ကျမ်းစာ ပြန်လည်ချိန်ညှိပြီးပါပြီ ✨");
 }
 
 // ----------------- Category & Catalog Helpers (APK Style) -----------------
@@ -1857,28 +2134,193 @@ function renderSuttas() {
 }
 
 function renderRelatedDropdown() {
-    if (!state.paliRelated || state.paliRelated.length === 0) {
-        el.relatedDropdownWrapper.style.display = "none";
+    const comp = state.companionData;
+    const hasCompanions = comp && (
+        (comp.attha && comp.attha.length > 0) ||
+        (comp.tika && comp.tika.length > 0) ||
+        (comp.mula && comp.mula.length > 0) ||
+        (comp.mm && comp.mm.length > 0)
+    );
+
+    if (!hasCompanions && (!state.paliRelated || state.paliRelated.length === 0)) {
+        if (el.relatedDropdownWrapper) el.relatedDropdownWrapper.style.display = "none";
+        if (el.mobileCompanionRow) el.mobileCompanionRow.style.display = "none";
         return;
     }
-    el.relatedDropdownWrapper.style.display = "block";
+
+    if (el.relatedDropdownWrapper) el.relatedDropdownWrapper.style.display = "block";
+    if (el.mobileCompanionRow) el.mobileCompanionRow.style.display = "block";
+
     let html = "";
-    state.paliRelated.forEach(r => {
-        const label = r.rel_type === "root" ? "ပါဠိတော်မူလ" : "အဋ္ဌကထာ/ဋီကာ";
+
+    // 1. အဋ္ဌကထာ (Commentary)
+    if (comp && comp.attha && comp.attha.length > 0) {
         html += `
-            <button class="dropdown-item" data-id="${r.id}">
-                <div><strong>${r.name}</strong></div>
-                <small style="color:var(--text-muted);">${label}</small>
-            </button>
+            <div class="comp-group">
+                <div class="comp-group-label">
+                    <span>📖 အဋ္ဌကထာ (Commentary)</span>
+                    <span class="comp-group-badge">${toMyanmarNum(comp.attha.length)} အုပ်</span>
+                </div>
         `;
-    });
+        comp.attha.forEach(b => {
+            html += `
+                <div class="comp-card-item">
+                    <div class="comp-card-header">
+                        <span class="comp-card-title">${escapeHtml(b.name)}</span>
+                    </div>
+                    <div class="comp-card-actions">
+                        <button class="comp-btn-split" data-comp-type="attha" data-id="${b.id}" title="လက်ရှိကျမ်းစာနှင့် ယှဉ်တွဲဖတ်ရှုရန်">
+                            <span>📖 ယှဉ်တွဲဖတ်မည်</span>
+                        </button>
+                        <button class="comp-btn-goto" data-id="${b.id}" title="ဤကျမ်းစာအုပ်သို့ တိုက်ရိုက်ကူးပြောင်းရန်">
+                            <span>➔ ဖတ်မည်</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // 2. ဋီကာ (Sub-commentary)
+    if (comp && comp.tika && comp.tika.length > 0) {
+        html += `
+            <div class="comp-group">
+                <div class="comp-group-label">
+                    <span>📜 ဋီကာ (Sub-commentary)</span>
+                    <span class="comp-group-badge">${toMyanmarNum(comp.tika.length)} အုပ်</span>
+                </div>
+        `;
+        comp.tika.forEach(b => {
+            html += `
+                <div class="comp-card-item">
+                    <div class="comp-card-header">
+                        <span class="comp-card-title">${escapeHtml(b.name)}</span>
+                    </div>
+                    <div class="comp-card-actions">
+                        <button class="comp-btn-split" data-comp-type="tika" data-id="${b.id}" title="လက်ရှိကျမ်းစာနှင့် ယှဉ်တွဲဖတ်ရှုရန်">
+                            <span>📖 ယှဉ်တွဲဖတ်မည်</span>
+                        </button>
+                        <button class="comp-btn-goto" data-id="${b.id}" title="ဤကျမ်းစာအုပ်သို့ တိုက်ရိုက်ကူးပြောင်းရန်">
+                            <span>➔ ဖတ်မည်</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // 3. ပါဠိတော်မူလ (Mūla - when on Attha/Tika)
+    if (comp && comp.mula && comp.mula.length > 0) {
+        html += `
+            <div class="comp-group">
+                <div class="comp-group-label">
+                    <span>☸️ မူလပါဠိတော်</span>
+                    <span class="comp-group-badge">${toMyanmarNum(comp.mula.length)} အုပ်</span>
+                </div>
+        `;
+        comp.mula.forEach(b => {
+            html += `
+                <div class="comp-card-item">
+                    <div class="comp-card-header">
+                        <span class="comp-card-title">${escapeHtml(b.name)}</span>
+                    </div>
+                    <div class="comp-card-actions">
+                        <button class="comp-btn-split" data-comp-type="mula" data-id="${b.id}" title="လက်ရှိကျမ်းစာနှင့် ယှဉ်တွဲဖတ်ရှုရန်">
+                            <span>📖 ယှဉ်တွဲဖတ်မည်</span>
+                        </button>
+                        <button class="comp-btn-goto" data-id="${b.id}" title="ဤကျမ်းစာအုပ်သို့ တိုက်ရိုက်ကူးပြောင်းရန်">
+                            <span>➔ ဖတ်မည်</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // 4. မြန်မာပြန် (Translation)
+    if (comp && comp.mm && comp.mm.length > 0) {
+        html += `
+            <div class="comp-group">
+                <div class="comp-group-label">
+                    <span>🇲🇲 မြန်မာပြန်</span>
+                    <span class="comp-group-badge">${toMyanmarNum(comp.mm.length)} အုပ်</span>
+                </div>
+        `;
+        comp.mm.forEach(b => {
+            html += `
+                <div class="comp-card-item">
+                    <div class="comp-card-header">
+                        <span class="comp-card-title">${escapeHtml(b.name)}</span>
+                    </div>
+                    <div class="comp-card-actions">
+                        <button class="comp-btn-split" data-comp-type="mm" data-id="${b.id}" title="လက်ရှိကျမ်းစာနှင့် ယှဉ်တွဲဖတ်ရှုရန်">
+                            <span>📖 ယှဉ်တွဲဖတ်မည်</span>
+                        </button>
+                        <button class="comp-btn-goto-mm" data-id="${b.id}" title="မြန်မာပြန်ကျမ်းစာသို့ တိုက်ရိုက်ကူးပြောင်းရန်">
+                            <span>➔ ဖတ်မည်</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // Fallback if only legacy related items
+    if (!html && state.paliRelated && state.paliRelated.length > 0) {
+        state.paliRelated.forEach(r => {
+            const label = r.rel_type === "root" ? "ပါဠိတော်မူလ" : "အဋ္ဌကထာ/ဋီကာ";
+            html += `
+                <div class="comp-card-item">
+                    <div class="comp-card-header">
+                        <span class="comp-card-title">${escapeHtml(r.name)}</span>
+                        <small style="color:var(--text-muted);">${label}</small>
+                    </div>
+                    <div class="comp-card-actions">
+                        <button class="comp-btn-split" data-comp-type="attha" data-id="${r.id}">
+                            <span>📖 ယှဉ်တွဲဖတ်မည်</span>
+                        </button>
+                        <button class="comp-btn-goto" data-id="${r.id}">
+                            <span>➔ ဖတ်မည်</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
     el.relatedList.innerHTML = html;
 
-    el.relatedList.querySelectorAll(".dropdown-item").forEach(btn => {
-        btn.addEventListener("click", () => {
+    // Attach click events
+    el.relatedList.querySelectorAll(".comp-btn-split").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const compType = btn.getAttribute("data-comp-type") || "attha";
+            const compId = btn.getAttribute("data-id");
+            if (el.relatedDropdownWrapper) el.relatedDropdownWrapper.classList.remove("open");
+            openSplitCompanion(compType, compId);
+        });
+    });
+
+    el.relatedList.querySelectorAll(".comp-btn-goto").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
             const relId = btn.getAttribute("data-id");
-            el.relatedDropdownWrapper.classList.remove("open");
+            if (el.relatedDropdownWrapper) el.relatedDropdownWrapper.classList.remove("open");
             loadPaliBook(relId, null);
+        });
+    });
+
+    el.relatedList.querySelectorAll(".comp-btn-goto-mm").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const mmId = btn.getAttribute("data-id");
+            if (el.relatedDropdownWrapper) el.relatedDropdownWrapper.classList.remove("open");
+            setReaderMode("mm");
+            loadMMBook(mmId, 1);
         });
     });
 }
@@ -3224,35 +3666,65 @@ function setupEventListeners() {
         el.splitPaliPageInput.addEventListener("change", handleSplitPaliInput);
     }
 
-    if (el.btnSplitMMPrev) {
-        el.btnSplitMMPrev.addEventListener("click", () => {
-            if (state.mmPage > (state.mmFirstPage || 1)) {
-                loadMMPage(state.mmBookId, state.mmPage - 1, true);
+    const btnRightPrev = el.btnSplitRightPrev || el.btnSplitMMPrev;
+    if (btnRightPrev) {
+        btnRightPrev.addEventListener("click", () => {
+            if (state.splitRightType === "mm") {
+                if (state.mmPage > (state.mmFirstPage || 1)) {
+                    loadMMPage(state.mmBookId, state.mmPage - 1, true);
+                }
+            } else {
+                if (state.splitRightPage > 1) {
+                    loadSplitRightPage(state.splitRightBookId, state.splitRightPage - 1, state.splitRightType);
+                }
             }
         });
     }
-    if (el.btnSplitMMNext) {
-        el.btnSplitMMNext.addEventListener("click", () => {
-            if (state.mmPage < (state.mmLastPage || 99999)) {
-                loadMMPage(state.mmBookId, state.mmPage + 1, true);
+
+    const btnRightNext = el.btnSplitRightNext || el.btnSplitMMNext;
+    if (btnRightNext) {
+        btnRightNext.addEventListener("click", () => {
+            if (state.splitRightType === "mm") {
+                if (state.mmPage < (state.mmLastPage || 99999)) {
+                    loadMMPage(state.mmBookId, state.mmPage + 1, true);
+                }
+            } else {
+                if (state.splitRightPage < (state.splitRightLastPage || 99999)) {
+                    loadSplitRightPage(state.splitRightBookId, state.splitRightPage + 1, state.splitRightType);
+                }
             }
         });
     }
-    if (el.splitMMPageInput) {
-        const handleSplitMMInput = () => {
-            const p = parseInt(el.splitMMPageInput.value, 10);
-            if (!isNaN(p) && p !== state.mmPage) {
-                loadMMPage(state.mmBookId, p, true);
+
+    const inputRight = el.splitRightPageInput || el.splitMMPageInput;
+    if (inputRight) {
+        const handleSplitRightInput = () => {
+            const p = parseInt(inputRight.value, 10);
+            if (!isNaN(p)) {
+                if (state.splitRightType === "mm") {
+                    if (p !== state.mmPage) loadMMPage(state.mmBookId, p, true);
+                } else {
+                    if (p !== state.splitRightPage) loadSplitRightPage(state.splitRightBookId, p, state.splitRightType);
+                }
             }
         };
-        el.splitMMPageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") handleSplitMMInput();
+        inputRight.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleSplitRightInput();
         });
-        el.splitMMPageInput.addEventListener("change", handleSplitMMInput);
+        inputRight.addEventListener("change", handleSplitRightInput);
     }
 
     if (el.btnSplitSync) {
         el.btnSplitSync.addEventListener("click", handleSplitSync);
+    }
+
+    if (el.btnOpenCompanionMobile) {
+        el.btnOpenCompanionMobile.addEventListener("click", () => {
+            toggleSidebar(false);
+            if (el.relatedDropdownWrapper) {
+                el.relatedDropdownWrapper.classList.toggle("open");
+            }
+        });
     }
 
     // Scroll Mode Dropdown in Header
@@ -3612,6 +4084,8 @@ function setupEventListeners() {
 
     el.paliContent.addEventListener("click", handleWordClick);
     el.splitPaliContent.addEventListener("click", handleWordClick);
+    if (el.splitRightContent) el.splitRightContent.addEventListener("click", handleWordClick);
+    if (el.splitMMContent && el.splitMMContent !== el.splitRightContent) el.splitMMContent.addEventListener("click", handleWordClick);
 
     // Quick Popover Close
     el.btnClosePopover.addEventListener("click", () => {
@@ -4251,7 +4725,8 @@ function setupFontSize(size) {
     state.fontSize = size;
     el.readerPaper.style.fontSize = `${1.25 * (size / 100)}rem`;
     el.splitPaliContent.style.fontSize = `${1.15 * (size / 100)}rem`;
-    el.splitMMContent.style.fontSize = `${1.15 * (size / 100)}rem`;
+    if (el.splitRightContent) el.splitRightContent.style.fontSize = `${1.15 * (size / 100)}rem`;
+    if (el.splitMMContent && el.splitMMContent !== el.splitRightContent) el.splitMMContent.style.fontSize = `${1.15 * (size / 100)}rem`;
     el.fontSizeDisplay.textContent = `${size}%`;
     const fsMobile = document.getElementById("fontSizeDisplayMobile");
     if (fsMobile) fsMobile.textContent = `${size}%`;

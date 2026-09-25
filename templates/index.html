@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=4.1">
+    <link rel="stylesheet" href="/static/app.css?v=5.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -111,8 +111,8 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     <span class="btn-text">တွဲဖက်ကျမ်း</span>
                 </button>
-                <div class="dropdown-menu" id="relatedDropdownMenu">
-                    <div class="dropdown-header">ဆက်စပ် အဋ္ဌကထာ/ဋီကာ များ</div>
+                <div class="dropdown-menu companion-dropdown-menu" id="relatedDropdownMenu">
+                    <div class="dropdown-header">✨ တွဲဖက်လေ့လာနိုင်သော ကျမ်းစာများ</div>
                     <div class="dropdown-list" id="relatedList"></div>
                 </div>
             </div>
@@ -203,6 +203,12 @@
                     <button id="btnToggleNotesMobile" class="edition-btn notes-toggle-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
                         <span>📝</span>
                         <span id="toggleNotesLabelMobile">မူကွဲပါဠိတော်များ: ပိတ်ထားသည်</span>
+                    </button>
+                </div>
+                <div class="mobile-companion-row" id="mobileCompanionRow" style="margin-top: 8px;">
+                    <button id="btnOpenCompanionMobile" class="edition-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
+                        <span>📚</span>
+                        <span>တွဲဖက်ကျမ်းစာများ ရွေးချယ်ရန်</span>
                     </button>
                 </div>
                 <div class="mobile-scroll-mode-box" style="margin-top: 8px;">
@@ -456,32 +462,41 @@
                     <div class="split-pane-body" id="splitPaliContent"></div>
                 </div>
 
-                <!-- Right Pane: Myanmar Translation -->
-                <div class="split-pane pane-mm">
+                <!-- Right Pane: Dynamic Companion Pane (Aṭṭhakathā, Ṭīkā, MM Translation) -->
+                <div class="split-pane pane-companion" id="splitRightPane">
                     <div class="split-pane-header">
                         <div class="split-pane-info">
-                            <span class="split-pane-title">🇲🇲 မြန်မာပြန်: <strong id="splitMMTitle">ပါရာဇိကဏ်</strong></span>
+                            <!-- Dynamic Companion Tabs Bar -->
+                            <div class="companion-tabs-bar" id="companionTabsBar">
+                                <button class="comp-tab active" data-type="attha" id="tabCompAttha">📖 အဋ္ဌကထာ</button>
+                                <button class="comp-tab" data-type="tika" id="tabCompTika">📜 ဋီကာ</button>
+                                <button class="comp-tab" data-type="mm" id="tabCompMM">🇲🇲 မြန်မာပြန်</button>
+                            </div>
+                            <!-- Volume Selector dropdown when multiple volumes exist -->
+                            <div class="comp-volume-box" id="compVolumeBox" style="display: none;">
+                                <select id="compVolumeSelect" class="comp-volume-select" title="အတွဲ ရွေးချယ်ရန်"></select>
+                            </div>
                         </div>
                         <div class="split-pane-nav">
-                            <button id="btnSplitMMPrev" class="split-nav-btn" title="မြန်မာပြန် ယခင်စာမျက်နှာ">
+                            <button id="btnSplitRightPrev" class="split-nav-btn" title="ယခင်စာမျက်နှာ">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                             </button>
                             <div class="split-nav-page-box">
                                 <span>စာ</span>
-                                <input type="number" id="splitMMPageInput" class="split-nav-input" min="1" value="1" title="စာမျက်နှာ ရိုက်ထည့်ပါ">
+                                <input type="number" id="splitRightPageInput" class="split-nav-input" min="1" value="1" title="စာမျက်နှာ ရိုက်ထည့်ပါ">
                                 <span>/</span>
-                                <span id="splitMMTotalDisplay" class="split-nav-total">၁</span>
+                                <span id="splitRightTotalDisplay" class="split-nav-total">၁</span>
                             </div>
-                            <button id="btnSplitMMNext" class="split-nav-btn" title="မြန်မာပြန် နောက်စာမျက်နှာ">
+                            <button id="btnSplitRightNext" class="split-nav-btn" title="နောက်စာမျက်နှာ">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
                             </button>
-                            <button id="btnSplitSync" class="split-sync-btn" title="ပါဠိနှင့် မြန်မာပြန် ပြန်လည်ချိန်ညှိရန်">
+                            <button id="btnSplitSync" class="split-sync-btn" title="ဘယ်ဘက်ကျမ်းစာနှင့် ပြန်လည်ချိန်ညှိရန် (Sync Pages)">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                                 <span>ညှိမည်</span>
                             </button>
                         </div>
                     </div>
-                    <div class="split-pane-body" id="splitMMContent"></div>
+                    <div class="split-pane-body" id="splitRightContent"></div>
                 </div>
             </div>
         </main>
@@ -949,6 +964,6 @@
     </button>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=4.1"></script>
+    <script src="/static/app.js?v=5.0"></script>
 </body>
 </html>
