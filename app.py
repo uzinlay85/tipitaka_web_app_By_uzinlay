@@ -79,6 +79,22 @@ def clean_pali_word(word):
         return ""
     return re.sub(r"[\s\d၀-၉၊။,.\-—–“’”\"'()\[\]<>:;?!/\\#*~`]+", "", word).strip()
 
+def clean_gatha_quotes(text):
+    if not text:
+        return ""
+    # Strip opening/closing quotes in gāthās to match authentic Chaṭṭhasaṅgāyana printed book standard
+    # Characters: U+201C (“), U+201D (”), U+2018 (‘), U+2019 (’), U+0022 ("), U+0027 (')
+    quote_pattern = r'[\u201c\u201d\u2018\u2019"\']+'
+    # 1. Opening quote at start of line / after leading HTML tags (anchor, span, etc.)
+    text = re.sub(r'(^|^(?:<a\b[^>]*>.*?</a>|<span\b[^>]*>.*?</span>|\s)*)' + quote_pattern + r'\s*', r'\1', text)
+    # 2. Closing quote before quotative endings 'တိ' or 'န္တိ' (iti)
+    text = re.sub(quote_pattern + r'(?=(?:န္တိ|တိ)[၊။]?)', '', text)
+    # 3. Quote before comma, section mark, or end of pada / tag
+    text = re.sub(quote_pattern + r'(?=[,၊။]|\s*(?:<|$))', '', text)
+    # 4. Quote immediately after punctuation (e.g. ။” -> ။ or ၊” -> ၊)
+    text = re.sub(r'([၊။])' + quote_pattern, r'\1', text)
+    return text
+
 def format_chattasangayana_pali(html):
     if not html:
         return ""
@@ -111,13 +127,15 @@ def format_chattasangayana_pali(html):
             # 1. Clean leading whitespace inside gatha paragraph so lines align perfectly
             content = re.sub(r'^\s+', '', content)
             content = re.sub(r'^((?:<a\b[^>]*>.*?</a>)*)\s+', r'\1', content)
+            # Remove gāthā opening/closing quotes per authentic Chaṭṭhasaṅgāyana standard
+            content = clean_gatha_quotes(content)
             
             # 2. Process padas: if separated by comma, wrap each pada in <span class="gatha-pada">
             if re.search(r',(?![^<]*>)', content):
                 parts = re.split(r',(?![^<]*>)\s*', content)
                 padas = []
                 for i, part in enumerate(parts):
-                    p = part.strip()
+                    p = clean_gatha_quotes(part.strip())
                     if i < len(parts) - 1:
                         # Non-final pada ends with ၊
                         p = re.sub(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'၊\1', p)
@@ -128,13 +146,15 @@ def format_chattasangayana_pali(html):
                         p = re.sub(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
                         if not re.search(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
                             p = p + '။'
+                    p = clean_gatha_quotes(p)
                     padas.append(f'<span class="gatha-pada pada{i+1}">{p}</span>')
                 res = ' '.join(padas)
                 return f'<p{attrs}>{res}</p>'
             else:
-                p = content.strip()
+                p = clean_gatha_quotes(content.strip())
                 if 'gatha2' in cls_name or 'gatha4' in cls_name or 'gathalast' in cls_name:
                     p = re.sub(r'၊([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
+                p = clean_gatha_quotes(p)
                 return f'<p{attrs}><span class="gatha-pada">{p}</span></p>'
         else:
             cleaned = re.sub(r',(?![^<]*>)', '', content)

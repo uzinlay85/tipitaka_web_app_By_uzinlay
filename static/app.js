@@ -505,6 +505,19 @@ function protectMyanmarConjuncts(html) {
     }).join("");
 }
 
+function cleanGathaQuotes(text) {
+    if (!text) return "";
+    // 1. Opening quote at start of line / after leading HTML tags (anchor, span, etc.)
+    let res = text.replace(/(^|^(?:<a\b[^>]*>.*?<\/a>|<span\b[^>]*>.*?<\/span>|\s)*)[\u201c\u201d\u2018\u2019"']+\s*/g, "$1");
+    // 2. Closing quote before quotative endings 'တိ' or 'န္တိ' (iti)
+    res = res.replace(/[\u201c\u201d\u2018\u2019"']+(?=(?:န္တိ|တိ)[၊။]?)/g, "");
+    // 3. Quote before comma, section mark, or end of pada / tag
+    res = res.replace(/[\u201c\u201d\u2018\u2019"']+(?=[,၊။]|\s*(?:<|$))/g, "");
+    // 4. Quote immediately after punctuation (e.g. ။” -> ။ or ၊” -> ၊)
+    res = res.replace(/([၊။])[\u201c\u201d\u2018\u2019"']+/g, "$1");
+    return res;
+}
+
 function cleanPaliContent(html) {
     if (!html) return "";
     // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
@@ -526,12 +539,14 @@ function cleanPaliContent(html) {
             // ၁။ ဂါထာစာကြောင်း အစရှိ မလိုအပ်သော space များကို ဖယ်ရှား၍ ညီညာစေပါမည်
             content = content.replace(/^\s+/, "");
             content = content.replace(/^((?:<a\b[^>]*>.*?<\/a>)*)\s+/, "$1");
+            // ဆဋ္ဌမူစာအုပ် မူရင်းအတိုင်း ဂါထာအစ/အဆုံး quotation marks (‘‘, ’’, “, ”) များကို သန့်စင်ဖယ်ရှားပါမည်
+            content = cleanGathaQuotes(content);
 
             // ၂။ အပုဒ်များ ခွဲခြားထားသော comma ပါဝင်ပါက တစ်ပါဒစီ ခွဲခြား wrap လုပ်ပါမည်
             if (/,+(?![^<]*>)/.test(content)) {
                 const parts = content.split(/,(?![^<]*>)\s*/);
                 const padas = parts.map((part, i) => {
-                    let p = part.trim();
+                    let p = cleanGathaQuotes(part.trim());
                     if (i < parts.length - 1) {
                         p = p.replace(/[၊။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "၊$1");
                         if (!/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
@@ -543,14 +558,16 @@ function cleanPaliContent(html) {
                             p = p + "။";
                         }
                     }
+                    p = cleanGathaQuotes(p);
                     return `<span class="gatha-pada pada${i + 1}">${p}</span>`;
                 });
                 return `<p${attrs}>${padas.join(" ")}</p>`;
             } else {
-                let p = content.trim();
+                let p = cleanGathaQuotes(content.trim());
                 if (clsName.includes("gatha2") || clsName.includes("gatha4") || clsName.includes("gathalast")) {
                     p = p.replace(/၊([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
                 }
+                p = cleanGathaQuotes(p);
                 return `<p${attrs}><span class="gatha-pada">${p}</span></p>`;
             }
         }
