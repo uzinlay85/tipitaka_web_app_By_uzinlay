@@ -1485,19 +1485,159 @@ body.hide-notes .note {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 18px;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-surface);
     font-size: 0.88rem;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.split-pane-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.split-pane-title {
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .split-pane-title strong {
     color: var(--accent);
 }
 
-.split-pane-page {
-    font-size: 0.8rem;
+.split-pane-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.split-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--bg-paper);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.split-nav-btn:hover:not(:disabled) {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.split-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.split-nav-page-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    background: var(--bg-paper);
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.split-nav-input {
+    width: 50px;
+    padding: 2px 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: center;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--bg-surface);
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.split-nav-input::-webkit-outer-spin-button,
+.split-nav-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.split-nav-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.split-nav-total {
+    font-weight: 500;
     color: var(--text-muted);
+}
+
+.split-sync-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.split-sync-btn:hover {
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+/* Clickable Paragraph Numbers in Split View */
+.split-pane-body .paranum,
+.split-pane-body .paragraph {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 3px;
+    padding: 0 2px;
+}
+
+.split-pane-body .paranum:hover,
+.split-pane-body .paragraph:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* Flash highlight animation when jumping to matching paragraph */
+@keyframes paraFlashHighlight {
+    0% { background-color: var(--accent-light); transform: scale(1.02); }
+    50% { background-color: rgba(234, 179, 8, 0.4); }
+    100% { background-color: transparent; transform: scale(1); }
+}
+
+.para-highlight-pulse {
+    animation: paraFlashHighlight 2s ease-out;
+    border-radius: 4px;
 }
 
 .split-pane-body {
@@ -1506,6 +1646,7 @@ body.hide-notes .note {
     padding: 24px 28px;
     font-size: 1.15rem;
     line-height: 2;
+    scroll-behavior: smooth;
 }
 
 /* Myanmar Translation Typography Enhancements */

@@ -356,7 +356,7 @@ def api_page(book_id, page_num):
         if pmap:
             matching_mm = {"book_id": pmap[0], "book_name": pmap[1], "page": pmap[2]}
         else:
-            # Try source_book and paragraph number
+            # Try source_book and paragraph number with majority voting
             src = m_cur.execute("""
                 SELECT sb.mm_book_id, b.name, sb.link_type
                 FROM source_book sb
@@ -366,14 +366,34 @@ def api_page(book_id, page_num):
             if src:
                 mm_bid, mm_bname, ltype = src
                 target_mm_pg = 1
+                nums = []
                 if page_row and page_row["paranum"]:
                     nums = [int(n) for n in str(page_row["paranum"]).split('-') if n.isdigit()]
-                    if nums:
-                        first_num = nums[0]
-                        mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, first_num)).fetchone()
+                
+                # Check content for paragraph markers if nums empty
+                if not nums and page_row and page_row["content"]:
+                    found = re.findall(r'para(\d+)', page_row["content"])
+                    nums = [int(n) for n in found if n.isdigit()]
+
+                if nums:
+                    # Count frequency of target MM pages across all paragraph numbers on this page
+                    # Pick the page that contains the majority of the paragraphs
+                    page_counts = {}
+                    for num in nums:
+                        mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, num)).fetchone()
+                        if mp:
+                            pg = mp[0]
+                            page_counts[pg] = page_counts.get(pg, 0) + 1
+                    
+                    if page_counts:
+                        best_pg = max(page_counts.items(), key=lambda x: (x[1], x[0]))[0]
+                        target_mm_pg = best_pg
+                    else:
+                        mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, nums[0])).fetchone()
                         if mp:
                             target_mm_pg = mp[0]
-                matching_mm = {"book_id": mm_bid, "book_name": mm_bname, "page": target_mm_pg}
+
+                matching_mm = {"book_id": mm_bid, "book_name": mm_bname, "page": target_mm_pg, "paragraphs": nums}
 
         m_conn.close()
 
@@ -544,18 +564,28 @@ def api_mm_page(book_id, page_num):
         src = cur.execute("SELECT pali_book_id FROM source_book WHERE mm_book_id = ?", (book_id,)).fetchone()
         if src:
             p_bid = src[0]
-            # Paragraph to pali page
-            para = cur.execute("SELECT paragraph_number FROM paragraphs WHERE book_id = ? AND page_number = ? LIMIT 1", (book_id, page_num)).fetchone()
+            # Paragraphs to pali page with majority voting
+            paras = cur.execute("SELECT paragraph_number FROM paragraphs WHERE book_id = ? AND page_number = ?", (book_id, page_num)).fetchall()
             target_pali_page = 1
+            nums = [p[0] for p in paras]
             p_conn = get_pali_db()
             p_cur = p_conn.cursor()
-            if para:
-                p_page_row = p_cur.execute(f"SELECT page FROM pages WHERE book_id = ? AND paranum LIKE '%-{para[0]}-%' LIMIT 1", (p_bid,)).fetchone()
-                if p_page_row:
-                    target_pali_page = p_page_row[0]
+            if nums:
+                pali_page_counts = {}
+                for num in nums:
+                    p_page_row = p_cur.execute(f"SELECT page FROM pages WHERE book_id = ? AND paranum LIKE '%-{num}-%' LIMIT 1", (p_bid,)).fetchone()
+                    if p_page_row:
+                        pg = p_page_row[0]
+                        pali_page_counts[pg] = pali_page_counts.get(pg, 0) + 1
+                if pali_page_counts:
+                    target_pali_page = max(pali_page_counts.items(), key=lambda x: (x[1], x[0]))[0]
+                else:
+                    p_page_row = p_cur.execute(f"SELECT page FROM pages WHERE book_id = ? AND paranum LIKE '%-{nums[0]}-%' LIMIT 1", (p_bid,)).fetchone()
+                    if p_page_row:
+                        target_pali_page = p_page_row[0]
             pb = p_cur.execute("SELECT name FROM books WHERE id = ?", (p_bid,)).fetchone()
             if pb:
-                matching_pali = {"book_id": p_bid, "book_name": pb[0], "page": target_pali_page}
+                matching_pali = {"book_id": p_bid, "book_name": pb[0], "page": target_pali_page, "paragraphs": nums}
             p_conn.close()
 
     conn.close()
@@ -579,6 +609,56 @@ def api_mm_page(book_id, page_num):
         "content": content_html,
         "matching_pali": matching_pali
     })
+
+# ----------------- Paragraph Match API (Split View Sync) -----------------
+
+@app.route("/api/match/para_to_page")
+def api_match_para_to_page():
+    pali_book_id = request.args.get("pali_book_id", "")
+    mm_book_id = request.args.get("mm_book_id", "")
+    para_num = request.args.get("para", type=int)
+
+    if not para_num:
+        return jsonify({"error": "para required"}), 400
+
+    result = {"para": para_num}
+
+    # 1. Lookup in Myanmar DB
+    if os.path.exists(DB_MM_PATH):
+        m_conn = get_mm_db()
+        m_cur = m_conn.cursor()
+        target_mm_id = mm_book_id
+        if not target_mm_id and pali_book_id:
+            src = m_cur.execute("SELECT mm_book_id FROM source_book WHERE pali_book_id = ?", (pali_book_id,)).fetchone()
+            if src:
+                target_mm_id = src[0]
+        if target_mm_id:
+            mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (target_mm_id, para_num)).fetchone()
+            if mp:
+                result["mm_book_id"] = target_mm_id
+                result["mm_page"] = mp[0]
+        m_conn.close()
+
+    # 2. Lookup in Pali DB
+    if os.path.exists(DB_PALI_PATH):
+        p_conn = get_pali_db()
+        p_cur = p_conn.cursor()
+        target_pali_id = pali_book_id
+        if not target_pali_id and mm_book_id and os.path.exists(DB_MM_PATH):
+            m_conn = get_mm_db()
+            m_cur = m_conn.cursor()
+            src = m_cur.execute("SELECT pali_book_id FROM source_book WHERE mm_book_id = ?", (mm_book_id,)).fetchone()
+            if src:
+                target_pali_id = src[0]
+            m_conn.close()
+        if target_pali_id:
+            p_page = p_cur.execute("SELECT page FROM pages WHERE book_id = ? AND paranum LIKE ? LIMIT 1", (target_pali_id, f"%-{para_num}-%")).fetchone()
+            if p_page:
+                result["pali_book_id"] = target_pali_id
+                result["pali_page"] = p_page[0]
+        p_conn.close()
+
+    return jsonify(result)
 
 # ----------------- Dictionary APIs -----------------
 

@@ -129,11 +129,18 @@ const el = {
     // Split View
     splitViewContainer: document.getElementById("splitViewContainer"),
     splitPaliTitle: document.getElementById("splitPaliTitle"),
-    splitPaliPage: document.getElementById("splitPaliPage"),
     splitPaliContent: document.getElementById("splitPaliContent"),
+    btnSplitPaliPrev: document.getElementById("btnSplitPaliPrev"),
+    btnSplitPaliNext: document.getElementById("btnSplitPaliNext"),
+    splitPaliPageInput: document.getElementById("splitPaliPageInput"),
+    splitPaliTotalDisplay: document.getElementById("splitPaliTotalDisplay"),
     splitMMTitle: document.getElementById("splitMMTitle"),
-    splitMMPage: document.getElementById("splitMMPage"),
     splitMMContent: document.getElementById("splitMMContent"),
+    btnSplitMMPrev: document.getElementById("btnSplitMMPrev"),
+    btnSplitMMNext: document.getElementById("btnSplitMMNext"),
+    splitMMPageInput: document.getElementById("splitMMPageInput"),
+    splitMMTotalDisplay: document.getElementById("splitMMTotalDisplay"),
+    btnSplitSync: document.getElementById("btnSplitSync"),
 
     // Sidebar Tabs
     sidebarTabBtns: document.querySelectorAll(".sidebar-tabs .tab-btn"),
@@ -661,9 +668,18 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
         // Update split view if open
         if (state.readerMode === "split") {
-            el.splitPaliTitle.textContent = data.book_name;
-            el.splitPaliPage.textContent = toMyanmarNum(data.page);
-            el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
+            state.paliPage = actualPage;
+            state.paliBookName = data.book_name;
+            if (el.splitPaliTitle) el.splitPaliTitle.textContent = data.book_name;
+            if (el.splitPaliPageInput) {
+                el.splitPaliPageInput.value = actualPage;
+                el.splitPaliPageInput.min = data.first_page;
+                el.splitPaliPageInput.max = data.last_page;
+            }
+            if (el.splitPaliTotalDisplay) el.splitPaliTotalDisplay.textContent = toMyanmarNum(data.last_page);
+            if (el.btnSplitPaliPrev) el.btnSplitPaliPrev.disabled = !data.has_prev;
+            if (el.btnSplitPaliNext) el.btnSplitPaliNext.disabled = !data.has_next;
+            if (el.splitPaliContent) el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
             
             // Sync matching MM page
             if (data.matching_mm) {
@@ -671,6 +687,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 state.mmPage = data.matching_mm.page;
                 await loadMMPage(data.matching_mm.book_id, data.matching_mm.page, true);
             }
+            attachSplitViewParagraphListeners();
         }
 
     } catch (err) {
@@ -924,9 +941,25 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
         }
 
         if (isSplitRightPane || state.readerMode === "split") {
-            el.splitMMTitle.textContent = data.book_name;
-            el.splitMMPage.textContent = toMyanmarNum(actualPage);
-            el.splitMMContent.innerHTML = data.content;
+            state.mmBookId = data.book_id;
+            state.mmBookName = data.book_name;
+            state.mmPage = actualPage;
+            state.mmFirstPage = data.first_page;
+            state.mmLastPage = data.last_page;
+            if (el.splitMMTitle) el.splitMMTitle.textContent = data.book_name;
+            if (el.splitMMPageInput) {
+                el.splitMMPageInput.value = actualPage;
+                el.splitMMPageInput.min = data.first_page;
+                el.splitMMPageInput.max = data.last_page;
+            }
+            if (el.splitMMTotalDisplay) el.splitMMTotalDisplay.textContent = toMyanmarNum(data.last_page);
+            if (el.btnSplitMMPrev) el.btnSplitMMPrev.disabled = !data.has_prev;
+            if (el.btnSplitMMNext) el.btnSplitMMNext.disabled = !data.has_next;
+            if (el.splitMMContent) el.splitMMContent.innerHTML = cleanMMContent(data.content);
+            if (el.bookTitleDisplay && state.readerMode === "split") {
+                el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ ${data.book_name}`;
+            }
+            attachSplitViewParagraphListeners();
         }
 
     } catch (err) {
@@ -934,14 +967,195 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
     }
 }
 
-// ----------------- Split View Logic -----------------
+// ----------------- Split View Logic & Paragraph Sync -----------------
 
 async function renderSplitView() {
-    el.bookTitleDisplay.textContent = `${state.paliBookName} ↔ ${state.mmBookName}`;
+    el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ ${state.mmBookName || 'မြန်မာပြန်'}`;
     el.chapterTitleDisplay.textContent = "ပါဠိတော်နှင့် မြန်မာပြန် ယှဉ်တွဲဖတ်ရှုခြင်း";
     el.pageNumberInput.value = state.paliPage;
-    el.totalPageDisplay.textContent = state.paliLastPage;
+    el.totalPageDisplay.textContent = toMyanmarNum(state.paliLastPage || 1);
     await loadPaliPage(state.paliBookId, state.paliPage);
+}
+
+function attachSplitViewParagraphListeners() {
+    if (state.readerMode !== "split") return;
+
+    // 1. Click on Pali paragraph marker to jump/scroll to matching Myanmar translation
+    if (el.splitPaliContent) {
+        el.splitPaliContent.querySelectorAll(".paranum, .hangnum, a[name^='para']").forEach(elem => {
+            elem.style.cursor = "pointer";
+            elem.title = "ကလစ်နှိပ်ပါက မြန်မာပြန်ရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
+            elem.onclick = (e) => {
+                e.stopPropagation();
+                let text = elem.textContent.trim();
+                let num = fromMyanmarNum(text);
+                if (!num && elem.name) {
+                    const m = elem.name.match(/\d+/);
+                    if (m) num = parseInt(m[0], 10);
+                }
+                if (!num && elem.querySelector) {
+                    const pn = elem.querySelector(".paranum");
+                    if (pn) num = fromMyanmarNum(pn.textContent.trim());
+                }
+                if (num) {
+                    scrollToMatchingMMParagraph(num);
+                }
+            };
+        });
+    }
+
+    // 2. Click on Myanmar paragraph number to jump/scroll to matching Pali text
+    if (el.splitMMContent) {
+        el.splitMMContent.querySelectorAll(".paragraph").forEach(elem => {
+            elem.style.cursor = "pointer";
+            elem.title = "ကလစ်နှိပ်ပါက ပါဠိတော်ရှိ ဤအပိုဒ်သို့ တိုက်ရိုက်ရွေ့ပါမည်";
+            elem.onclick = (e) => {
+                e.stopPropagation();
+                let text = elem.textContent.trim();
+                let num = fromMyanmarNum(text);
+                if (num) {
+                    scrollToMatchingPaliParagraph(num);
+                }
+            };
+        });
+    }
+}
+
+async function scrollToMatchingMMParagraph(paraNum) {
+    if (!el.splitMMContent) return;
+    const mmNumStr = toMyanmarNum(paraNum);
+
+    // Look for paragraph element in current Myanmar pane
+    let target = null;
+    const spans = el.splitMMContent.querySelectorAll(".paragraph");
+    for (const s of spans) {
+        if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
+            target = s;
+            break;
+        }
+    }
+
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const parentP = target.closest("p") || target;
+        parentP.classList.add("para-highlight-pulse");
+        setTimeout(() => parentP.classList.remove("para-highlight-pulse"), 2400);
+        showScrollToast(`မြန်မာပြန် အပိုဒ် (${mmNumStr}) သို့ ရွေ့ပြီးပါပြီ`);
+        return;
+    }
+
+    // If not found on current Myanmar page, lookup the page where this paragraph is
+    try {
+        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&mm_book_id=${state.mmBookId}&para=${paraNum}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.mm_page) {
+                showScrollToast(`မြန်မာပြန် စာမျက်နှာ ${toMyanmarNum(data.mm_page)} (အပိုဒ် ${mmNumStr}) သို့ ပြောင်းနေပါသည်...`);
+                await loadMMPage(data.mm_book_id || state.mmBookId, data.mm_page, true);
+                setTimeout(() => {
+                    if (el.splitMMContent) {
+                        const newSpans = el.splitMMContent.querySelectorAll(".paragraph");
+                        for (const s of newSpans) {
+                            if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
+                                s.scrollIntoView({ behavior: "smooth", block: "center" });
+                                const p = s.closest("p") || s;
+                                p.classList.add("para-highlight-pulse");
+                                setTimeout(() => p.classList.remove("para-highlight-pulse"), 2400);
+                                break;
+                            }
+                        }
+                    }
+                }, 150);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to match para to mm page:", e);
+    }
+}
+
+async function scrollToMatchingPaliParagraph(paraNum) {
+    if (!el.splitPaliContent) return;
+    const mmNumStr = toMyanmarNum(paraNum);
+
+    // Look for element in current Pali pane
+    let target = el.splitPaliContent.querySelector(`a[name="para${paraNum}"]`);
+    if (!target) {
+        const spans = el.splitPaliContent.querySelectorAll(".paranum");
+        for (const s of spans) {
+            if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
+                target = s;
+                break;
+            }
+        }
+    }
+
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const parentP = target.closest("p") || target;
+        parentP.classList.add("para-highlight-pulse");
+        setTimeout(() => parentP.classList.remove("para-highlight-pulse"), 2400);
+        showScrollToast(`ပါဠိတော် အပိုဒ် (${mmNumStr}) သို့ ရွေ့ပြီးပါပြီ`);
+        return;
+    }
+
+    // If not found on current Pali page, lookup target page
+    try {
+        const res = await fetch(`/api/match/para_to_page?pali_book_id=${state.paliBookId}&mm_book_id=${state.mmBookId}&para=${paraNum}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.pali_page) {
+                showScrollToast(`ပါဠိတော် စာမျက်နှာ ${toMyanmarNum(data.pali_page)} (အပိုဒ် ${mmNumStr}) သို့ ပြောင်းနေပါသည်...`);
+                await loadPaliPage(data.pali_book_id || state.paliBookId, data.pali_page);
+                setTimeout(() => {
+                    if (el.splitPaliContent) {
+                        let newTarget = el.splitPaliContent.querySelector(`a[name="para${paraNum}"]`);
+                        if (!newTarget) {
+                            const spans = el.splitPaliContent.querySelectorAll(".paranum");
+                            for (const s of spans) {
+                                if (s.textContent.trim() === mmNumStr || fromMyanmarNum(s.textContent.trim()) === paraNum) {
+                                    newTarget = s;
+                                    break;
+                                }
+                            }
+                        }
+                        if (newTarget) {
+                            newTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+                            const p = newTarget.closest("p") || newTarget;
+                            p.classList.add("para-highlight-pulse");
+                            setTimeout(() => p.classList.remove("para-highlight-pulse"), 2400);
+                        }
+                    }
+                }, 150);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to match para to pali page:", e);
+    }
+}
+
+async function handleSplitSync() {
+    showScrollToast("ပါဠိနှင့် မြန်မာပြန်ကို အလိုအလျောက် ချိန်ညှိနေပါသည်...");
+    let firstPara = null;
+    if (el.splitPaliContent) {
+        const spans = el.splitPaliContent.querySelectorAll(".paranum");
+        if (spans.length > 0) {
+            firstPara = fromMyanmarNum(spans[0].textContent.trim());
+        }
+        if (!firstPara) {
+            const anchor = el.splitPaliContent.querySelector("a[name^='para']");
+            if (anchor && anchor.name) {
+                const m = anchor.name.match(/\d+/);
+                if (m) firstPara = parseInt(m[0], 10);
+            }
+        }
+    }
+
+    if (firstPara) {
+        await scrollToMatchingMMParagraph(firstPara);
+    } else {
+        await loadPaliPage(state.paliBookId, state.paliPage);
+        showScrollToast("ပြန်လည်ချိန်ညှိပြီးပါပြီ");
+    }
 }
 
 // ----------------- Category & Catalog Helpers (APK Style) -----------------
@@ -1763,6 +1977,65 @@ function setupEventListeners() {
         el.pageScrollIndicator.addEventListener("click", () => nextPage(false));
     }
 
+    // Split View Independent Navigation & Sync Controls
+    if (el.btnSplitPaliPrev) {
+        el.btnSplitPaliPrev.addEventListener("click", () => {
+            if (state.paliPage > (state.paliFirstPage || 1)) {
+                loadPaliPage(state.paliBookId, state.paliPage - 1);
+            }
+        });
+    }
+    if (el.btnSplitPaliNext) {
+        el.btnSplitPaliNext.addEventListener("click", () => {
+            if (state.paliPage < (state.paliLastPage || 99999)) {
+                loadPaliPage(state.paliBookId, state.paliPage + 1);
+            }
+        });
+    }
+    if (el.splitPaliPageInput) {
+        const handleSplitPaliInput = () => {
+            const p = parseInt(el.splitPaliPageInput.value, 10);
+            if (!isNaN(p) && p !== state.paliPage) {
+                loadPaliPage(state.paliBookId, p);
+            }
+        };
+        el.splitPaliPageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleSplitPaliInput();
+        });
+        el.splitPaliPageInput.addEventListener("change", handleSplitPaliInput);
+    }
+
+    if (el.btnSplitMMPrev) {
+        el.btnSplitMMPrev.addEventListener("click", () => {
+            if (state.mmPage > (state.mmFirstPage || 1)) {
+                loadMMPage(state.mmBookId, state.mmPage - 1, true);
+            }
+        });
+    }
+    if (el.btnSplitMMNext) {
+        el.btnSplitMMNext.addEventListener("click", () => {
+            if (state.mmPage < (state.mmLastPage || 99999)) {
+                loadMMPage(state.mmBookId, state.mmPage + 1, true);
+            }
+        });
+    }
+    if (el.splitMMPageInput) {
+        const handleSplitMMInput = () => {
+            const p = parseInt(el.splitMMPageInput.value, 10);
+            if (!isNaN(p) && p !== state.mmPage) {
+                loadMMPage(state.mmBookId, p, true);
+            }
+        };
+        el.splitMMPageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleSplitMMInput();
+        });
+        el.splitMMPageInput.addEventListener("change", handleSplitMMInput);
+    }
+
+    if (el.btnSplitSync) {
+        el.btnSplitSync.addEventListener("click", handleSplitSync);
+    }
+
     // Scroll Mode Dropdown in Header
     if (el.btnScrollMode && el.scrollModeDropdownWrapper) {
         el.btnScrollMode.addEventListener("click", (e) => {
@@ -2501,6 +2774,13 @@ function setupFontSize(size) {
 function toMyanmarNum(num) {
     const mmDigits = ['၀', '၁', '၂', '၃', '၄', '၅', '၆', '၇', '၈', '၉'];
     return num.toString().replace(/\d/g, d => mmDigits[parseInt(d, 10)]);
+}
+
+function fromMyanmarNum(str) {
+    if (!str) return 0;
+    const mmDigits = {'၀': '0', '၁': '1', '၂': '2', '၃': '3', '၄': '4', '၅': '5', '၆': '6', '၇': '7', '၈': '8', '၉': '9'};
+    const eng = str.toString().replace(/[၀-၉]/g, d => mmDigits[d] || d).replace(/[^\d]/g, '');
+    return eng ? parseInt(eng, 10) : 0;
 }
 
 // Start app

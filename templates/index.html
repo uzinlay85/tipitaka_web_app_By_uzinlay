@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=3.1">
+    <link rel="stylesheet" href="/static/app.css?v=3.2">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -380,8 +380,23 @@
                 <!-- Left Pane: Pali -->
                 <div class="split-pane pane-pali">
                     <div class="split-pane-header">
-                        <span class="split-pane-title">☸️ ပါဠိတော်: <strong id="splitPaliTitle">ပါရာဇိကပါဠိ</strong></span>
-                        <span class="split-pane-page">စာ-<span id="splitPaliPage">၁</span></span>
+                        <div class="split-pane-info">
+                            <span class="split-pane-title">☸️ ပါဠိတော်: <strong id="splitPaliTitle">ပါရာဇိကပါဠိ</strong></span>
+                        </div>
+                        <div class="split-pane-nav">
+                            <button id="btnSplitPaliPrev" class="split-nav-btn" title="ပါဠိ ယခင်စာမျက်နှာ">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </button>
+                            <div class="split-nav-page-box">
+                                <span>စာ</span>
+                                <input type="number" id="splitPaliPageInput" class="split-nav-input" min="1" value="1" title="စာမျက်နှာ ရိုက်ထည့်ပါ">
+                                <span>/</span>
+                                <span id="splitPaliTotalDisplay" class="split-nav-total">၁</span>
+                            </div>
+                            <button id="btnSplitPaliNext" class="split-nav-btn" title="ပါဠိ နောက်စာမျက်နှာ">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="split-pane-body" id="splitPaliContent"></div>
                 </div>
@@ -389,8 +404,27 @@
                 <!-- Right Pane: Myanmar Translation -->
                 <div class="split-pane pane-mm">
                     <div class="split-pane-header">
-                        <span class="split-pane-title">🇲🇲 မြန်မာပြန်: <strong id="splitMMTitle">ပါရာဇိကဏ်</strong></span>
-                        <span class="split-pane-page">စာ-<span id="splitMMPage">၁</span></span>
+                        <div class="split-pane-info">
+                            <span class="split-pane-title">🇲🇲 မြန်မာပြန်: <strong id="splitMMTitle">ပါရာဇိကဏ်</strong></span>
+                        </div>
+                        <div class="split-pane-nav">
+                            <button id="btnSplitMMPrev" class="split-nav-btn" title="မြန်မာပြန် ယခင်စာမျက်နှာ">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </button>
+                            <div class="split-nav-page-box">
+                                <span>စာ</span>
+                                <input type="number" id="splitMMPageInput" class="split-nav-input" min="1" value="1" title="စာမျက်နှာ ရိုက်ထည့်ပါ">
+                                <span>/</span>
+                                <span id="splitMMTotalDisplay" class="split-nav-total">၁</span>
+                            </div>
+                            <button id="btnSplitMMNext" class="split-nav-btn" title="မြန်မာပြန် နောက်စာမျက်နှာ">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </button>
+                            <button id="btnSplitSync" class="split-sync-btn" title="ပါဠိနှင့် မြန်မာပြန် ပြန်လည်ချိန်ညှိရန်">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                <span>ညှိမည်</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="split-pane-body" id="splitMMContent"></div>
                 </div>
@@ -748,6 +782,6 @@
     </nav>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=3.1"></script>
+    <script src="/static/app.js?v=3.2"></script>
 </body>
 </html>
