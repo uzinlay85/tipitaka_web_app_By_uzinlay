@@ -42,25 +42,39 @@ def get_pali_db(readonly=True):
         conn.execute("PRAGMA synchronous=NORMAL")
         return conn
 
-    if 'pali_db' not in g:
+    conn = g.get('pali_db')
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")
+        except Exception:
+            conn = None
+
+    if conn is None:
         conn = sqlite3.connect(DB_PALI_RO_URI, uri=True, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only = ON")
         conn.execute("PRAGMA cache_size = -64000")
         conn.execute("PRAGMA mmap_size = 268435456")
         g.pali_db = conn
-    return g.pali_db
+    return conn
 
 def get_mm_db():
     """Get request-scoped read-only SQLite connection for Myanmar Tipitaka database."""
-    if 'mm_db' not in g:
+    conn = g.get('mm_db')
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")
+        except Exception:
+            conn = None
+
+    if conn is None:
         conn = sqlite3.connect(DB_MM_RO_URI, uri=True, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only = ON")
         conn.execute("PRAGMA cache_size = -32000")
         conn.execute("PRAGMA mmap_size = 268435456")
         g.mm_db = conn
-    return g.mm_db
+    return conn
 
 @app.teardown_appcontext
 def close_db_connections(exception=None):
@@ -296,7 +310,6 @@ def api_stats():
     suttas_count = cur_p.execute("SELECT count(*) FROM suttas").fetchone()[0]
     dict_count = cur_p.execute("SELECT count(*) FROM dictionary").fetchone()[0]
     words_count = cur_p.execute("SELECT count(*) FROM wordlist").fetchone()[0]
-    conn_p.close()
 
     mm_books_count = 0
     mm_pages_count = 0
@@ -305,7 +318,6 @@ def api_stats():
         cur_m = conn_m.cursor()
         mm_books_count = cur_m.execute("SELECT count(*) FROM book").fetchone()[0]
         mm_pages_count = cur_m.execute("SELECT count(*) FROM mm_pages").fetchone()[0]
-        conn_m.close()
 
     return jsonify({
         "books": books_count,
@@ -330,7 +342,6 @@ def api_categories():
         FROM books 
         ORDER BY id ASC
     """).fetchall()
-    conn.close()
 
     cat_map = {c["id"]: {"id": c["id"], "name": c["name"], "basket": c["basket"], "books": []} for c in cats}
     for b in books:
@@ -368,7 +379,6 @@ def api_books():
         LEFT JOIN category c ON b.category = c.id
         ORDER BY b.id ASC
     """).fetchall()
-    conn.close()
     return jsonify([dict(b) for b in books])
 
 @app.route("/api/book/<book_id>")
@@ -384,7 +394,6 @@ def api_book(book_id):
     """, (book_id,)).fetchone()
     
     if not book:
-        conn.close()
         return jsonify({"error": "Book not found"}), 404
 
     tocs = cur.execute("""
@@ -429,9 +438,6 @@ def api_book(book_id):
         """, (book_id,)).fetchone()
         if src:
             matching_mm_book = {"book_id": src[0], "book_name": src[1]}
-        m_conn.close()
-
-    conn.close()
 
     companions = get_companion_books(book_id)
 
@@ -451,7 +457,6 @@ def get_companion_books(book_id):
     cur = conn.cursor()
     cur_book = cur.execute("SELECT id, name, basket, category FROM books WHERE id = ?", (book_id,)).fetchone()
     if not cur_book:
-        conn.close()
         return None
 
     books = cur.execute("SELECT id, name, basket FROM books").fetchall()
@@ -500,9 +505,6 @@ def get_companion_books(book_id):
             for s in srcs:
                 if not any(m["id"] == s[0] for m in mm_list):
                     mm_list.append({"id": s[0], "name": s[1]})
-        m_conn.close()
-
-    conn.close()
 
     return {
         "current": {
@@ -531,7 +533,6 @@ def api_page(book_id, page_num):
 
     book = cur.execute("SELECT id, name, firstpage, lastpage, pagecount FROM books WHERE id = ?", (book_id,)).fetchone()
     if not book:
-        conn.close()
         return jsonify({"error": "Book not found"}), 404
 
     if page_num < book["firstpage"]:
@@ -608,10 +609,6 @@ def api_page(book_id, page_num):
 
                 matching_mm = {"book_id": mm_bid, "book_name": mm_bname, "page": target_mm_pg, "paragraphs": nums}
 
-        m_conn.close()
-
-    conn.close()
-
     content_html = page_row["content"] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
     if content_html:
         content_html = _cached_format_pali(content_html)
@@ -643,7 +640,6 @@ def api_mm_categories():
     cur = conn.cursor()
     cats = cur.execute("SELECT id, name FROM category ORDER BY id ASC").fetchall()
     books = cur.execute("SELECT id, category_id, name, first_page, last_page, number_of_pages FROM book ORDER BY id ASC").fetchall()
-    conn.close()
 
     cat_map = {c["id"]: {"id": c["id"], "name": c["name"], "books": []} for c in cats}
     for b in books:
@@ -671,7 +667,6 @@ def api_mm_books():
         JOIN category c ON b.category_id = c.id
         ORDER BY b.id ASC
     """).fetchall()
-    conn.close()
     return jsonify([dict(b) for b in books])
 
 @app.route("/api/mm/book/<book_id>")
@@ -689,7 +684,6 @@ def api_mm_book(book_id):
     """, (book_id,)).fetchone()
 
     if not book:
-        conn.close()
         return jsonify({"error": "Myanmar book not found"}), 404
 
     tocs = cur.execute("""
@@ -721,9 +715,6 @@ def api_mm_book(book_id):
         pb = p_cur.execute("SELECT name FROM books WHERE id = ?", (src[0],)).fetchone()
         if pb:
             matching_pali_book = {"book_id": src[0], "book_name": pb[0]}
-        p_conn.close()
-
-    conn.close()
 
     return jsonify({
         "book": dict(book),
@@ -741,7 +732,6 @@ def api_mm_page(book_id, page_num):
 
     book = cur.execute("SELECT id, name, first_page, last_page, number_of_pages FROM book WHERE id = ?", (book_id,)).fetchone()
     if not book:
-        conn.close()
         return jsonify({"error": "Myanmar book not found"}), 404
 
     if page_num < book["first_page"]:
@@ -772,7 +762,6 @@ def api_mm_page(book_id, page_num):
         pb = p_cur.execute("SELECT name FROM books WHERE id = ?", (pmap[0],)).fetchone()
         if pb:
             matching_pali = {"book_id": pmap[0], "book_name": pb[0], "page": pmap[1]}
-        p_conn.close()
     else:
         src = cur.execute("SELECT pali_book_id FROM source_book WHERE mm_book_id = ?", (book_id,)).fetchone()
         if src:
@@ -799,9 +788,6 @@ def api_mm_page(book_id, page_num):
             pb = p_cur.execute("SELECT name FROM books WHERE id = ?", (p_bid,)).fetchone()
             if pb:
                 matching_pali = {"book_id": p_bid, "book_name": pb[0], "page": target_pali_page, "paragraphs": nums}
-            p_conn.close()
-
-    conn.close()
 
     content_html = page_row[0] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
     if content_html:
@@ -850,7 +836,6 @@ def api_match_para_to_page():
             if mp:
                 result["mm_book_id"] = target_mm_id
                 result["mm_page"] = mp[0]
-        m_conn.close()
 
     # 2. Lookup in Pali DB
     if os.path.exists(DB_PALI_PATH):
@@ -863,13 +848,11 @@ def api_match_para_to_page():
             src = m_cur.execute("SELECT pali_book_id FROM source_book WHERE mm_book_id = ?", (mm_book_id,)).fetchone()
             if src:
                 target_pali_id = src[0]
-            m_conn.close()
         if target_pali_id:
             p_page = p_cur.execute("SELECT page FROM pages WHERE book_id = ? AND paranum LIKE ? LIMIT 1", (target_pali_id, f"%-{para_num}-%")).fetchone()
             if p_page:
                 result["pali_book_id"] = target_pali_id
                 result["pali_page"] = p_page[0]
-        p_conn.close()
 
     return jsonify(result)
 
@@ -906,10 +889,8 @@ def api_match_pali_to_companion():
                     if src2:
                         candidate_targets = [src2[0]]
                         break
-                p_conn.close()
             else:
                 candidate_targets = [src[0]]
-            m_conn.close()
 
         if not candidate_targets:
             return jsonify({"matched": False, "target_book": None, "target_page": 1})
@@ -919,7 +900,6 @@ def api_match_pali_to_companion():
         p_conn = get_pali_db()
         p_cur = p_conn.cursor()
         page_row = p_cur.execute("SELECT paranum, content FROM pages WHERE book_id = ? AND page = ?", (source_book, source_page)).fetchone()
-        p_conn.close()
 
         m_conn = get_mm_db()
         m_cur = m_conn.cursor()
@@ -930,7 +910,6 @@ def api_match_pali_to_companion():
             WHERE pali_book_id = ? AND pali_page_number = ? AND mm_book_id = ?
         """, (source_book, source_page, mm_bid)).fetchone()
         if pmap:
-            m_conn.close()
             return jsonify({"matched": True, "target_book": mm_bid, "target_page": pmap[0]})
 
         # Try paragraph numbers
@@ -945,10 +924,8 @@ def api_match_pali_to_companion():
             for num in nums:
                 mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, num)).fetchone()
                 if mp:
-                    m_conn.close()
                     return jsonify({"matched": True, "target_book": mm_bid, "target_page": mp[0], "matched_para": num})
 
-        m_conn.close()
         return jsonify({"matched": False, "target_book": mm_bid, "target_page": 1})
 
     else:
@@ -1093,7 +1070,6 @@ def api_search():
             WHERE b.name LIKE ?
             LIMIT 50
         """, (f"%{query}%",)).fetchall()
-        m_conn.close()
         return jsonify({
             "type": "mm_book",
             "query": query,
@@ -1116,7 +1092,6 @@ def api_search():
             ORDER BY t.book_id, t.page_number
             LIMIT ? OFFSET ?
         """, (f"%{query}%", limit, offset)).fetchall()
-        m_conn.close()
         return jsonify({
             "type": "mm_toc",
             "query": query,
@@ -1137,7 +1112,6 @@ def api_search():
             ORDER BY s.page_number ASC
             LIMIT ? OFFSET ?
         """, (f"%{query}%", limit, offset)).fetchall()
-        conn.close()
         return jsonify({
             "type": "sutta",
             "query": query,
@@ -1156,7 +1130,6 @@ def api_search():
             WHERE b.name LIKE ? OR b.short_name LIKE ?
             LIMIT 50
         """, (f"%{query}%", f"%{query}%")).fetchall()
-        conn.close()
         return jsonify({
             "type": "book",
             "query": query,
@@ -1176,7 +1149,6 @@ def api_search():
             ORDER BY t.book_id, t.page_number
             LIMIT ? OFFSET ?
         """, (f"%{query}%", limit, offset)).fetchall()
-        conn.close()
         return jsonify({
             "type": "toc",
             "query": query,
@@ -1205,7 +1177,6 @@ def api_search():
             """, (clean_q + "%",)).fetchall()
 
         if not word_rows:
-            conn.close()
             return jsonify({"type": "word", "query": query, "total": 0, "results": [], "matched_words": []})
 
         matched_words = [r["word"] for r in word_rows]
@@ -1254,7 +1225,6 @@ def api_search():
                         "snippet": snippet
                     })
 
-        conn.close()
         return jsonify({
             "type": "word",
             "query": query,
