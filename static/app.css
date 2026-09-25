@@ -719,23 +719,34 @@ button, input, select {
     animation: tocFlash 1s ease-out;
 }
 
-/* Mobile & Tablet Dynamic Chapter Breadcrumb (Tappable to open TOC) */
-.mobile-chapter-breadcrumb {
+/* Mobile & Tablet Dynamic Chapter Breadcrumb (Sticky Tappable Bar) */
+.mobile-breadcrumb-wrapper {
     display: none; /* Displayed via media query on mobile & tablet */
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    width: 100%;
+    max-width: 860px;
+    padding: 6px 0;
+    background: var(--bg-app);
+    box-sizing: border-box;
+}
+
+.mobile-chapter-breadcrumb {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    max-width: 820px;
     padding: 8px 12px;
-    margin-bottom: 12px;
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-left: 3px solid var(--accent);
     border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 6px var(--shadow-color, rgba(0, 0, 0, 0.05));
     cursor: pointer;
     user-select: none;
     transition: background 0.15s ease, transform 0.1s ease;
+    box-sizing: border-box;
 }
 
 .mobile-chapter-breadcrumb:active {
@@ -2326,7 +2337,10 @@ body.hide-notes .note {
         padding: 24px 20px;
         font-size: 1.15rem;
     }
-    .mobile-chapter-breadcrumb {
+    .reader-container {
+        padding-top: 0 !important;
+    }
+    .mobile-breadcrumb-wrapper {
         display: flex;
     }
     .toc-item-btn {
@@ -2417,7 +2431,7 @@ body.hide-notes .note {
     
     /* Reader Canvas on Mobile */
     .reader-container {
-        padding: 10px 8px 84px 8px !important;
+        padding: 0 8px 84px 8px !important;
     }
     .reader-paper {
         padding: 18px 14px !important;

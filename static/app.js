@@ -98,6 +98,7 @@ const el = {
     currentBookBadge: document.getElementById("currentBookBadge"),
     bookTitleDisplay: document.getElementById("bookTitleDisplay"),
     chapterTitleDisplay: document.getElementById("chapterTitleDisplay"),
+    mobileBreadcrumbWrapper: document.getElementById("mobileBreadcrumbWrapper"),
     mobileChapterBreadcrumb: document.getElementById("mobileChapterBreadcrumb"),
     mobileBreadcrumbBook: document.getElementById("mobileBreadcrumbBook"),
     mobileBreadcrumbChapter: document.getElementById("mobileBreadcrumbChapter"),
@@ -1610,6 +1611,12 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
     
     if (!tocs || tocs.length === 0) {
         if (el.tocCurrentCard) el.tocCurrentCard.style.display = "none";
+        if (el.mobileChapterBreadcrumb) {
+            const bookName = (mode === "mm") ? (state.mmBookName || "မြန်မာပြန်") : (state.paliBookName || "ပါဠိတော်");
+            if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = bookName;
+            if (el.mobileBreadcrumbChapter) el.mobileBreadcrumbChapter.textContent = "";
+            if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
+        }
         return;
     }
 
