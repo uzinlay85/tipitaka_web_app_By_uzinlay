@@ -104,8 +104,18 @@ def format_chattasangayana_pali(html):
             cls_m = re.search(r'\bclass\s*=\s*["\']([^"\']+)["\']', attrs, re.I)
             cls_name = cls_m.group(1).lower() if cls_m else ""
             
+            # 1. Clean leading whitespace inside gatha paragraph so lines align perfectly
+            content = re.sub(r'^\s+', '', content)
+            content = re.sub(r'^((?:<a\b[^>]*>.*?</a>)*)\s+', r'\1', content)
+            
+            # 2. Convert comma to ၊
             has_comma = bool(re.search(r',(?![^<]*>)', content))
             res = re.sub(r',(?![^<]*>)\s*', '၊ ', content)
+            
+            # 3. Clean any whitespace before ၊ or ။ (e.g. "အမတပဒံ ၊" -> "အမတပဒံ၊")
+            res = re.sub(r'\s+([၊။])', r'\1', res)
+            # Ensure space after ၊ when followed by text
+            res = re.sub(r'([၊])(?=[^\s<၊။])', r'\1 ', res)
             
             if has_comma:
                 res = re.sub(r'၊([’"”’]*\s*(?:<[^>]+>\s*)*)$', r'။\1', res)
