@@ -54,7 +54,8 @@ const state = {
     feedSessionId: 0,
     isLoadingMore: false,
     historyActiveTab: "reading",
-    historyModeFilter: "all"
+    historyModeFilter: "all",
+    isFocusMode: false
 };
 
 // DOM Elements
@@ -63,6 +64,11 @@ const el = {
     dictSidebar: document.getElementById("dictSidebar"),
     btnToggleSidebar: document.getElementById("btnToggleSidebar"),
     btnToggleDict: document.getElementById("btnToggleDict"),
+    btnToggleFullscreen: document.getElementById("btnToggleFullscreen"),
+    btnToggleFullscreenMobile: document.getElementById("btnToggleFullscreenMobile"),
+    btnExitFocusMode: document.getElementById("btnExitFocusMode"),
+    fullscreenIcon: document.getElementById("fullscreenIcon"),
+    fullscreenMobileLabel: document.getElementById("fullscreenMobileLabel"),
     btnCloseDict: document.getElementById("btnCloseDict"),
     
     // Mode Switcher & Tools
@@ -1314,6 +1320,81 @@ function getCleanCategoryName(catName, catId) {
     if (catId && map[catId]) return map[catId];
     if (!catName) return "";
     return catName.replace(/\(.*?\)/g, "").trim() || catName;
+}
+
+// ----------------- Focus / Fullscreen Mode Controller -----------------
+
+function toggleFocusBars(forceState) {
+    if (!state.isFocusMode) return;
+    const isRevealed = (typeof forceState === "boolean")
+        ? forceState
+        : !document.body.classList.contains("focus-bars-revealed");
+    document.body.classList.toggle("focus-bars-revealed", isRevealed);
+}
+
+async function toggleFocusMode(enable) {
+    if (typeof enable !== "boolean") {
+        enable = !state.isFocusMode;
+    }
+    state.isFocusMode = enable;
+    document.body.classList.toggle("focus-mode", enable);
+    if (!enable) {
+        document.body.classList.remove("focus-bars-revealed");
+    } else {
+        // Automatically close sidebars and drawers when entering focus mode
+        if (state.isSidebarOpen) toggleSidebar(false);
+        if (state.isDictOpen) toggleDictSidebar(false);
+        closeSidebarMobile();
+    }
+
+    // Update icons & tooltips
+    if (el.btnToggleFullscreen) {
+        el.btnToggleFullscreen.title = enable 
+            ? "ပုံမှန်မြင်ကွင်းသို့ ပြန်သွားရန် (Esc / Focus Mode)" 
+            : "မျက်နှာပြင်ပြည့် / အာရုံစူးစိုက်ဖတ်ရှုရန် (Focus Mode - F11)";
+        el.btnToggleFullscreen.classList.toggle("active", enable);
+    }
+    if (el.btnToggleFullscreenMobile) {
+        el.btnToggleFullscreenMobile.classList.toggle("active", enable);
+    }
+    if (el.fullscreenIcon) {
+        if (enable) {
+            // Compress icon
+            el.fullscreenIcon.innerHTML = `<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>`;
+        } else {
+            // Expand icon
+            el.fullscreenIcon.innerHTML = `<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>`;
+        }
+    }
+    if (el.fullscreenMobileLabel) {
+        el.fullscreenMobileLabel.textContent = enable 
+            ? "ပုံမှန်မြင်ကွင်းသို့ ပြန်သွားရန်" 
+            : "မျက်နှာပြင်ပြည့် ဖတ်ရှုရန် (Focus Mode)";
+    }
+
+    // Trigger HTML5 Fullscreen API
+    try {
+        const docEl = document.documentElement;
+        if (enable) {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (docEl.requestFullscreen) {
+                    await docEl.requestFullscreen();
+                } else if (docEl.webkitRequestFullscreen) {
+                    await docEl.webkitRequestFullscreen();
+                }
+            }
+        } else {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    await document.webkitExitFullscreen();
+                }
+            }
+        }
+    } catch (err) {
+        console.warn("Fullscreen API note:", err);
+    }
 }
 
 // ----------------- App View Controller (Home vs Reader) -----------------
@@ -3249,11 +3330,23 @@ function setupEventListeners() {
         }
     }, { passive: true });
 
-    el.readerContainer.addEventListener("touchend", () => {
+    el.readerContainer.addEventListener("touchend", (e) => {
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         const absX = Math.abs(diffX);
         const absY = Math.abs(diffY);
+
+        // Tap to Toggle Bars in Focus Mode
+        if (state.isFocusMode && absX < 15 && absY < 15) {
+            const activeElem = document.elementFromPoint(touchEndX, touchEndY);
+            if (activeElem && !activeElem.closest("button, a, input, select, .paranum, .note-btn, .edition-btn, #btnExitFocusMode, .word, .bookmark-toggle-btn")) {
+                const selection = window.getSelection ? window.getSelection().toString() : "";
+                if (!selection || selection.trim().length === 0) {
+                    toggleFocusBars();
+                    return;
+                }
+            }
+        }
 
         if (state.scrollMode === "single") {
             // Horizontal Swipe (Left/Right)
@@ -3278,6 +3371,11 @@ function setupEventListeners() {
     // Infinite Feed Scroll listener (Desktop mouse wheel & Mobile finger scroll)
     let feedScrollThrottleTimer = null;
     el.readerContainer.addEventListener("scroll", () => {
+        // Auto-hide revealed bars in focus mode when scrolling
+        if (state.isFocusMode && document.body.classList.contains("focus-bars-revealed")) {
+            document.body.classList.remove("focus-bars-revealed");
+        }
+
         if (state.scrollMode !== "feed") return;
 
         // Auto load next page when scrolled near bottom (within 250px)
@@ -3515,7 +3613,10 @@ function setupEventListeners() {
             return;
         }
 
-        if (e.key === "[" || e.key === "ArrowLeft") {
+        if (e.key === "F11") {
+            e.preventDefault();
+            toggleFocusMode();
+        } else if (e.key === "[" || e.key === "ArrowLeft") {
             prevPage();
         } else if (e.key === "]" || e.key === "ArrowRight") {
             nextPage();
@@ -3532,6 +3633,9 @@ function setupEventListeners() {
             e.preventDefault();
             el.helpModal.classList.add("open");
         } else if (e.key === "Escape") {
+            if (state.isFocusMode) {
+                toggleFocusMode(false);
+            }
             closeSearchModal();
             closeHistoryModal();
             el.helpModal.classList.remove("open");
@@ -3719,6 +3823,48 @@ function setupEventListeners() {
             });
         });
     }
+
+    // Focus / Fullscreen Mode Listeners
+    if (el.btnToggleFullscreen) {
+        el.btnToggleFullscreen.addEventListener("click", () => toggleFocusMode());
+    }
+    if (el.btnToggleFullscreenMobile) {
+        el.btnToggleFullscreenMobile.addEventListener("click", () => {
+            closeSidebarMobile();
+            toggleFocusMode();
+        });
+    }
+    if (el.btnExitFocusMode) {
+        el.btnExitFocusMode.addEventListener("click", () => toggleFocusMode(false));
+    }
+
+    // Tap-to-toggle bars on reader click for Desktop
+    if (el.readerContainer) {
+        el.readerContainer.addEventListener("click", (e) => {
+            if (!state.isFocusMode) return;
+            const target = e.target;
+            if (target && target.closest("button, a, input, select, .paranum, .note-btn, .edition-btn, #btnExitFocusMode, .word, .bookmark-toggle-btn")) {
+                return;
+            }
+            const selection = window.getSelection ? window.getSelection().toString() : "";
+            if (selection && selection.trim().length > 0) return;
+            toggleFocusBars();
+        });
+    }
+
+    // Sync state when native fullscreen changes (e.g. Esc key or browser gesture)
+    document.addEventListener("fullscreenchange", () => {
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (!isFull && state.isFocusMode) {
+            toggleFocusMode(false);
+        }
+    });
+    document.addEventListener("webkitfullscreenchange", () => {
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (!isFull && state.isFocusMode) {
+            toggleFocusMode(false);
+        }
+    });
 }
 
 function toggleDictSidebar(forceState = null) {
