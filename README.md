@@ -232,41 +232,41 @@ sudo systemctl restart tipitaka
   - **Python 3 (3.8 ~ 3.12+):** ခေတ်မီ Python Runtime ဖြင့် ရေးသားထားခြင်း။
   - **Flask Microframework:** လိုအပ်သော Core အစိတ်အပိုင်းများကိုသာ ပေါ့ပါးစွာ စုစည်းထားသည့် Flask Framework ဖြင့် RESTful JSON API များကို တည်ဆောက်ထားခြင်း။
 - **Production WSGI Application Server:**
-  - **Gunicorn (Green Unicorn):** Python Web Server Gateway Interface (WSGI) အဖြစ် Multi-Worker Pre-fork Model (`gunicorn -w 3 -b 127.0.0.1:5005 app:app`) ဖြင့် အသုံးပြုထားသဖြင့် အသုံးပြုသူ အများအပြား တစ်ပြိုင်နက် ဝင်ရောက်ဖတ်ရှုနိုင်ခြင်း။
+  - **Gunicorn Multi-Threaded Model:** Python WSGI Server ကို `gthread` worker class (`gunicorn --workers 2 --threads 4 --worker-class gthread --worker-tmp-dir /dev/shm -b 127.0.0.1:5005 app:app`) ဖြင့် အဆင့်မြှင့်တင်ထားသဖြင့် RAM အနည်းငယ်ဖြင့် Concurrency မြင့်မားစွာ အသုံးပြုသူများစွာ တစ်ပြိုင်နက် ဖတ်ရှုနိုင်ခြင်း။
 - **High-Performance RESTful API Endpoints:**
   - `/api/books` - ကျမ်းစာအုပ် ကတ်တလောက်နှင့် နိကာယ်အလိုက် ခွဲခြားမှု။
   - `/api/book/<book_id>` - ကျမ်းစာ မာတိကာ အဆင့်ဆင့်နှင့် ဆက်စပ်ကျမ်းစာ စာရင်းများ။
-  - `/api/page/<book_id>/<page_no>` - စာမျက်နှာအလိုက် စာသားများအား ဆဋ္ဌမူ ဂါထာသတ်ပုံနှင့် ပေယျာလများ အချိန်နှင့်တပြေးညီ သန့်စင်ပေးပို့ခြင်း။
+  - `/api/page/<book_id>/<page_no>` - စာမျက်နှာအလိုက် စာသားများအား ဆဋ္ဌမူ ဂါထာသတ်ပုံနှင့် ပေယျာလများ အချိန်နှင့်တပြေးညီ သန့်စင်ပေးပို့ခြင်း (In-Memory LRU Cache ဖြင့် ပိုမိုမြန်ဆန်ခြင်း)။
   - `/api/pali/companions/<book_id>` - မူလပါဠိတော်နှင့် ကိုက်ညီသော အဋ္ဌကထာ၊ ဋီကာ၊ မြန်မာပြန် ကျမ်းများကို Dynamic ရွေးထုတ်ပေးခြင်း။
-  - `/api/match/pali_to_companion` - စာပိုဒ်နံပါတ် (`paranum`) အလိုက် သက်ဆိုင်ရာ အဋ္ဌကထာ/ဋီကာ စာမျက်နှာနှင့် အတွဲ (Volume) ကို အတိအကျ ချိန်ညှိပေးခြင်း။
-  - `/api/search/word`, `/api/search/sutta`, `/api/dictionary/lookup` - မီလီစက္ကန့်ပိုင်းအတွင်း ရှာဖွေပေးနိုင်သော Query APIs။
-- **Caching & Compression:**
-  - Browser များတွင် စာအုပ်မာတိကာများနှင့် ဒေတာများကို ခဏခဏ ပြန်မဆွဲစေရန် HTTP `Cache-Control` header များကို သင့်လျော်စွာ သတ်မှတ်ထားခြင်း။
+  - `/api/match/pali_to_companion` - စာပိုဒ်နံပါတ် (`paranum`) အလိုက် သက်ဆိုင်ရာ အဋ္ဌကထာ/ဋီကာ စာမျက်နှာနှင့် အတွဲ (Volume) ကို In-Memory Index Matching ဖြင့် O(1) တိကျစွာ ချိန်ညှိပေးခြင်း။
+  - `/api/search/word`, `/api/search/sutta`, `/api/dictionary/lookup` - In-Memory LRU Cache (16,384 words) ဖြင့် ၀.၀၀၁ မီလီစက္ကန့်အတွင်း အဘိဓာန်အနက် ထွက်ပေါ်စေသော Query APIs။
+- **Smart Edge & Browser Caching:**
+  - မပြောင်းလဲနိုင်သော တိပိဋက စာမျက်နှာများနှင့် Static Assets များကို ရက် ၃၀ ကြာ Browser / Cloudflare CDN Cache ထားရှိပြီး၊ User State (Bookmarks, Recent) များကိုသာ `no-cache` စနစ်ဖြင့် သီးခြားခွဲထုတ်ထားခြင်း။
 
 ### ၃။ Database Architecture & Data Engineering (SQLite)
 - **Database Engine:**
-  - **SQLite 3:** C-language ဖြင့် တည်ဆောက်ထားသော Embedded Relational Database ဖြစ်ပြီး သီးခြား Database Daemon (MySQL/PostgreSQL) run ရန်မလိုသဖြင့် Server Memory (RAM) ကို မထိခိုက်စေဘဲ အလွန်ပေါ့ပါးခြင်း။
+  - **SQLite 3 (Read-Only URI Mode):** `file:...db?mode=ro` ဖြင့် Zero-Lock Concurrency စနစ်ဖြင့် ဖွင့်လှစ်ထားပြီး၊ Write Lock Contention မဖြစ်ပေါ်စေဘဲ Flask Request Context (`flask.g`) ဖြင့် စနစ်တကျ ထိန်းကျောင်းထားခြင်း။
 - **ဒေတာဘေ့စ် ဖိုင် ၃ ခု စနစ်တကျ ခွဲခြားထားရှိမှု:**
   1. **`tipitaka_pali.db` (~62 MB):** မူလ၊ အဋ္ဌကထာ၊ ဋီကာ ပါဠိတော် ၁၉၂ အုပ် (စာမျက်နှာ ၅၉,၀၀၈ မျက်နှာ)၊ အပြန်အလှန် ချိတ်ဆက်မှု ဇယား (`pali_attha_tika_match` ၁၄၉ ကျမ်းဆက်စပ်မှု) နှင့် စာပိုဒ်နံပါတ်အညွှန်း (`paranum`)။
   2. **`tipitaka_myanmar.db` (~85 MB):** တိပိဋက မြန်မာပြန် ၆၀ အုပ် (စာမျက်နှာ ၂၃,၃၉၀ မျက်နှာ)၊ မာတိကာဇယား (`toc_index` ၁၃,၈၄၈ ခု) နှင့် ပါဠိ-မြန်မာ အပြန်အလှန် စာမျက်နှာ ချိန်ညှိဇယားများ။
   3. **`pali_dictionary.db` (~5 MB):** ပါဠိ-မြန်မာ အဘိဓာန် ၈ မျိုး၊ စကားလုံးပေါင်း ၉၂၃,၆၉၅ လုံး။
 - **High-Performance SQLite PRAGMA Optimizations:**
+  - `PRAGMA query_only = ON;` (Static Corpora များအတွက် Read-Only လုံခြုံရေး အပြည့်အဝ စီမံထားခြင်း)။
   - `PRAGMA journal_mode = WAL;` (Write-Ahead Logging ဖြင့် Read/Write ပြိုင်ဆိုင်မှု မရှိဘဲ တစ်ပြိုင်နက် ဖတ်ရှုမှု စွမ်းဆောင်ရည် အဆများစွာ မြှင့်တင်ခြင်း)။
   - `PRAGMA synchronous = NORMAL;` (Disk I/O Latency ကို အနိမ့်ဆုံး လျှော့ချခြင်း)။
   - `PRAGMA cache_size = -64000;` (Connection တစ်ခုစီအတွက် 64MB In-Memory Page Cache အသုံးပြုခြင်း)။
   - `PRAGMA mmap_size = 268435456;` (Direct Memory-Mapped I/O ဖြင့် စာမျက်နှာများကို Memory ပေါ်မှ မီလီစက္ကန့်ပိုင်းအတွင်း တိုက်ရိုက်ဆွဲထုတ်ခြင်း)။
   - `PRAGMA temp_store = MEMORY;` (ယာယီ Index များကို Memory ပေါ်တွင်သာ တွက်ချက်ခြင်း)။
 - **Algorithmic Data Engineering:**
-  - **Pali Morphological Stemmer (ဝိဘတ်ဖြုတ် ရှာဖွေမှု):** ပါဠိစာလုံးများ၏ နာမ်ဝိဘတ်၊ အာချာတ်ဝိဘတ်များ (`-ဿ`, `-သ္မိံ`, `-မှိ`, `-သု`, `-နံ`, `-ယ`, `-ေတာ`, `-ေဟိ`, `-ေဘိ`, etc.) ကို Regex Rules ဖြင့် ဖြုတ်ချပြီး အဘိဓာန် ပင်စည်မူရင်းပုဒ်ကို အလိုအလျောက် ရှာဖွေပေးခြင်း။
+  - **Pali Morphological Stemmer with LRU Memoization:** ပါဠိစာလုံးများ၏ နာမ်ဝိဘတ်၊ အာချာတ်ဝိဘတ်များ (`-ဿ`, `-သ္မိံ`, `-မှိ`, `-သု`, `-နံ`, `-ယ`, `-ေတာ`, `-ေဟိ`, `-ေဘိ`, etc.) ကို Regex Rules ဖြင့် ဖြုတ်ချပြီး In-Memory LRU Cache (16,384 entries) ဖြင့် အဘိဓာန် ပင်စည်မူရင်းပုဒ်ကို ချက်ချင်း ရှာဖွေပေးခြင်း။
   - **Majority Paragraph Voting Algorithm:** စာမျက်နှာတစ်ခုတွင် စာပိုဒ်များစွာ ပါဝင်နေပါက အများဆုံး ပါဝင်သော စာပိုဒ်နှင့် စာမျက်နှာကို Server မှ စစ်ဆေး၍ ပါဠိနှင့် မြန်မာပြန် စာမျက်နှာများကို တိကျစွာ ချိန်ညှိပေးခြင်း။
 
 ### ၄။ Server, Security & Deployment Infrastructure
 - **Operating System:** Ubuntu Server / Debian Linux (LTS)။
 - **Daemon Process Management:**
-  - Linux `systemd` Service (`/etc/systemd/system/tipitaka.service`) ဖြင့် Background Daemon အဖြစ် ၂၄ နာရီ အလိုအလျောက် Run ထားပြီး Server Reboot ဖြစ်ခြင်း သို့မဟုတ် Error ဖြစ်ပါက အလိုအလျောက် Restart ပြုလုပ်ပေးခြင်း (`Restart=always`)။
+  - Linux `systemd` Service (`/etc/systemd/system/tipitaka.service`) ဖြင့် Gunicorn `gthread` Daemon အဖြစ် ၂၄ နာရီ အလိုအလျောက် Run ထားပြီး Server Reboot ဖြစ်ခြင်း သို့မဟုတ် Error ဖြစ်ပါက အလိုအလျောက် Restart ပြုလုပ်ပေးခြင်း (`Restart=always`)။
 - **Nginx Reverse Proxy & Web Server:**
-  - Port 80 / 443 မှ ဝင်လာသော HTTP/HTTPS Request များကို Gunicorn (Port 5005) ဆီသို့ ချောမွေ့စွာ Proxy Pass ပြုလုပ်ပေးခြင်း။
-  - Client Max Body Size 50M၊ Proxy Read Timeout 300s နှင့် Gzip Static Compression ပေါင်းစပ်ထားခြင်း။
+  - Cloudflare Real-IP Restoration (`real_ip_header CF-Connecting-IP;`)၊ Gzip Compression (Fonts, CSS, JS, JSON) နှင့် Static Caching (30 Days) ပေါင်းစပ်ထားသော Nginx Configuration။
 - **SSL / TLS Security:**
   - Let's Encrypt Certbot ဖြင့် Automated Free SSL Certificate တပ်ဆင်ထားပြီး လုံခြုံသော HTTPS Protocol ဖြင့် ကာကွယ်ထားခြင်း။
 - **Cloudflare Zero Trust Tunnel Support:**

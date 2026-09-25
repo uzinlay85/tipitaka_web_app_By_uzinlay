@@ -1671,18 +1671,24 @@ async function toggleFocusMode(enable) {
             : "မျက်နှာပြင်ပြည့် ဖတ်ရှုရန် (Focus Mode)";
     }
 
-    // Trigger HTML5 Fullscreen API
+    // Trigger HTML5 Fullscreen API with iOS Safari pseudo-fullscreen fallback
+    const isFullscreenSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
     try {
         const docEl = document.documentElement;
         if (enable) {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                if (docEl.requestFullscreen) {
-                    await docEl.requestFullscreen();
-                } else if (docEl.webkitRequestFullscreen) {
-                    await docEl.webkitRequestFullscreen();
+            if (isFullscreenSupported) {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (docEl.requestFullscreen) {
+                        await docEl.requestFullscreen();
+                    } else if (docEl.webkitRequestFullscreen) {
+                        await docEl.webkitRequestFullscreen();
+                    }
                 }
+            } else {
+                document.body.classList.add("ios-fullscreen-fallback");
             }
         } else {
+            document.body.classList.remove("ios-fullscreen-fallback");
             if (document.fullscreenElement || document.webkitFullscreenElement) {
                 if (document.exitFullscreen) {
                     await document.exitFullscreen();
@@ -1693,6 +1699,9 @@ async function toggleFocusMode(enable) {
         }
     } catch (err) {
         console.warn("Fullscreen API note:", err);
+        if (enable) {
+            document.body.classList.add("ios-fullscreen-fallback");
+        }
     }
 }
 
@@ -2412,6 +2421,17 @@ async function toggleCurrentBookmark() {
     await loadBookmarks();
 }
 
+// ----------------- Security Utility: HTML Escaping -----------------
+function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // ----------------- Interactive Dictionary -----------------
 
 async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY = 0) {
@@ -2421,7 +2441,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
     el.dictContent.innerHTML = `
         <div class="loading-state">
             <div>အဘိဓာန် ရှာဖွေနေပါသည်...</div>
-            <strong style="color:var(--accent); font-size:1.1rem; margin-top:8px; display:inline-block;">${word}</strong>
+            <strong style="color:var(--accent); font-size:1.1rem; margin-top:8px; display:inline-block;">${escapeHtml(word)}</strong>
         </div>
     `;
 
@@ -2436,7 +2456,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
         if (!data.results || data.results.length === 0) {
             el.dictContent.innerHTML = `
                 <div class="dict-result-header">
-                    <div class="dict-result-word">${data.clean_word || word}</div>
+                    <div class="dict-result-word">${escapeHtml(data.clean_word || word)}</div>
                 </div>
                 <div class="empty-state">ဤစကားလုံးအတွက် အဘိဓာန် အဓိပ္ပာယ် မတွေ့ရှိပါ။</div>
             `;
@@ -2446,15 +2466,15 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
         const isStemmed = data.clean_word !== data.matched_word;
         let html = `
             <div class="dict-result-header">
-                <div class="dict-result-word">${data.matched_word}</div>
-                ${isStemmed ? `<div class="dict-stem-hint">မူလစာလုံး '${data.clean_word}' မှ ဝိဘတ်ဖြုတ်၍ တွေ့ရှိသောအနက်</div>` : ''}
+                <div class="dict-result-word">${escapeHtml(data.matched_word)}</div>
+                ${isStemmed ? `<div class="dict-stem-hint">မူလစာလုံး '${escapeHtml(data.clean_word)}' မှ ဝိဘတ်ဖြုတ်၍ တွေ့ရှိသောအနက်</div>` : ''}
             </div>
         `;
 
         data.results.forEach(item => {
             html += `
                 <div class="dict-entry-card">
-                    <span class="dict-book-badge">${item.book_name}</span>
+                    <span class="dict-book-badge">${escapeHtml(item.book_name)}</span>
                     <div class="dict-def-body">${item.definition}</div>
                 </div>
             `;
@@ -2469,7 +2489,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
 
     } catch (err) {
         console.error("Dict lookup error:", err);
-        el.dictContent.innerHTML = `<div class="empty-state">အဘိဓာန် ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်- ${err.message}</div>`;
+        el.dictContent.innerHTML = `<div class="empty-state">အဘိဓာန် ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်- ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -2531,74 +2551,59 @@ async function performSearch() {
         data.results.forEach(r => {
             if (state.searchMode === "word") {
                 html += `
-                    <div class="search-result-item" data-type="pali" data-bid="${r.book_id}" data-page="${r.page}">
+                    <div class="search-result-item" data-type="pali" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page}">
                         <div class="res-header">
-                            <span class="res-book">${r.book_name}</span>
+                            <span class="res-book">${escapeHtml(r.book_name)}</span>
                             <span class="res-page">စာမျက်နှာ - ${r.page}</span>
                         </div>
-                        <div class="res-snippet">${r.snippet}</div>
+                        <div class="res-snippet">${escapeHtml(r.snippet)}</div>
                     </div>
                 `;
             } else if (state.searchMode === "sutta") {
                 html += `
-                    <div class="search-result-item" data-type="pali" data-bid="${r.book_id}" data-page="${r.page_number}">
+                    <div class="search-result-item" data-type="pali" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page_number}">
                         <div class="res-header">
-                            <span class="res-book">${r.name} ${r.sutta_id ? `(${r.sutta_id})` : ''}</span>
-                            <span class="res-page">${r.book_name} • စာ-${r.page_number}</span>
+                            <span class="res-book">${escapeHtml(r.name)} ${r.sutta_id ? `(${escapeHtml(r.sutta_id)})` : ''}</span>
+                            <span class="res-page">${escapeHtml(r.book_name)} • စာ-${r.page_number}</span>
                         </div>
                     </div>
                 `;
             } else if (state.searchMode === "book") {
                 html += `
-                    <div class="search-result-item" data-type="pali" data-bid="${r.id}" data-page="${r.firstpage}">
+                    <div class="search-result-item" data-type="pali" data-bid="${escapeHtml(r.id)}" data-page="${r.firstpage}">
                         <div class="res-header">
-                            <span class="res-book">${r.name}</span>
-                            <span class="res-page">${r.category_name || ''} • ${r.pagecount} မျက်နှာ</span>
+                            <span class="res-book">${escapeHtml(r.name)}</span>
+                            <span class="res-page">${escapeHtml(r.category_name || '')} • ${r.pagecount} မျက်နှာ</span>
                         </div>
                     </div>
                 `;
             } else if (state.searchMode === "mm_book") {
                 html += `
-                    <div class="search-result-item" data-type="mm" data-bid="${r.id}" data-page="${r.first_page}">
+                    <div class="search-result-item" data-type="mm" data-bid="${escapeHtml(r.id)}" data-page="${r.first_page}">
                         <div class="res-header">
-                            <span class="res-book">${r.name}</span>
-                            <span class="res-page">${r.category_name || ''} • ${r.page_count} မျက်နှာ</span>
+                            <span class="res-book">${escapeHtml(r.name)}</span>
+                            <span class="res-page">${escapeHtml(r.category_name || '')} • ${r.page_count} မျက်နှာ</span>
                         </div>
                     </div>
                 `;
             } else if (state.searchMode === "mm_toc") {
                 html += `
-                    <div class="search-result-item" data-type="mm" data-bid="${r.book_id}" data-page="${r.page_number}">
+                    <div class="search-result-item" data-type="mm" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page_number}">
                         <div class="res-header">
-                            <span class="res-book">${r.name}</span>
-                            <span class="res-page">${r.book_name} • စာ-${r.page_number}</span>
+                            <span class="res-book">${escapeHtml(r.name)}</span>
+                            <span class="res-page">${escapeHtml(r.book_name)} • စာ-${r.page_number}</span>
                         </div>
                     </div>
                 `;
             }
         });
 
+        // Event delegation is handled once on el.searchResultsList
         el.searchResultsList.innerHTML = html;
-
-        el.searchResultsList.querySelectorAll(".search-result-item").forEach(item => {
-            item.addEventListener("click", () => {
-                const targetType = item.getAttribute("data-type");
-                const bid = item.getAttribute("data-bid");
-                const p = parseInt(item.getAttribute("data-page"), 10);
-                closeSearchModal();
-                if (targetType === "mm") {
-                    setReaderMode("mm");
-                    loadMMBook(bid, p);
-                } else {
-                    setReaderMode("pali");
-                    loadPaliBook(bid, p);
-                }
-            });
-        });
 
     } catch (err) {
         console.error("Search error:", err);
-        el.searchResultsList.innerHTML = `<div class="empty-state">ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်: ${err.message}</div>`;
+        el.searchResultsList.innerHTML = `<div class="empty-state">ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်: ${escapeHtml(err.message)}</div>`;
     }
 }
 
@@ -4000,12 +4005,29 @@ function setupEventListeners() {
         if (e.key === "Enter") lookupDictionary(el.dictSearchInput.value.trim());
     });
 
-    // Search Modal
+    // Search Modal & Delegated Results Click
     el.btnOpenSearch.addEventListener("click", openSearchModal);
     el.btnCloseModal.addEventListener("click", closeSearchModal);
     el.searchModal.addEventListener("click", (e) => {
         if (e.target === el.searchModal) closeSearchModal();
     });
+    if (el.searchResultsList) {
+        el.searchResultsList.addEventListener("click", (e) => {
+            const item = e.target.closest(".search-result-item");
+            if (!item) return;
+            const targetType = item.getAttribute("data-type");
+            const bid = item.getAttribute("data-bid");
+            const p = parseInt(item.getAttribute("data-page"), 10);
+            closeSearchModal();
+            if (targetType === "mm") {
+                setReaderMode("mm");
+                loadMMBook(bid, p);
+            } else {
+                setReaderMode("pali");
+                loadPaliBook(bid, p);
+            }
+        });
+    }
 
     // Help / User Guide Modal
     el.btnOpenHelp.addEventListener("click", () => el.helpModal.classList.add("open"));

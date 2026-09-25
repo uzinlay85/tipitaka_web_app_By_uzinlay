@@ -4,11 +4,14 @@ import sqlite3
 import re
 import webbrowser
 import threading
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from functools import lru_cache
+from flask import Flask, jsonify, render_template, request, send_from_directory, g
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PALI_PATH = os.path.join(BASE_DIR, "tipitaka_pali.db")
 DB_MM_PATH = os.path.join(BASE_DIR, "tipitaka_mm.db")
+DB_PALI_RO_URI = f"file:{os.path.abspath(DB_PALI_PATH).replace(os.sep, '/')}?mode=ro"
+DB_MM_RO_URI = f"file:{os.path.abspath(DB_MM_PATH).replace(os.sep, '/')}?mode=ro"
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -16,32 +19,70 @@ app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 
 @app.after_request
 def add_cache_headers(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    path = request.path
+    # 1. Mutable user state: bookmarks and recent read state must never be cached
+    if path.startswith("/api/bookmarks") or path.startswith("/api/recent"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    # 2. Static CSS, JS, fonts: cache in browser for 30 days
+    elif path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+    # 3. Canonical Tipitaka text pages and catalogs: 24h browser cache, 7d CDN stale-while-revalidate
+    elif path.startswith("/api/page/") or path.startswith("/api/book") or path.startswith("/api/categories") or path.startswith("/api/mm/") or path.startswith("/api/pali/companions/"):
+        response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     return response
 
-def get_pali_db():
-    conn = sqlite3.connect(DB_PALI_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size = -64000")
-    return conn
+def get_pali_db(readonly=True):
+    """Get request-scoped read-only SQLite connection, or standalone read-write connection for mutations."""
+    if not readonly:
+        conn = sqlite3.connect(DB_PALI_PATH, timeout=10.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        return conn
+
+    if 'pali_db' not in g:
+        conn = sqlite3.connect(DB_PALI_RO_URI, uri=True, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only = ON")
+        conn.execute("PRAGMA cache_size = -64000")
+        conn.execute("PRAGMA mmap_size = 268435456")
+        g.pali_db = conn
+    return g.pali_db
 
 def get_mm_db():
-    conn = sqlite3.connect(DB_MM_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size = -32000")
-    return conn
+    """Get request-scoped read-only SQLite connection for Myanmar Tipitaka database."""
+    if 'mm_db' not in g:
+        conn = sqlite3.connect(DB_MM_RO_URI, uri=True, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only = ON")
+        conn.execute("PRAGMA cache_size = -32000")
+        conn.execute("PRAGMA mmap_size = 268435456")
+        g.mm_db = conn
+    return g.mm_db
+
+@app.teardown_appcontext
+def close_db_connections(exception=None):
+    """Automatically close all request-scoped database connections."""
+    pali_db = g.pop('pali_db', None)
+    if pali_db is not None:
+        pali_db.close()
+    mm_db = g.pop('mm_db', None)
+    if mm_db is not None:
+        mm_db.close()
 
 def heal_databases():
-    """Auto-correct any known legacy page numbering offsets/duplicates in databases."""
+    """Auto-correct any known legacy page numbering offsets once safely without write-lock storms."""
+    if not os.path.exists(DB_PALI_PATH):
+        return
     try:
-        conn = get_pali_db()
+        conn = sqlite3.connect(DB_PALI_PATH, timeout=5.0)
         cur = conn.cursor()
+        check = cur.execute("SELECT page FROM pages WHERE id = 4838 AND book_id = 'mula_sa_03'").fetchone()
+        if check and check[0] == 121:
+            conn.close()
+            return  # Already healed, skip writes
         cur.execute("UPDATE pages SET page = 121 WHERE id = 4838 AND book_id = 'mula_sa_03' AND page = 122")
         cur.execute("UPDATE pages SET page = 195 WHERE id = 16896 AND book_id = 'attha_vi_01_01' AND page = 194")
         cur.execute("UPDATE pages SET page = 57 WHERE id = 32354 AND book_id = 'attha_ku_zat_06' AND page = 58")
@@ -62,7 +103,7 @@ BASKET_LABELS = {
     'annya': 'အည (Añña)'
 }
 
-PALI_SUFFIXES = [
+PALI_SUFFIXES = (
     '\u1031\u102b',           # ော (tall aa)
     '\u1031\u102c',           # ော (round aa)
     'ာနံ', 'ါနံ',             # -ānaṃ
@@ -72,27 +113,47 @@ PALI_SUFFIXES = [
     'ေန', 'ေသု', 'သု',         # -ena, -esu, -su
     'ဉ္စ', 'ဉ္စိ', 'ဝါ', 'ပိ', 'တိ', # enclitics: -ñca, -vā, -pi, -ti
     'ာ', 'ါ', 'ေ', 'ိ', 'ီ', 'ု', 'ူ', 'ံ'
-]
+)
+
+# Precompiled Regular Expressions for High-Performance Text Processing
+RE_CLEAN_PALI = re.compile(r"[\s\d၀-၉၊။,.\-—–“’”\"'()\[\]<>:;?!/\\#*~`]+")
+RE_GATHA_LEAD_QUOTE = re.compile(r'(^|^(?:<a\b[^>]*>.*?</a>|<span\b[^>]*>.*?</span>|\s)*)[\u201c\u201d\u2018\u2019"\']+\s*')
+RE_GATHA_CLOSE_QUOTE = re.compile(r'[\u201c\u201d\u2018\u2019"\']+(?=(?:န္တိ|တိ)[၊။]?)')
+RE_GATHA_PUNCT_QUOTE = re.compile(r'[\u201c\u201d\u2018\u2019"\']+(?=[,၊။]|\s*(?:<|$))')
+RE_GATHA_AFTER_PUNCT = re.compile(r'([၊။])[\u201c\u201d\u2018\u2019"\']+')
+
+RE_PEYALA = re.compile(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?')
+RE_MULTI_SPACES = re.compile(r'[ \t]{2,}')
+RE_P_TAG = re.compile(r'<p\b([^>]*)>([\s\S]*?)</p>', flags=re.I)
+RE_GATHA_CLASS = re.compile(r'\bclass\s*=\s*["\'][^"\']*gatha[^"\']*["\']', flags=re.I)
+RE_CLASS_ATTR = re.compile(r'\bclass\s*=\s*["\']([^"\']+)["\']', flags=re.I)
+RE_LEAD_WHITESPACE = re.compile(r'^\s+')
+RE_LEAD_ANCHORS_SPACE = re.compile(r'^((?:<a\b[^>]*>.*?</a>)*)\s+')
+RE_COMMA_SPLIT = re.compile(r',(?![^<]*>)\s*')
+RE_COMMA_REMOVE = re.compile(r',(?![^<]*>)')
+RE_PADA_NON_FINAL = re.compile(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
+RE_PADA_CHECK_PUNCT = re.compile(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
+RE_PADA_CHECK_SECTION = re.compile(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
+RE_UNSPAN = re.compile(r'<span class="(?:pali-word|no-split)">([\s\S]*?)</span>')
+RE_HTML_TAGS = re.compile(r'(<[^>]+>)')
+RE_SYMBOLS_ONLY = re.compile(r'^[\s\d၀-၉၊။,.\-—–“’”"\'()\[\]<>:;?!/\\#*~`]+$')
+RE_NON_SPACE = re.compile(r'\S+')
+RE_STACKED_CONJUNCT = re.compile(r'([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])')
+RE_UNSPAN_NO_SPLIT = re.compile(r'<span class="no-split">([\s\S]*?)</span>')
+RE_PEYALA_CLEAN_MM = re.compile(r'။\s*ပ\s*။')
 
 def clean_pali_word(word):
     if not word:
         return ""
-    return re.sub(r"[\s\d၀-၉၊။,.\-—–“’”\"'()\[\]<>:;?!/\\#*~`]+", "", word).strip()
+    return RE_CLEAN_PALI.sub("", word).strip()
 
 def clean_gatha_quotes(text):
     if not text:
         return ""
-    # Strip opening/closing quotes in gāthās to match authentic Chaṭṭhasaṅgāyana printed book standard
-    # Characters: U+201C (“), U+201D (”), U+2018 (‘), U+2019 (’), U+0022 ("), U+0027 (')
-    quote_pattern = r'[\u201c\u201d\u2018\u2019"\']+'
-    # 1. Opening quote at start of line / after leading HTML tags (anchor, span, etc.)
-    text = re.sub(r'(^|^(?:<a\b[^>]*>.*?</a>|<span\b[^>]*>.*?</span>|\s)*)' + quote_pattern + r'\s*', r'\1', text)
-    # 2. Closing quote before quotative endings 'တိ' or 'န္တိ' (iti)
-    text = re.sub(quote_pattern + r'(?=(?:န္တိ|တိ)[၊။]?)', '', text)
-    # 3. Quote before comma, section mark, or end of pada / tag
-    text = re.sub(quote_pattern + r'(?=[,၊။]|\s*(?:<|$))', '', text)
-    # 4. Quote immediately after punctuation (e.g. ။” -> ။ or ၊” -> ၊)
-    text = re.sub(r'([၊။])' + quote_pattern, r'\1', text)
+    text = RE_GATHA_LEAD_QUOTE.sub(r'\1', text)
+    text = RE_GATHA_CLOSE_QUOTE.sub('', text)
+    text = RE_GATHA_PUNCT_QUOTE.sub('', text)
+    text = RE_GATHA_AFTER_PUNCT.sub(r'\1', text)
     return text
 
 def format_chattasangayana_pali(html):
@@ -109,42 +170,39 @@ def format_chattasangayana_pali(html):
         else:
             return "။ ပ ။ "
             
-    res_html = re.sub(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?', repl_peyala, html)
-    res_html = re.sub(r'[ \t]{2,}', ' ', res_html)
+    res_html = RE_PEYALA.sub(repl_peyala, html)
+    res_html = RE_MULTI_SPACES.sub(' ', res_html)
     
     # 2. Process paragraphs for gāthās and prose
     def repl_p(m):
         attrs = m.group(1)
         content = m.group(2)
-        if re.search(r'\bclass\s*=\s*["\'][^"\']*gatha[^"\']*["\']', attrs, re.I):
-            cls_m = re.search(r'\bclass\s*=\s*["\']([^"\']+)["\']', attrs, re.I)
+        if RE_GATHA_CLASS.search(attrs):
+            cls_m = RE_CLASS_ATTR.search(attrs)
             cls_name = cls_m.group(1).lower() if cls_m else ""
             
             # If already wrapped in gatha-pada, preserve
             if '<span class="gatha-pada' in content:
                 return f'<p{attrs}>{content}</p>'
 
-            # 1. Clean leading whitespace inside gatha paragraph so lines align perfectly
-            content = re.sub(r'^\s+', '', content)
-            content = re.sub(r'^((?:<a\b[^>]*>.*?</a>)*)\s+', r'\1', content)
-            # Remove gāthā opening/closing quotes per authentic Chaṭṭhasaṅgāyana standard
+            # Clean leading whitespace inside gatha paragraph so lines align perfectly
+            content = RE_LEAD_WHITESPACE.sub('', content)
+            content = RE_LEAD_ANCHORS_SPACE.sub(r'\1', content)
             content = clean_gatha_quotes(content)
             
-            # 2. Process padas: if separated by comma, wrap each pada in <span class="gatha-pada">
-            if re.search(r',(?![^<]*>)', content):
-                parts = re.split(r',(?![^<]*>)\s*', content)
+            # Process padas: if separated by comma, wrap each pada in <span class="gatha-pada">
+            if ',' in content and re.search(r',(?![^<]*>)', content):
+                parts = RE_COMMA_SPLIT.split(content)
                 padas = []
                 for i, part in enumerate(parts):
                     p = clean_gatha_quotes(part.strip())
                     if i < len(parts) - 1:
-                        # Non-final pada ends with ၊
-                        p = re.sub(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'၊\1', p)
-                        if not re.search(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                        p = RE_PADA_NON_FINAL.sub(r'၊\1', p)
+                        if not RE_PADA_CHECK_PUNCT.search(p):
                             p = p + '၊'
                     else:
-                        # Final pada in couplet ends with ။
-                        p = re.sub(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
-                        if not re.search(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                        p = RE_PADA_NON_FINAL.sub(r'။\1', p)
+                        if not RE_PADA_CHECK_SECTION.search(p):
                             p = p + '။'
                     p = clean_gatha_quotes(p)
                     padas.append(f'<span class="gatha-pada pada{i+1}">{p}</span>')
@@ -157,15 +215,14 @@ def format_chattasangayana_pali(html):
                 p = clean_gatha_quotes(p)
                 return f'<p{attrs}><span class="gatha-pada">{p}</span></p>'
         else:
-            cleaned = re.sub(r',(?![^<]*>)', '', content)
+            cleaned = RE_COMMA_REMOVE.sub('', content)
             return f'<p{attrs}>{cleaned}</p>'
             
-    res_html = re.sub(r'<p\b([^>]*)>([\s\S]*?)</p>', repl_p, res_html, flags=re.I)
+    res_html = RE_P_TAG.sub(repl_p, res_html)
 
     # 3. Protect Pali words (wrap in <span class="pali-word">) so browser never splits stacked consonants (+) across line breaks
-    unspanned = re.sub(r'<span class="(?:pali-word|no-split)">([\s\S]*?)</span>', r'\1', res_html)
-    parts = re.split(r'(<[^>]+>)', unspanned)
-    sym_pattern = re.compile(r'^[\s\d၀-၉၊။,.\-—–“’”"\'()\[\]<>:;?!/\\#*~`]+$')
+    unspanned = RE_UNSPAN.sub(r'\1', res_html)
+    parts = RE_HTML_TAGS.split(unspanned)
     res_parts = []
     for part in parts:
         if not part or part.startswith('<'):
@@ -173,13 +230,13 @@ def format_chattasangayana_pali(html):
         else:
             def repl_w(m):
                 w = m.group(0)
-                if sym_pattern.match(w):
+                if RE_SYMBOLS_ONLY.match(w):
                     return w
                 if len(w) <= 35:
                     return f'<span class="pali-word">{w}</span>'
                 else:
-                    return re.sub(r'([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])', r'<span class="no-split">\1</span>', w)
-            res_parts.append(re.sub(r'\S+', repl_w, part))
+                    return RE_STACKED_CONJUNCT.sub(r'<span class="no-split">\1</span>', w)
+            res_parts.append(RE_NON_SPACE.sub(repl_w, part))
     return ''.join(res_parts)
 
 def format_chattasangayana_mm(html):
@@ -194,20 +251,28 @@ def format_chattasangayana_mm(html):
         else:
             return "။ ပ ။ "
             
-    res = re.sub(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?', repl_peyala, html)
-    res = re.sub(r'။\s*ပ\s*။', '။ ပ ။ ', res)
-    res = re.sub(r'[ \t]{2,}', ' ', res)
+    res = RE_PEYALA.sub(repl_peyala, html)
+    res = RE_PEYALA_CLEAN_MM.sub('။ ပ ။ ', res)
+    res = RE_MULTI_SPACES.sub(' ', res)
 
     # Protect stacked consonants in Myanmar translation text so virama (+) never splits across lines
-    unspanned = re.sub(r'<span class="no-split">([\s\S]*?)</span>', r'\1', res)
-    parts = re.split(r'(<[^>]+>)', unspanned)
+    unspanned = RE_UNSPAN_NO_SPLIT.sub(r'\1', res)
+    parts = RE_HTML_TAGS.split(unspanned)
     res_parts = []
     for part in parts:
         if not part or part.startswith('<'):
             res_parts.append(part)
         else:
-            res_parts.append(re.sub(r'([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])', r'<span class="no-split">\1</span>', part))
+            res_parts.append(RE_STACKED_CONJUNCT.sub(r'<span class="no-split">\1</span>', part))
     return ''.join(res_parts)
+
+@lru_cache(maxsize=1024)
+def _cached_format_pali(html):
+    return format_chattasangayana_pali(html)
+
+@lru_cache(maxsize=1024)
+def _cached_format_mm(html):
+    return format_chattasangayana_mm(html)
 
 
 @app.route("/")
@@ -549,7 +614,7 @@ def api_page(book_id, page_num):
 
     content_html = page_row["content"] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
     if content_html:
-        content_html = format_chattasangayana_pali(content_html)
+        content_html = _cached_format_pali(content_html)
 
     return jsonify({
         "book_id": book_id,
@@ -740,7 +805,7 @@ def api_mm_page(book_id, page_num):
 
     content_html = page_row[0] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
     if content_html:
-        content_html = format_chattasangayana_mm(content_html)
+        content_html = _cached_format_mm(content_html)
 
     return jsonify({
         "book_id": book_id,
@@ -899,15 +964,25 @@ def api_match_pali_to_companion():
             found = re.findall(r'para(\d+)', page_row["content"])
             nums = [int(n) for n in found if n.isdigit()]
 
+        # Optimized In-Memory Scan: Query each candidate book's page & paranum once (indexed on book_id)
+        # Avoids repeated O(N*M) full table scans with leading wildcard LIKE '%-num-%'
+        target_pages_map = {}
+        for t_bid in candidate_targets:
+            rows = p_cur.execute(
+                "SELECT page, paranum FROM pages WHERE book_id = ? AND paranum != '' AND paranum IS NOT NULL",
+                (t_bid,)
+            ).fetchall()
+            target_pages_map[t_bid] = []
+            for r in rows:
+                p_nums = [int(n) for n in str(r["paranum"]).strip('-').split('-') if n.isdigit()]
+                target_pages_map[t_bid].append((r["page"], p_nums))
+
         if nums:
             for t_bid in candidate_targets:
                 for num in nums:
-                    matches = p_cur.execute("SELECT page, paranum FROM pages WHERE book_id = ? AND paranum LIKE ?", (t_bid, f"%-{num}-%")).fetchall()
-                    for r in matches:
-                        t_nums = [int(n) for n in str(r["paranum"]).strip('-').split('-') if n.isdigit()]
+                    for page_no, t_nums in target_pages_map.get(t_bid, []):
                         if num in t_nums:
-                            p_conn.close()
-                            return jsonify({"matched": True, "target_book": t_bid, "target_page": r["page"], "matched_para": num})
+                            return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
 
         # Preceding paragraphs fallback
         prev_row = p_cur.execute("SELECT paranum FROM pages WHERE book_id = ? AND page < ? AND paranum != '' ORDER BY page DESC LIMIT 1", (source_book, source_page)).fetchone()
@@ -917,32 +992,22 @@ def api_match_pali_to_companion():
                 last_num = prev_nums[-1]
                 for num in range(last_num, 0, -1):
                     for t_bid in candidate_targets:
-                        matches = p_cur.execute("SELECT page, paranum FROM pages WHERE book_id = ? AND paranum LIKE ?", (t_bid, f"%-{num}-%")).fetchall()
-                        for r in matches:
-                            t_nums = [int(n) for n in str(r["paranum"]).strip('-').split('-') if n.isdigit()]
+                        for page_no, t_nums in target_pages_map.get(t_bid, []):
                             if num in t_nums:
-                                p_conn.close()
-                                return jsonify({"matched": True, "target_book": t_bid, "target_page": r["page"], "matched_para": num})
+                                return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
 
         def_bid = candidate_targets[0] if candidate_targets else source_book
         b = p_cur.execute("SELECT firstpage FROM books WHERE id = ?", (def_bid,)).fetchone()
         first_pg = b["firstpage"] if b else 1
-        p_conn.close()
         return jsonify({"matched": False, "target_book": def_bid, "target_page": first_pg})
 
-# ----------------- Dictionary APIs -----------------
+# ----------------- Dictionary APIs with In-Memory LRU Cache -----------------
 
-@app.route("/api/dictionary/lookup")
-def api_dict_lookup():
-    raw_word = request.args.get("word", "").strip()
-    if not raw_word:
-        return jsonify({"word": "", "results": []})
-
-    clean = clean_pali_word(raw_word)
-    if not clean:
-        return jsonify({"word": raw_word, "results": []})
-
-    conn = get_pali_db()
+@lru_cache(maxsize=16384)
+def _cached_pali_dict_lookup(clean):
+    """Zero-I/O memoized lookup for recurring Pali words."""
+    conn = sqlite3.connect(DB_PALI_RO_URI, uri=True, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
     candidates = [clean]
@@ -965,7 +1030,7 @@ def api_dict_lookup():
         """, (cand,)).fetchall()
         if rows:
             matched_word = cand
-            results = [dict(r) for r in rows]
+            results = tuple(dict(r) for r in rows)
             break
 
     if not results and len(clean) >= 2:
@@ -978,15 +1043,28 @@ def api_dict_lookup():
         """, (clean + "%",)).fetchall()
         if rows:
             matched_word = rows[0]["word"]
-            results = [dict(r) for r in rows]
+            results = tuple(dict(r) for r in rows)
 
     conn.close()
+    return matched_word, results
+
+@app.route("/api/dictionary/lookup")
+def api_dict_lookup():
+    raw_word = request.args.get("word", "").strip()
+    if not raw_word:
+        return jsonify({"word": "", "results": []})
+
+    clean = clean_pali_word(raw_word)
+    if not clean:
+        return jsonify({"word": raw_word, "results": []})
+
+    matched_word, results = _cached_pali_dict_lookup(clean)
 
     return jsonify({
         "query": raw_word,
         "clean_word": clean,
         "matched_word": matched_word,
-        "results": results
+        "results": list(results)
     })
 
 # ----------------- Search API -----------------
@@ -1191,16 +1269,15 @@ def api_search():
 
 @app.route("/api/bookmarks", methods=["GET", "POST", "DELETE"])
 def api_bookmarks():
-    conn = get_pali_db()
-    cur = conn.cursor()
     if request.method == "GET":
+        conn = get_pali_db()
+        cur = conn.cursor()
         rows = cur.execute("""
             SELECT bm.book_id, b.name as book_name, bm.page_number, bm.note 
             FROM bookmark bm
             LEFT JOIN books b ON bm.book_id = b.id
             ORDER BY bm.rowid DESC
         """).fetchall()
-        conn.close()
         return jsonify([dict(r) for r in rows])
 
     elif request.method == "POST":
@@ -1209,8 +1286,9 @@ def api_bookmarks():
         page_num = data.get("page_number")
         note = data.get("note", "")
         if not book_id or not page_num:
-            conn.close()
             return jsonify({"error": "Missing book_id or page_number"}), 400
+        conn = get_pali_db(readonly=False)
+        cur = conn.cursor()
         existing = cur.execute("SELECT 1 FROM bookmark WHERE book_id = ? AND page_number = ?", (book_id, page_num)).fetchone()
         if not existing:
             cur.execute("INSERT INTO bookmark (book_id, page_number, note) VALUES (?, ?, ?)", (book_id, page_num, note))
@@ -1223,23 +1301,24 @@ def api_bookmarks():
         book_id = data.get("book_id")
         page_num = data.get("page_number")
         if book_id and page_num:
+            conn = get_pali_db(readonly=False)
+            cur = conn.cursor()
             cur.execute("DELETE FROM bookmark WHERE book_id = ? AND page_number = ?", (book_id, page_num))
             conn.commit()
-        conn.close()
+            conn.close()
         return jsonify({"status": "success", "action": "deleted"})
 
 @app.route("/api/recent", methods=["GET", "POST"])
 def api_recent():
-    conn = get_pali_db()
-    cur = conn.cursor()
     if request.method == "GET":
+        conn = get_pali_db()
+        cur = conn.cursor()
         row = cur.execute("""
             SELECT r.book_id, b.name as book_name, r.page_number 
             FROM recent r
             JOIN books b ON r.book_id = b.id
             LIMIT 1
         """).fetchone()
-        conn.close()
         if row:
             return jsonify(dict(row))
         return jsonify({"book_id": "mula_vi_01", "book_name": "ပါရာဇိကပါဠိ", "page_number": 1})
@@ -1249,10 +1328,12 @@ def api_recent():
         book_id = data.get("book_id")
         page_num = data.get("page_number")
         if book_id and page_num:
+            conn = get_pali_db(readonly=False)
+            cur = conn.cursor()
             cur.execute("DELETE FROM recent")
             cur.execute("INSERT INTO recent (book_id, page_number) VALUES (?, ?)", (book_id, page_num))
             conn.commit()
-        conn.close()
+            conn.close()
         return jsonify({"status": "success"})
 
 def open_browser():

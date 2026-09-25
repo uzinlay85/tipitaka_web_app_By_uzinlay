@@ -77,7 +77,7 @@ After=network.target
 [Service]
 User=$REAL_USER
 WorkingDirectory=$TARGET_DIR
-ExecStart=$TARGET_DIR/venv/bin/gunicorn -w 2 -b 127.0.0.1:5005 app:app
+ExecStart=$TARGET_DIR/venv/bin/gunicorn --workers 2 --threads 4 --worker-class gthread --worker-tmp-dir /dev/shm --bind 127.0.0.1:5005 --timeout 60 --keep-alive 5 app:app
 Restart=always
 RestartSec=5
 

@@ -151,6 +151,48 @@ server {
 
     client_max_body_size 50M;
 
+    # ၁။ Cloudflare CDN / Tunnel မှ လာသော Real Client IP ကို ပြန်လည်ရယူခြင်း
+    set_real_ip_from 127.0.0.1;
+    set_real_ip_from 103.21.244.0/22;
+    set_real_ip_from 103.22.200.0/22;
+    set_real_ip_from 103.31.4.0/22;
+    set_real_ip_from 104.16.0.0/13;
+    set_real_ip_from 104.24.0.0/14;
+    set_real_ip_from 108.162.192.0/18;
+    set_real_ip_from 173.245.48.0/20;
+    set_real_ip_from 188.114.96.0/20;
+    set_real_ip_from 190.93.240.0/20;
+    set_real_ip_from 197.234.240.0/22;
+    set_real_ip_from 198.41.128.0/17;
+    real_ip_header CF-Connecting-IP;
+
+    # ၂။ Gzip Compression ဖြင့် စာမျက်နှာနှင့် Font များ အမြန်ဆုံး ဖွင့်လှစ်နိုင်စေခြင်း
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml font/ttf font/otf application/vnd.ms-fontobject;
+    gzip_min_length 1000;
+
+    # ၃။ Static ဖိုင်များ (JS, CSS, Pyidaungsu Font) ကို ရက် ၃၀ ကြာ Browser Cache သိမ်းဆည်းထားခြင်း
+    location /static/ {
+        alias /opt/tipitaka/static/;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    # ၄။ မပြောင်းလဲနိုင်သော တိပိဋက စာမျက်နှာများကို Edge / Browser Cache ခွင့်ပြုခြင်း
+    location ~* ^/api/page/ {
+        proxy_pass http://127.0.0.1:5005;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        expires 1d;
+        add_header Cache-Control "public, max-age=86400, stale-while-revalidate=604800";
+    }
+
+    # ၅။ အခြားသော APIs နှင့် ပင်မစာမျက်နှာ
     location / {
         proxy_pass http://127.0.0.1:5005;
         proxy_set_header Host $host;
