@@ -16,6 +16,7 @@ tipitaka_mm.db
 base.apk
 tipitaka_vps.zip
 code_update.zip
+Tipitaka_Deploy_Package/
 
 # Python virtual env & cache
 __pycache__/

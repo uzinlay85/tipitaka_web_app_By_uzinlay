@@ -42,15 +42,44 @@ print('Zip Done!')
 
 ---
 
-### အဆင့် ၁.၂ - VPS ပေါ်သို့ ဖိုင် ရယူခြင်း (Direct Web Download)
-Local PC တွင် Web App ပွင့်နေချိန်တွင် VPS Terminal ထဲမှ တိုက်ရိုက် တစ်ကြောင်းတည်းဖြင့် ဆွဲယူနိုင်ပါသည် -
+### အဆင့် ၁.၂ - VPS ပေါ်သို့ ဖိုင် ရယူခြင်း (Direct Web Download / USB Stick / Google Drive / SCP)
 
+VPS ပေါ်သို့ `tipitaka_vps.zip` (~150 MB) ဖိုင် ရောက်ရှိစေရန် အောက်ပါ နည်းလမ်းများအနက် အဆင်ပြေရာ တစ်ခုခုဖြင့် ဆောင်ရွက်နိုင်ပါသည် -
+
+#### နည်းလမ်း (က) - Direct Web Download (အလွယ်ဆုံးနှင့် အမြန်ဆုံးနည်း)
+Local PC တွင် Web App ပွင့်နေချိန်တွင် VPS Terminal ထဲမှ တိုက်ရိုက် တစ်ကြောင်းတည်းဖြင့် ဆွဲယူနိုင်ပါသည် -
 ```bash
 wget https://tipitaka.upanna.top/download-vps-zip -O tipitaka_vps.zip
 ```
-*(သို့မဟုတ် Local PC မှ SCP ဖြင့် ပို့မည်ဆိုပါက: `scp -P 2213 tipitaka_vps.zip zinko@172.245.210.149:~/`)*
+
+#### နည်းလမ်း (ခ) - USB Stick (Flash Drive) ဖြင့် ကူးယူခြင်း (Offline / Portable)
+- `Tipitaka_Deploy_Package` ဖိုဒါထဲရှိ `tipitaka_vps.zip` (150 MB) နှင့် `install_vps.sh` ဖိုင်များကို USB Stick ထဲသို့ ကူးထည့်ပါ။
+- **အခြား Windows PC တွင် Offline သုံးလိုပါက:** USB ထဲမှ `tipitaka_vps.zip` ကို Extract ဖြည်ပြီး `run.bat` ကို နှိပ်ရုံဖြင့် အင်တာနက်မလိုဘဲ အပြည့်အဝ ဖတ်ရှုအသုံးပြုနိုင်ပါသည်။
+- **VPS သို့ တင်လိုပါက:** ကွန်ပျူတာတွင် USB တပ်ဆင်ထားစဉ် WinSCP / FileZilla သို့မဟုတ် PowerShell SCP command ဖြင့် VPS သို့ လွယ်ကူစွာ ကူးတင်နိုင်ပါသည်။
+
+#### နည်းလမ်း (ဂ) - Google Drive တွင် တင်ပြီး VPS Terminal မှ ပြန်လည်ဆွဲယူခြင်း
+၁။ Google Drive သို့ `tipitaka_vps.zip` (150 MB) ကို Upload တင်ပါ။
+၂။ ဖိုင်ပေါ်တွင် Right-click -> Share -> "Anyone with the link" (လင့်ခ်ရှိသူတိုင်း) ဟု သတ်မှတ်ပြီး Copy link ယူပါ။
+၃။ VPS Terminal တွင် `gdown` tool ဖြင့် အလွယ်တကူ တိုက်ရိုက် ဆွဲယူနိုင်ပါသည် -
+```bash
+pip install gdown || sudo apt install -y python3-pip && pip install gdown
+gdown "https://drive.google.com/uc?id=YOUR_FILE_ID" -O tipitaka_vps.zip
+```
+*(မှတ်ချက်: `YOUR_FILE_ID` နေရာတွင် Google Drive Share link ထဲရှိ ID ကုဒ်ကို ထည့်သွင်းပေးပါ)*
+
+#### နည်းလမ်း (ဃ) - Local PC မှ SCP / FileZilla ဖြင့် တိုက်ရိုက်ပို့ခြင်း
+```powershell
+scp -P 2213 tipitaka_vps.zip zinko@172.245.210.149:~/
+```
 
 ---
+
+### အဆင့် ၁.၂.၁ - အလိုအလျောက် ၁ ချက်နှိပ် တပ်ဆင်ခြင်း (1-Click Automated Setup - Recommended)
+`tipitaka_vps.zip` ကို VPS ပေါ် ရောက်ရှိပြီးပါက `install_vps.sh` ကို run လိုက်ရုံဖြင့် အောက်ပါ အဆင့် ၁.၃ မှ ၁.၆ အားလုံးကို အလိုအလျောက် ပြီးပြည့်စုံအောင် တပ်ဆင်ပေးသွားပါမည် -
+```bash
+sudo bash install_vps.sh
+```
+*(အောက်ပါ အဆင့် ၁.၃ မှ ၁.၆ များသည် ကိုယ်တိုင် manual တပ်ဆင်လိုသူများအတွက် အဆင့်ဆင့် ဖော်ပြထားခြင်း ဖြစ်ပါသည်)*
 
 ### အဆင့် ၁.၃ - ဖိုဒါဆောက်၍ ဖိုင်များ ဖြည်ချခြင်းနှင့် Permission သတ်မှတ်ခြင်း
 ```bash
