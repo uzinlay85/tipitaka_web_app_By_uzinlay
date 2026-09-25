@@ -200,16 +200,21 @@ const el = {
     btnNavDict: document.getElementById("btnNavDict"),
     btnNavMore: document.getElementById("btnNavMore"),
 
-    // History Modal
+    // History Modal & Insights / Backup
     historyModal: document.getElementById("historyModal"),
     btnOpenHistory: document.getElementById("btnOpenHistory"),
     btnOpenHistoryMobile: document.getElementById("btnOpenHistoryMobile"),
     btnCloseHistory: document.getElementById("btnCloseHistory"),
     btnClearAllHistory: document.getElementById("btnClearAllHistory"),
+    btnBackupHistory: document.getElementById("btnBackupHistory"),
+    btnRestoreHistory: document.getElementById("btnRestoreHistory"),
+    restoreFileInput: document.getElementById("restoreFileInput"),
+    historySearchWrapper: document.getElementById("historySearchWrapper"),
     historyFilterInput: document.getElementById("historyFilterInput"),
     btnClearHistoryFilter: document.getElementById("btnClearHistoryFilter"),
     tabHistoryReading: document.getElementById("tabHistoryReading"),
     tabHistorySearch: document.getElementById("tabHistorySearch"),
+    tabHistoryInsights: document.getElementById("tabHistoryInsights"),
     historyReadingBadge: document.getElementById("historyReadingBadge"),
     historySearchBadge: document.getElementById("historySearchBadge"),
     historyFilterPills: document.getElementById("historyFilterPills"),
@@ -2134,16 +2139,379 @@ function closeHistoryModal() {
     el.historyModal.classList.remove("open");
 }
 
+function computeDhammaInsights() {
+    const reading = HistoryManager.getReadingHistory();
+    const search = HistoryManager.getSearchHistory();
+
+    const totalReadCount = reading.length;
+    const now = Date.now();
+    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayMs = todayStart.getTime();
+
+    let thisWeekCount = 0;
+    let todayCount = 0;
+    const bookFrequency = {};
+    const basketFrequency = {
+        vinaya: 0,
+        sutta: 0,
+        abhidhamma: 0,
+        commentary: 0
+    };
+
+    reading.forEach(item => {
+        const ts = item.timestamp || 0;
+        if (ts >= oneWeekAgo) {
+            thisWeekCount++;
+        }
+        if (ts >= todayMs) {
+            todayCount++;
+        }
+
+        const bName = item.bookName || item.bookId || "အမည်မသိကျမ်း";
+        bookFrequency[bName] = (bookFrequency[bName] || 0) + 1;
+
+        // Pitaka Basket categorization
+        const bId = (item.bookId || "").toLowerCase();
+        if (bId.includes("vinaya") || bId.startsWith("vi_") || bId.startsWith("vin")) {
+            basketFrequency.vinaya++;
+        } else if (bId.includes("abhidhamma") || bId.startsWith("ab_") || bId.startsWith("abh")) {
+            basketFrequency.abhidhamma++;
+        } else if (bId.includes("att") || bId.includes("tika") || bId.includes("atk") || bId.includes("_a") || bId.includes("_t")) {
+            basketFrequency.commentary++;
+        } else {
+            basketFrequency.sutta++;
+        }
+    });
+
+    // Determine Top Basket
+    let topBasketName = "သုတ္တန်ပိဋကတ်";
+    let maxBasketCount = basketFrequency.sutta;
+    if (basketFrequency.vinaya > maxBasketCount) {
+        topBasketName = "ဝိနည်းပိဋကတ်";
+        maxBasketCount = basketFrequency.vinaya;
+    }
+    if (basketFrequency.abhidhamma > maxBasketCount) {
+        topBasketName = "အဘိဓမ္မာပိဋကတ်";
+        maxBasketCount = basketFrequency.abhidhamma;
+    }
+    if (basketFrequency.commentary > maxBasketCount) {
+        topBasketName = "အဋ္ဌကထာ/ဋီကာ";
+        maxBasketCount = basketFrequency.commentary;
+    }
+
+    if (totalReadCount === 0) {
+        topBasketName = "မရှိသေးပါ";
+        maxBasketCount = 0;
+    }
+
+    // Top 5 Books
+    const sortedBooks = Object.keys(bookFrequency).map(name => ({
+        name,
+        count: bookFrequency[name]
+    })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // Latest active entry
+    let lastActiveText = "မရှိသေးပါ";
+    if (reading.length > 0 && reading[0].timestamp) {
+        lastActiveText = formatHistoryTime(reading[0].timestamp);
+    }
+
+    return {
+        totalReadCount,
+        thisWeekCount,
+        todayCount,
+        topBasketName,
+        maxBasketCount,
+        sortedBooks,
+        lastActiveText,
+        totalSearches: search.length
+    };
+}
+
+async function exportProfileBackup() {
+    try {
+        let currentBookmarks = state.bookmarks || [];
+        try {
+            const bRes = await fetch("/api/bookmarks");
+            if (bRes.ok) {
+                currentBookmarks = await bRes.json();
+            }
+        } catch (e) {
+            console.warn("Could not fetch latest bookmarks from API:", e);
+        }
+
+        const backupData = {
+            version: "1.0",
+            appName: "Tipitaka Pali & Myanmar Web App",
+            exportDate: new Date().toISOString(),
+            readingHistory: HistoryManager.getReadingHistory(),
+            searchHistory: HistoryManager.getSearchHistory(),
+            bookmarks: currentBookmarks,
+            settings: {
+                theme: state.theme || localStorage.getItem("tipitaka_theme") || "paper",
+                fontSize: state.fontSize || localStorage.getItem("tipitaka_font_size") || "100",
+                showNotes: state.showNotes !== undefined ? state.showNotes : (localStorage.getItem("tipitaka_show_notes") || "0"),
+                scrollMode: state.scrollMode || localStorage.getItem("tipitaka_scroll_mode") || "feed",
+                readerMode: state.readerMode || "pali"
+            }
+        };
+
+        const jsonStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const d = new Date();
+        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+        const filename = `tipitaka-backup-${dateStr}.json`;
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("Backup export failed:", err);
+        alert("Backup ဖိုင် ထုတ်ယူရာတွင် အမှားတစ်ခု ဖြစ်ပေါ်ခဲ့ပါသည်: " + err.message);
+    }
+}
+
+async function importProfileBackup(file) {
+    if (!file) return;
+    try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const text = e.target.result;
+                const data = JSON.parse(text);
+
+                if (!data || typeof data !== "object") {
+                    throw new Error("မှန်ကန်သော JSON ဖိုင် မဟုတ်ပါ။");
+                }
+
+                // 1. Reading History merge
+                if (Array.isArray(data.readingHistory)) {
+                    const existing = HistoryManager.getReadingHistory();
+                    const merged = [...data.readingHistory];
+                    existing.forEach(ex => {
+                        const exists = merged.some(m => m.mode === ex.mode && m.bookId === ex.bookId && m.page === ex.page);
+                        if (!exists) merged.push(ex);
+                    });
+                    merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    HistoryManager.saveReadingHistory(merged);
+                }
+
+                // 2. Search History merge
+                if (Array.isArray(data.searchHistory)) {
+                    const existingS = HistoryManager.getSearchHistory();
+                    const mergedS = [...data.searchHistory];
+                    existingS.forEach(ex => {
+                        const exists = mergedS.some(m => (m.query || "").toLowerCase() === (ex.query || "").toLowerCase());
+                        if (!exists) mergedS.push(ex);
+                    });
+                    mergedS.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    HistoryManager.saveSearchHistory(mergedS);
+                }
+
+                // 3. Bookmarks restore
+                if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0) {
+                    for (const bm of data.bookmarks) {
+                        if (bm.book_id && bm.page_number) {
+                            try {
+                                await fetch("/api/bookmarks", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        book_id: bm.book_id,
+                                        page_number: bm.page_number,
+                                        note: bm.note || ""
+                                    })
+                                });
+                            } catch (bmErr) {
+                                console.warn("Failed to restore single bookmark:", bmErr);
+                            }
+                        }
+                    }
+                    await loadBookmarks();
+                }
+
+                // 4. Settings restore
+                if (data.settings && typeof data.settings === "object") {
+                    if (data.settings.theme) setupTheme(data.settings.theme);
+                    if (data.settings.fontSize) setupFontSize(data.settings.fontSize);
+                    if (data.settings.showNotes !== undefined) setNotesVisibility(data.settings.showNotes);
+                    if (data.settings.scrollMode) setScrollMode(data.settings.scrollMode);
+                }
+
+                HistoryManager.updateBadgeCounts();
+                renderHistoryModalContent();
+                alert(`✅ Backup ဖိုင်အား အောင်မြင်စွာ ပြန်လည်တင်သွင်းပြီးပါပြီ!\n\n- ဖတ်ရှုမှု မှတ်တမ်း: ${toMyanmarNum(HistoryManager.getReadingHistory().length)} ခု\n- ရှာဖွေမှု မှတ်တမ်း: ${toMyanmarNum(HistoryManager.getSearchHistory().length)} ခု\n- စာညှပ်မှတ်စုများ: ${toMyanmarNum(state.bookmarks ? state.bookmarks.length : 0)} ခု`);
+
+            } catch (parseErr) {
+                console.error("Failed to parse backup JSON:", parseErr);
+                alert("Backup ဖိုင်ကို ဖတ်ရှု၍ မရပါ- " + parseErr.message);
+            }
+        };
+        reader.readAsText(file);
+    } catch (err) {
+        console.error("Failed to read file:", err);
+        alert("ဖိုင် ဖတ်ရှုရာတွင် ချို့ယွင်းချက် ဖြစ်ပေါ်ခဲ့ပါသည်: " + err.message);
+    }
+}
+
+function renderInsightsContent() {
+    const insights = computeDhammaInsights();
+
+    let topBooksHtml = "";
+    if (insights.sortedBooks.length === 0) {
+        topBooksHtml = `<div class="history-empty-state" style="padding: 20px 0;"><p>ဖတ်ရှုထားသော ကျမ်းစာ မရှိသေးပါ။</p></div>`;
+    } else {
+        const maxCount = insights.sortedBooks[0].count || 1;
+        insights.sortedBooks.forEach((b, idx) => {
+            const pct = Math.max(12, Math.round((b.count / maxCount) * 100));
+            topBooksHtml += `
+                <div class="top-book-row">
+                    <div class="top-book-header">
+                        <div class="top-book-name">
+                            <span>${toMyanmarNum(idx + 1)}။</span>
+                            <span>${escapeHtml(b.name)}</span>
+                        </div>
+                        <div class="top-book-count">${toMyanmarNum(b.count)} ကြိမ်</div>
+                    </div>
+                    <div class="top-book-bar-track">
+                        <div class="top-book-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    el.historyItemsContainer.innerHTML = `
+        <div class="insights-container">
+            <div class="insights-banner">
+                <div class="insights-banner-icon">☸️</div>
+                <div class="insights-banner-text">
+                    <h3>ဓမ္မစာပေ ဖတ်ရှုလေ့လာမှု စာရင်းအင်း (Reading Insights)</h3>
+                    <p>ဤကိန်းဂဏန်းများသည် သင်၏ Browser အတွင်း ကျမ်းစာများ ဖတ်ရှုလေ့လာခဲ့မှုများအပေါ် အခြေခံ၍ သာသနာတော်ဆိုင်ရာ ဓမ္မလေ့လာမှု တိုးတက်မှုကို အလိုအလျောက် တွက်ချက်ဖော်ပြထားခြင်း ဖြစ်ပါသည်။</p>
+                </div>
+            </div>
+
+            <div class="insights-grid">
+                <div class="insight-stat-card card-accent">
+                    <div class="stat-icon">📖</div>
+                    <div class="stat-content">
+                        <div class="stat-value">${toMyanmarNum(insights.thisWeekCount)} ကြိမ်</div>
+                        <div class="stat-label">ယခုအပတ် ဖတ်ရှုမှု</div>
+                        <div class="stat-sub">ယနေ့ဖတ်ရှုမှု: ${toMyanmarNum(insights.todayCount)} ကြိမ်</div>
+                    </div>
+                </div>
+
+                <div class="insight-stat-card card-gold">
+                    <div class="stat-icon">☸️</div>
+                    <div class="stat-content">
+                        <div class="stat-value" title="${escapeHtml(insights.topBasketName)}">${escapeHtml(insights.topBasketName)}</div>
+                        <div class="stat-label">အများဆုံး လေ့လာသော ပိဋကတ်</div>
+                        <div class="stat-sub">${toMyanmarNum(insights.maxBasketCount)} ကြိမ် လေ့လာခဲ့</div>
+                    </div>
+                </div>
+
+                <div class="insight-stat-card card-green">
+                    <div class="stat-icon">📚</div>
+                    <div class="stat-content">
+                        <div class="stat-value">${toMyanmarNum(insights.totalReadCount)} မျက်နှာ</div>
+                        <div class="stat-label">စုစုပေါင်း ဖွင့်ဖတ်ခဲ့မှု</div>
+                        <div class="stat-sub">စကားလုံးရှာဖွေမှု: ${toMyanmarNum(insights.totalSearches)} ကြိမ်</div>
+                    </div>
+                </div>
+
+                <div class="insight-stat-card card-blue">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <div class="stat-value">${insights.lastActiveText}</div>
+                        <div class="stat-label">နောက်ဆုံး လေ့လာခဲ့ချိန်</div>
+                        <div class="stat-sub">လတ်တလော ဓမ္မလေ့လာမှု</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights-section">
+                <div class="insights-section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="8" r="7"></circle>
+                        <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                    </svg>
+                    <span>အများဆုံး ဖတ်ရှုလေ့လာဖြစ်သော ကျမ်းစာအုပ်များ (Top 5 Books)</span>
+                </div>
+                <div class="insights-top-books">
+                    ${topBooksHtml}
+                </div>
+            </div>
+
+            <div class="insights-backup-card">
+                <div class="backup-card-info">
+                    <h4>💾 အချက်အလက်များ သိမ်းဆည်းရန်နှင့် ပြန်လည်တင်သွင်းရန် (Backup & Restore)</h4>
+                    <p>ဖတ်ရှုမှတ်တမ်း၊ ရှာဖွေမှုမှတ်တမ်း၊ မှတ်စု (Bookmarks) များနှင့် စာလုံးအရွယ်အစား/Theme ဆက်တင်များအားလုံးကို JSON ဖိုင်ဖြင့် လွယ်ကူစွာ သိမ်းဆည်း သို့မဟုတ် ဖုန်း/ကွန်ပျူတာ အချင်းချင်း လွှဲပြောင်းနိုင်ပါသည်။</p>
+                </div>
+                <div class="backup-card-actions">
+                    <button class="history-action-btn" id="btnInsightsExport" style="padding: 8px 14px; font-weight:600;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>Backup ထုတ်ယူမည်</span>
+                    </button>
+                    <button class="history-action-btn" id="btnInsightsImport" style="padding: 8px 14px; font-weight:600;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Restore တင်သွင်းမည်</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const btnExp = document.getElementById("btnInsightsExport");
+    if (btnExp) {
+        btnExp.addEventListener("click", exportProfileBackup);
+    }
+    const btnImp = document.getElementById("btnInsightsImport");
+    if (btnImp && el.restoreFileInput) {
+        btnImp.addEventListener("click", () => el.restoreFileInput.click());
+    }
+}
+
 function renderHistoryModalContent() {
     if (!el.historyItemsContainer) return;
     HistoryManager.updateBadgeCounts();
 
-    const isReadingTab = state.historyActiveTab === "reading";
-    const filterText = (el.historyFilterInput ? el.historyFilterInput.value : "").trim().toLowerCase();
+    const activeTab = state.historyActiveTab || "reading";
+    const isReadingTab = activeTab === "reading";
+    const isSearchTab = activeTab === "search";
+    const isInsightsTab = activeTab === "insights";
 
+    if (el.tabHistoryReading) el.tabHistoryReading.classList.toggle("active", isReadingTab);
+    if (el.tabHistorySearch) el.tabHistorySearch.classList.toggle("active", isSearchTab);
+    if (el.tabHistoryInsights) el.tabHistoryInsights.classList.toggle("active", isInsightsTab);
+
+    if (el.historySearchWrapper) {
+        el.historySearchWrapper.style.display = isInsightsTab ? "none" : "flex";
+    }
     if (el.historyFilterPills) {
         el.historyFilterPills.style.display = isReadingTab ? "flex" : "none";
     }
+
+    if (isInsightsTab) {
+        renderInsightsContent();
+        return;
+    }
+
+    const filterText = (el.historyFilterInput ? el.historyFilterInput.value : "").trim().toLowerCase();
 
     if (isReadingTab) {
         let items = HistoryManager.getReadingHistory();
@@ -3067,17 +3435,39 @@ function setupEventListeners() {
     }
     if (el.btnClearAllHistory) {
         el.btnClearAllHistory.addEventListener("click", () => {
-            const isReading = state.historyActiveTab === "reading";
-            const msg = isReading 
-                ? "ဖတ်ရှုခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?" 
-                : "ရှာဖွေခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?";
+            const tab = state.historyActiveTab;
+            let msg = "ဖတ်ရှုခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?";
+            if (tab === "search") {
+                msg = "ရှာဖွေခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?";
+            } else if (tab === "insights") {
+                msg = "ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်းအားလုံးကို ရှင်းလင်းဖျက်ပစ်ရန် သေချာပါသလား?";
+            }
             if (confirm(msg)) {
-                if (isReading) {
+                if (tab === "reading") {
                     HistoryManager.clearReadingHistory();
+                } else if (tab === "search") {
+                    HistoryManager.clearSearchHistory();
                 } else {
+                    HistoryManager.clearReadingHistory();
                     HistoryManager.clearSearchHistory();
                 }
                 renderHistoryModalContent();
+            }
+        });
+    }
+    if (el.btnBackupHistory) {
+        el.btnBackupHistory.addEventListener("click", exportProfileBackup);
+    }
+    if (el.btnRestoreHistory) {
+        el.btnRestoreHistory.addEventListener("click", () => {
+            if (el.restoreFileInput) el.restoreFileInput.click();
+        });
+    }
+    if (el.restoreFileInput) {
+        el.restoreFileInput.addEventListener("change", (e) => {
+            if (e.target.files && e.target.files[0]) {
+                importProfileBackup(e.target.files[0]);
+                e.target.value = "";
             }
         });
     }
@@ -3101,16 +3491,18 @@ function setupEventListeners() {
     if (el.tabHistoryReading) {
         el.tabHistoryReading.addEventListener("click", () => {
             state.historyActiveTab = "reading";
-            el.tabHistoryReading.classList.add("active");
-            el.tabHistorySearch.classList.remove("active");
             renderHistoryModalContent();
         });
     }
     if (el.tabHistorySearch) {
         el.tabHistorySearch.addEventListener("click", () => {
             state.historyActiveTab = "search";
-            el.tabHistorySearch.classList.add("active");
-            el.tabHistoryReading.classList.remove("active");
+            renderHistoryModalContent();
+        });
+    }
+    if (el.tabHistoryInsights) {
+        el.tabHistoryInsights.addEventListener("click", () => {
+            state.historyActiveTab = "insights";
             renderHistoryModalContent();
         });
     }
