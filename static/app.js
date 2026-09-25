@@ -34,7 +34,7 @@ const state = {
     bookmarks: [],
     activeTab: "tab-books",
     activeBasket: "mula",
-    appView: localStorage.getItem("tipitaka_app_view") || "home",
+    appView: "home",
     homeBasket: "mula",
     searchMode: "word",
     theme: localStorage.getItem("tipitaka_theme") || "paper",
@@ -207,8 +207,9 @@ async function initApp() {
     setScrollMode(state.scrollMode);
     setupEventListeners();
     
-    // Set view immediately so the page displays correctly right from the start
-    setAppView(state.appView);
+    // Always start on Home page when entering the web app
+    localStorage.removeItem("tipitaka_app_view");
+    setAppView("home");
 
     if (!state.isSidebarOpen) el.appSidebar.classList.add("collapsed");
     if (!state.isDictOpen || state.appView === "home") el.dictSidebar.classList.add("collapsed");
@@ -217,11 +218,20 @@ async function initApp() {
     await loadCategories();
     await loadBookmarks();
 
-    if (state.appView === "reader") {
-        await loadRecentOrFirst();
-    } else {
-        // Preload in background without stealing view focus
-        loadRecentOrFirst();
+    // Preload recent book info in background without altering view or display styles
+    try {
+        const res = await fetch("/api/recent");
+        const recent = await res.json();
+        if (recent && recent.book_id) {
+            state.paliBookId = recent.book_id;
+            state.paliPage = recent.page_number || 1;
+        } else {
+            state.paliBookId = "mula_vi_01";
+            state.paliPage = 1;
+        }
+    } catch (e) {
+        state.paliBookId = "mula_vi_01";
+        state.paliPage = 1;
     }
 }
 
@@ -1182,7 +1192,6 @@ function getCleanCategoryName(catName, catId) {
 
 function setAppView(view) {
     state.appView = view;
-    localStorage.setItem("tipitaka_app_view", view);
 
     const isHome = (view === "home");
     
@@ -2413,6 +2422,18 @@ function setupEventListeners() {
             closeSidebarMobile();
             if (!state.paliBookId && !state.mmBookId) {
                 await loadRecentOrFirst();
+            } else {
+                if (state.readerMode === "mm") {
+                    if (!el.paliContent || !el.paliContent.innerHTML.trim() || el.paliContent.innerHTML.includes("ဖွင့်လှစ်နေပါသည်")) {
+                        await loadMMBook(state.mmBookId || "01_vinaya_01", state.mmPage || 1);
+                    }
+                } else if (state.readerMode === "split") {
+                    await renderSplitView();
+                } else {
+                    if (!el.paliContent || !el.paliContent.innerHTML.trim() || el.paliContent.innerHTML.includes("ဖွင့်လှစ်နေပါသည်")) {
+                        await loadPaliBook(state.paliBookId || "mula_vi_01", state.paliPage || 1);
+                    }
+                }
             }
             setAppView("reader");
         });
