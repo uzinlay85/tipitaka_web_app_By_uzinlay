@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=3.5">
+    <link rel="stylesheet" href="/static/app.css?v=3.6">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -124,6 +124,15 @@
                 </svg>
             </button>
 
+            <!-- History Button -->
+            <button id="btnOpenHistory" class="tool-btn" title="ဖတ်ရှုမှု မှတ်တမ်းများ (History)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span class="btn-text">မှတ်တမ်း</span>
+            </button>
+
             <!-- Font Size Adjuster -->
             <div class="font-controls">
                 <button id="btnFontDec" class="icon-btn-sm" title="စာလုံး အရွယ်အစား လျှော့ရန်">A-</button>
@@ -199,6 +208,12 @@
                     <button id="btnOpenHelpMobile" class="edition-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
                         <span>💡</span>
                         <span>အသုံးပြုနည်း လမ်းညွှန် (User Guide)</span>
+                    </button>
+                </div>
+                <div class="mobile-history-row" style="margin-top: 8px;">
+                    <button id="btnOpenHistoryMobile" class="edition-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
+                        <span>📜</span>
+                        <span>ဖတ်ရှုမှု မှတ်တမ်းများ (History)</span>
                     </button>
                 </div>
             </div>
@@ -511,6 +526,75 @@
         </div>
     </div>
 
+    <!-- Comprehensive History Modal (LocalStorage) -->
+    <div class="modal-backdrop" id="historyModal">
+        <div class="modal-dialog history-modal-dialog">
+            <div class="modal-header history-modal-header">
+                <div class="history-modal-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်းများ (History)</span>
+                </div>
+                <div class="history-header-actions">
+                    <button id="btnClearAllHistory" class="history-clear-btn" title="မှတ်တမ်းများ အားလုံး ရှင်းလင်းရန်">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>ရှင်းလင်းရန်</span>
+                    </button>
+                    <button id="btnCloseHistory" class="icon-btn modal-close-btn" title="ပိတ်ရန် (Esc)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- History Toolbar (Search + Category Tabs) -->
+            <div class="history-toolbar">
+                <div class="search-input-wrapper history-search-wrapper">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="historyFilterInput" placeholder="မှတ်တမ်းအတွင်း စာအုပ်အမည်၊ အခန်း၊ စာမျက်နှာ ရှာရန်..." autocomplete="off">
+                    <button id="btnClearHistoryFilter" class="clear-search-btn" style="display:none;">&times;</button>
+                </div>
+
+                <!-- Primary Tabs: Reading History vs Search History -->
+                <div class="history-nav-tabs">
+                    <button class="history-tab-btn active" data-history-tab="reading" id="tabHistoryReading">
+                        <span>📖 ဖတ်ရှုခဲ့မှုများ</span>
+                        <span class="history-badge-count" id="historyReadingBadge">0</span>
+                    </button>
+                    <button class="history-tab-btn" data-history-tab="search" id="tabHistorySearch">
+                        <span>🔍 ရှာဖွေခဲ့မှုများ</span>
+                        <span class="history-badge-count" id="historySearchBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- Sub-filter Pills (Reading History Only) -->
+                <div class="history-filter-pills" id="historyFilterPills">
+                    <button class="history-pill active" data-mode-filter="all">အားလုံး</button>
+                    <button class="history-pill" data-mode-filter="pali">☸️ ပါဠိတော်</button>
+                    <button class="history-pill" data-mode-filter="mm">🇲🇲 မြန်မာပြန်</button>
+                    <button class="history-pill" data-mode-filter="split">📖 ယှဉ်တွဲဖတ်</button>
+                </div>
+            </div>
+
+            <!-- History List Body -->
+            <div class="history-modal-body" id="historyModalBody">
+                <div class="history-items-container" id="historyItemsContainer">
+                    <!-- Populated dynamically via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- User Guide / Help Modal -->
     <div class="modal-backdrop" id="helpModal">
         <div class="modal-dialog help-modal-dialog">
@@ -674,6 +758,10 @@
                                 <td>ရှာဖွေရေး Modal ဖွင့်ရန် (Universal Search)</td>
                             </tr>
                             <tr>
+                                <td><code>Ctrl + H</code> သို့မဟုတ် <code>H</code></td>
+                                <td>ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်း ဖွင့်ရန် (History)</td>
+                            </tr>
+                            <tr>
                                 <td><code>Esc</code></td>
                                 <td>Modal များ၊ အသုံးပြုနည်း၊ အဘိဓာန် Popup ပိတ်ရန်</td>
                             </tr>
@@ -753,7 +841,7 @@
             </span>
             <span class="nav-label">စာဖတ်</span>
         </button>
-        <button class="bottom-nav-item" data-nav="recent" id="btnNavRecent" title="နောက်ဆုံးဖတ်ခဲ့သော စာအုပ်">
+        <button class="bottom-nav-item" data-nav="recent" id="btnNavRecent" title="ဖတ်ရှုမှု မှတ်တမ်းများ (History)">
             <span class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
@@ -786,6 +874,6 @@
     </nav>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=3.5"></script>
+    <script src="/static/app.js?v=3.6"></script>
 </body>
 </html>

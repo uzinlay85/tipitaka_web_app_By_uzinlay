@@ -52,7 +52,9 @@ const state = {
     feedFirstLoadedPage: 1,
     feedLastLoadedPage: 1,
     feedSessionId: 0,
-    isLoadingMore: false
+    isLoadingMore: false,
+    historyActiveTab: "reading",
+    historyModeFilter: "all"
 };
 
 // DOM Elements
@@ -196,7 +198,22 @@ const el = {
     btnNavReader: document.getElementById("btnNavReader"),
     btnNavRecent: document.getElementById("btnNavRecent"),
     btnNavDict: document.getElementById("btnNavDict"),
-    btnNavMore: document.getElementById("btnNavMore")
+    btnNavMore: document.getElementById("btnNavMore"),
+
+    // History Modal
+    historyModal: document.getElementById("historyModal"),
+    btnOpenHistory: document.getElementById("btnOpenHistory"),
+    btnOpenHistoryMobile: document.getElementById("btnOpenHistoryMobile"),
+    btnCloseHistory: document.getElementById("btnCloseHistory"),
+    btnClearAllHistory: document.getElementById("btnClearAllHistory"),
+    historyFilterInput: document.getElementById("historyFilterInput"),
+    btnClearHistoryFilter: document.getElementById("btnClearHistoryFilter"),
+    tabHistoryReading: document.getElementById("tabHistoryReading"),
+    tabHistorySearch: document.getElementById("tabHistorySearch"),
+    historyReadingBadge: document.getElementById("historyReadingBadge"),
+    historySearchBadge: document.getElementById("historySearchBadge"),
+    historyFilterPills: document.getElementById("historyFilterPills"),
+    historyItemsContainer: document.getElementById("historyItemsContainer")
 };
 
 // Initialize Application
@@ -217,17 +234,24 @@ async function initApp() {
     
     await loadCategories();
     await loadBookmarks();
+    HistoryManager.updateBadgeCounts();
 
     // Preload recent book info in background without altering view or display styles
     try {
-        const res = await fetch("/api/recent");
-        const recent = await res.json();
-        if (recent && recent.book_id) {
-            state.paliBookId = recent.book_id;
-            state.paliPage = recent.page_number || 1;
+        const hist = HistoryManager.getReadingHistory();
+        if (hist && hist.length > 0) {
+            state.paliBookId = hist[0].bookId;
+            state.paliPage = hist[0].page || 1;
         } else {
-            state.paliBookId = "mula_vi_01";
-            state.paliPage = 1;
+            const res = await fetch("/api/recent");
+            const recent = await res.json();
+            if (recent && recent.book_id) {
+                state.paliBookId = recent.book_id;
+                state.paliPage = recent.page_number || 1;
+            } else {
+                state.paliBookId = "mula_vi_01";
+                state.paliPage = 1;
+            }
         }
     } catch (e) {
         state.paliBookId = "mula_vi_01";
@@ -261,6 +285,23 @@ async function loadCategories() {
 }
 
 async function loadRecentOrFirst() {
+    const list = HistoryManager.getReadingHistory();
+    if (list && list.length > 0) {
+        const top = list[0];
+        if (top.mode === "mm") {
+            setReaderMode("mm");
+            await loadMMBook(top.bookId, top.page);
+        } else if (top.mode === "split") {
+            setReaderMode("split");
+            await loadPaliBook(top.bookId, top.page);
+            if (top.splitMMBookId) await loadMMPage(top.splitMMBookId, top.splitMMPage || 1);
+        } else {
+            setReaderMode("pali");
+            await loadPaliBook(top.bookId, top.page);
+        }
+        return;
+    }
+
     try {
         const res = await fetch("/api/recent");
         const recent = await res.json();
@@ -879,6 +920,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     setupSentinelObserver();
                     setupPageVisibilityObserver();
                     highlightActiveToc(actualPage);
+                    debounceRecent(bookId, actualPage);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -997,6 +1039,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 updateScrollIndicator(actualPage, data.last_page);
 
                 highlightActiveToc(actualPage);
+                debounceRecent(bookId, actualPage);
             }
         }
 
@@ -1020,6 +1063,9 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ ${data.book_name}`;
             }
             attachSplitViewParagraphListeners();
+            if (state.readerMode === "split") {
+                debounceRecent(state.paliBookId, state.paliPage);
+            }
         }
 
     } catch (err) {
@@ -1035,6 +1081,7 @@ async function renderSplitView() {
     el.pageNumberInput.value = state.paliPage;
     el.totalPageDisplay.textContent = toMyanmarNum(state.paliLastPage || 1);
     await loadPaliPage(state.paliBookId, state.paliPage);
+    debounceRecent(state.paliBookId, state.paliPage);
 }
 
 function attachSplitViewParagraphListeners() {
@@ -1674,6 +1721,10 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
         const res = await fetch(`/api/dictionary/lookup?word=${encodeURIComponent(word)}`);
         const data = await res.json();
 
+        if (!triggerPopover && (data.clean_word || word)) {
+            HistoryManager.recordSearch(data.clean_word || word, "dict", data.results ? data.results.length : 0);
+        }
+
         if (!data.results || data.results.length === 0) {
             el.dictContent.innerHTML = `
                 <div class="dict-result-header">
@@ -1758,6 +1809,8 @@ async function performSearch() {
             el.searchResultsList.innerHTML = `<div class="empty-state">ရှာဖွေမှုရလဒ် မတွေ့ရှိပါ။</div>`;
             return;
         }
+
+        HistoryManager.recordSearch(q, state.searchMode, data.total);
 
         el.searchSummary.style.display = "block";
         if (state.searchMode === "word") {
@@ -1848,6 +1901,484 @@ function openSearchModal() {
 
 function closeSearchModal() {
     el.searchModal.classList.remove("open");
+}
+
+// ----------------- Comprehensive History System (LocalStorage) -----------------
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getCurrentChapterName(mode, pageNum) {
+    const tocs = (mode === "mm") ? state.mmTocs : state.paliTocs;
+    if (tocs && tocs.length > 0) {
+        let found = null;
+        for (const t of tocs) {
+            if (t.page_number <= pageNum) {
+                found = t.name;
+            } else {
+                break;
+            }
+        }
+        if (found) return found;
+    }
+    if (el.chapterTitleDisplay && el.chapterTitleDisplay.textContent) {
+        const txt = el.chapterTitleDisplay.textContent.trim();
+        if (txt && !txt.includes("ယှဉ်တွဲဖတ်ရှုခြင်း") && !txt.includes("ဖွင့်လှစ်နေပါသည်")) {
+            return txt;
+        }
+    }
+    return "";
+}
+
+function formatHistoryTime(timestamp) {
+    if (!timestamp) return "";
+    const diffMs = Date.now() - timestamp;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHour = Math.floor(diffMin / 60);
+
+    if (diffMin < 1) return "လောလောလတ်လတ်";
+    if (diffMin < 60) return `${toMyanmarNum(diffMin)} မိနစ်ခန့်က`;
+    if (diffHour < 24) {
+        const d = new Date(timestamp);
+        const hours = d.getHours();
+        const mins = String(d.getMinutes()).padStart(2, "0");
+        const ampm = hours >= 12 ? "PM" : "AM";
+        const h12 = hours % 12 || 12;
+        return `${toMyanmarNum(h12)}:${toMyanmarNum(mins)} ${ampm}`;
+    }
+    const d = new Date(timestamp);
+    const day = toMyanmarNum(d.getDate());
+    const month = toMyanmarNum(d.getMonth() + 1);
+    const year = toMyanmarNum(d.getFullYear());
+    return `${day}/${month}/${year}`;
+}
+
+function groupHistoryByDate(items) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+    const pastWeekStart = todayStart - (7 * 86400000);
+    const pastMonthStart = todayStart - (30 * 86400000);
+
+    const groups = [
+        { label: "📅 ယနေ့ (Today)", items: [] },
+        { label: "📅 မနေ့က (Yesterday)", items: [] },
+        { label: "📅 လွန်ခဲ့သော ၇ ရက်အတွင်း", items: [] },
+        { label: "📅 လွန်ခဲ့သော ရက် ၃၀ အတွင်း", items: [] },
+        { label: "📅 ယခင်လများက (Earlier)", items: [] }
+    ];
+
+    items.forEach(item => {
+        const t = item.timestamp || 0;
+        if (t >= todayStart) {
+            groups[0].items.push(item);
+        } else if (t >= yesterdayStart) {
+            groups[1].items.push(item);
+        } else if (t >= pastWeekStart) {
+            groups[2].items.push(item);
+        } else if (t >= pastMonthStart) {
+            groups[3].items.push(item);
+        } else {
+            groups[4].items.push(item);
+        }
+    });
+
+    return groups.filter(g => g.items.length > 0);
+}
+
+const HistoryManager = {
+    READING_KEY: "tipitaka_reading_history_v1",
+    SEARCH_KEY: "tipitaka_search_history_v1",
+    MAX_READING: 200,
+    MAX_SEARCH: 50,
+
+    getReadingHistory() {
+        try {
+            const raw = localStorage.getItem(this.READING_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Failed to parse reading history:", e);
+            return [];
+        }
+    },
+
+    saveReadingHistory(list) {
+        try {
+            localStorage.setItem(this.READING_KEY, JSON.stringify(list.slice(0, this.MAX_READING)));
+            this.updateBadgeCounts();
+        } catch (e) {
+            console.error("Failed to save reading history:", e);
+        }
+    },
+
+    recordReading(entry) {
+        if (!entry || !entry.bookId) return;
+        const list = this.getReadingHistory();
+        const now = Date.now();
+
+        // If top item is identical book and mode, update page, chapter and timestamp
+        if (list.length > 0) {
+            const first = list[0];
+            const isSameBook = (first.mode === entry.mode) && (first.bookId === entry.bookId);
+            const isRecent = (now - (first.timestamp || 0)) < 3600000; // 1 hour session
+            if (isSameBook && isRecent) {
+                first.page = entry.page;
+                if (entry.chapterName) first.chapterName = entry.chapterName;
+                if (entry.bookName && (!first.bookName || first.bookName === entry.bookId)) first.bookName = entry.bookName;
+                if (entry.mode === "split") {
+                    if (entry.splitMMBookId) first.splitMMBookId = entry.splitMMBookId;
+                    if (entry.splitMMBookName) first.splitMMBookName = entry.splitMMBookName;
+                    if (entry.splitMMPage) first.splitMMPage = entry.splitMMPage;
+                }
+                first.timestamp = now;
+                this.saveReadingHistory(list);
+                return;
+            }
+        }
+
+        const newItem = {
+            id: "rh_" + now + "_" + Math.random().toString(36).substring(2, 6),
+            mode: entry.mode || "pali",
+            bookId: entry.bookId,
+            bookName: entry.bookName || entry.bookId,
+            page: entry.page || 1,
+            chapterName: entry.chapterName || "",
+            splitMMBookId: entry.splitMMBookId || null,
+            splitMMBookName: entry.splitMMBookName || null,
+            splitMMPage: entry.splitMMPage || null,
+            timestamp: now
+        };
+
+        // Remove any identical prior entry for same book & page
+        const filtered = list.filter(item => !(item.mode === newItem.mode && item.bookId === newItem.bookId && item.page === newItem.page));
+        filtered.unshift(newItem);
+        this.saveReadingHistory(filtered);
+    },
+
+    deleteReadingItem(id) {
+        const list = this.getReadingHistory().filter(item => item.id !== id);
+        this.saveReadingHistory(list);
+    },
+
+    clearReadingHistory() {
+        localStorage.removeItem(this.READING_KEY);
+        this.updateBadgeCounts();
+    },
+
+    getSearchHistory() {
+        try {
+            const raw = localStorage.getItem(this.SEARCH_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    saveSearchHistory(list) {
+        try {
+            localStorage.setItem(this.SEARCH_KEY, JSON.stringify(list.slice(0, this.MAX_SEARCH)));
+            this.updateBadgeCounts();
+        } catch (e) {}
+    },
+
+    recordSearch(query, type, resultCount = null) {
+        const q = (query || "").trim();
+        if (!q || q.length < 2) return;
+        let list = this.getSearchHistory();
+        const now = Date.now();
+        list = list.filter(item => item.query.toLowerCase() !== q.toLowerCase());
+        list.unshift({
+            id: "sh_" + now,
+            query: q,
+            type: type || "word",
+            resultCount: (resultCount !== null && resultCount !== undefined) ? resultCount : null,
+            timestamp: now
+        });
+        this.saveSearchHistory(list);
+    },
+
+    deleteSearchItem(id) {
+        const list = this.getSearchHistory().filter(item => item.id !== id);
+        this.saveSearchHistory(list);
+    },
+
+    clearSearchHistory() {
+        localStorage.removeItem(this.SEARCH_KEY);
+        this.updateBadgeCounts();
+    },
+
+    updateBadgeCounts() {
+        if (el.historyReadingBadge) el.historyReadingBadge.textContent = this.getReadingHistory().length;
+        if (el.historySearchBadge) el.historySearchBadge.textContent = this.getSearchHistory().length;
+    }
+};
+
+function openHistoryModal() {
+    if (!el.historyModal) return;
+    el.historyModal.classList.add("open");
+    renderHistoryModalContent();
+    if (el.historyFilterInput) {
+        setTimeout(() => el.historyFilterInput.focus(), 150);
+    }
+}
+
+function closeHistoryModal() {
+    if (!el.historyModal) return;
+    el.historyModal.classList.remove("open");
+}
+
+function renderHistoryModalContent() {
+    if (!el.historyItemsContainer) return;
+    HistoryManager.updateBadgeCounts();
+
+    const isReadingTab = state.historyActiveTab === "reading";
+    const filterText = (el.historyFilterInput ? el.historyFilterInput.value : "").trim().toLowerCase();
+
+    if (el.historyFilterPills) {
+        el.historyFilterPills.style.display = isReadingTab ? "flex" : "none";
+    }
+
+    if (isReadingTab) {
+        let items = HistoryManager.getReadingHistory();
+
+        // Mode filter
+        if (state.historyModeFilter && state.historyModeFilter !== "all") {
+            items = items.filter(it => it.mode === state.historyModeFilter);
+        }
+
+        // Search text filter
+        if (filterText) {
+            items = items.filter(it => {
+                const bName = (it.bookName || "").toLowerCase();
+                const cName = (it.chapterName || "").toLowerCase();
+                const pNum = toMyanmarNum(it.page) + " " + it.page;
+                const sName = (it.splitMMBookName || "").toLowerCase();
+                return bName.includes(filterText) || cName.includes(filterText) || pNum.includes(filterText) || sName.includes(filterText);
+            });
+        }
+
+        if (items.length === 0) {
+            el.historyItemsContainer.innerHTML = `
+                <div class="history-empty-state">
+                    <div class="history-empty-icon">📖</div>
+                    <p>ဖတ်ရှုခဲ့သည့် မှတ်တမ်း မရှိသေးပါ။</p>
+                    <p class="empty-sub">ကျမ်းစာအုပ်များကို ဖွင့်လှစ်ဖတ်ရှုပါက ဤနေရာတွင် အလိုအလျောက် ရက်စွဲအလိုက် စနစ်တကျ မှတ်တမ်းတင်ပေးမည် ဖြစ်ပါသည်။</p>
+                </div>
+            `;
+            return;
+        }
+
+        const dateGroups = groupHistoryByDate(items);
+        let html = "";
+
+        dateGroups.forEach(group => {
+            html += `
+                <div class="history-date-header">
+                    <span>${group.label}</span>
+                    <span class="history-date-count">${toMyanmarNum(group.items.length)} ခု</span>
+                </div>
+            `;
+
+            group.items.forEach(it => {
+                let badgeClass = "badge-pali";
+                let badgeText = "☸️ ပါဠိတော်";
+                if (it.mode === "mm") {
+                    badgeClass = "badge-mm";
+                    badgeText = "🇲🇲 မြန်မာပြန်";
+                } else if (it.mode === "split") {
+                    badgeClass = "badge-split";
+                    badgeText = "📖 ယှဉ်တွဲဖတ်";
+                }
+
+                let title = it.bookName;
+                if (it.mode === "split" && it.splitMMBookName) {
+                    title = `${it.bookName} ↔ ${it.splitMMBookName}`;
+                }
+
+                let meta = `<span>စာမျက်နှာ ${toMyanmarNum(it.page)}</span>`;
+                if (it.mode === "split" && it.splitMMPage) {
+                    meta = `<span>ပါဠိ စာမျက်နှာ ${toMyanmarNum(it.page)} • မြန်မာပြန် စာမျက်နှာ ${toMyanmarNum(it.splitMMPage)}</span>`;
+                }
+                if (it.chapterName) {
+                    meta += `<span class="meta-dot">•</span><span title="${escapeHtml(it.chapterName)}">${escapeHtml(it.chapterName)}</span>`;
+                }
+
+                const timeStr = formatHistoryTime(it.timestamp);
+
+                html += `
+                    <div class="history-item-card" data-history-id="${it.id}" data-mode="${it.mode}" data-book-id="${it.bookId}" data-page="${it.page}" data-split-book="${it.splitMMBookId || ''}" data-split-page="${it.splitMMPage || ''}">
+                        <div class="history-card-left">
+                            <span class="history-mode-badge ${badgeClass}">${badgeText}</span>
+                            <div class="history-card-info">
+                                <div class="history-item-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+                                <div class="history-item-meta">${meta}</div>
+                            </div>
+                        </div>
+                        <div class="history-card-right">
+                            <span class="history-time-tag">${timeStr}</span>
+                            <button class="btn-delete-history" title="ဤမှတ်တမ်းကို ဖျက်ရန်" data-delete-id="${it.id}">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        el.historyItemsContainer.innerHTML = html;
+
+        // Click to open book & resume reading
+        el.historyItemsContainer.querySelectorAll(".history-item-card").forEach(card => {
+            card.addEventListener("click", async (e) => {
+                if (e.target.closest(".btn-delete-history")) return;
+                const mode = card.getAttribute("data-mode");
+                const bId = card.getAttribute("data-book-id");
+                const page = parseInt(card.getAttribute("data-page"), 10) || 1;
+                const splitBook = card.getAttribute("data-split-book");
+                const splitPage = parseInt(card.getAttribute("data-split-page"), 10) || 1;
+
+                closeHistoryModal();
+
+                if (mode === "mm") {
+                    setReaderMode("mm");
+                    await loadMMBook(bId, page);
+                } else if (mode === "split") {
+                    setReaderMode("split");
+                    await loadPaliBook(bId, page);
+                    if (splitBook) {
+                        await loadMMPage(splitBook, splitPage);
+                    }
+                } else {
+                    setReaderMode("pali");
+                    await loadPaliBook(bId, page);
+                }
+                setAppView("reader");
+            });
+        });
+
+        // Delete single reading item
+        el.historyItemsContainer.querySelectorAll(".btn-delete-history").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute("data-delete-id");
+                HistoryManager.deleteReadingItem(id);
+                renderHistoryModalContent();
+            });
+        });
+
+    } else {
+        // Search History Tab
+        let items = HistoryManager.getSearchHistory();
+
+        if (filterText) {
+            items = items.filter(it => it.query.toLowerCase().includes(filterText));
+        }
+
+        if (items.length === 0) {
+            el.historyItemsContainer.innerHTML = `
+                <div class="history-empty-state">
+                    <div class="history-empty-icon">🔍</div>
+                    <p>ရှာဖွေခဲ့သည့် မှတ်တမ်း မရှိသေးပါ။</p>
+                    <p class="empty-sub">ပါဠိစကားလုံး၊ သုတ္တန်၊ ကျမ်းစာအုပ်များကို ရှာဖွေပါက ဤနေရာတွင် စနစ်တကျ မှတ်တမ်းတင်ပေးမည် ဖြစ်ပါသည်။</p>
+                </div>
+            `;
+            return;
+        }
+
+        const dateGroups = groupHistoryByDate(items);
+        let html = "";
+
+        dateGroups.forEach(group => {
+            html += `
+                <div class="history-date-header">
+                    <span>${group.label}</span>
+                    <span class="history-date-count">${toMyanmarNum(group.items.length)} ခု</span>
+                </div>
+            `;
+
+            group.items.forEach(it => {
+                let typeLabel = "ပါဠိစကားလုံး ရှာဖွေမှု";
+                if (it.type === "sutta") typeLabel = "သုတ္တန် ရှာဖွေမှု";
+                else if (it.type === "book") typeLabel = "ပါဠိကျမ်းစာအုပ် ရှာဖွေမှု";
+                else if (it.type === "mm_book") typeLabel = "မြန်မာပြန်ကျမ်းစာ ရှာဖွေမှု";
+                else if (it.type === "mm_toc") typeLabel = "မာတိကာ ရှာဖွေမှု";
+                else if (it.type === "dict") typeLabel = "အဘိဓာန် ရှာဖွေမှု";
+
+                let meta = `<span>${typeLabel}</span>`;
+                if (it.resultCount !== null && it.resultCount !== undefined) {
+                    meta += `<span class="meta-dot">•</span><span>တွေ့ရှိမှု ${toMyanmarNum(it.resultCount)} ခု</span>`;
+                }
+
+                const timeStr = formatHistoryTime(it.timestamp);
+
+                html += `
+                    <div class="history-item-card" data-search-query="${escapeHtml(it.query)}" data-search-type="${it.type || 'word'}">
+                        <div class="history-card-left">
+                            <span class="history-mode-badge badge-search">🔍 ရှာဖွေမှု</span>
+                            <div class="history-card-info">
+                                <div class="history-item-title">"${escapeHtml(it.query)}"</div>
+                                <div class="history-item-meta">${meta}</div>
+                            </div>
+                        </div>
+                        <div class="history-card-right">
+                            <span class="history-time-tag">${timeStr}</span>
+                            <button class="btn-delete-history" title="ဤမှတ်တမ်းကို ဖျက်ရန်" data-delete-search-id="${it.id}">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        el.historyItemsContainer.innerHTML = html;
+
+        // Click on search item to rerun search
+        el.historyItemsContainer.querySelectorAll(".history-item-card").forEach(card => {
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".btn-delete-history")) return;
+                const query = card.getAttribute("data-search-query");
+                const type = card.getAttribute("data-search-type");
+                closeHistoryModal();
+
+                if (type === "dict") {
+                    toggleDictSidebar(true);
+                    lookupDictionary(query);
+                } else {
+                    openSearchModal();
+                    if (el.globalSearchInput) el.globalSearchInput.value = query;
+                    state.searchMode = type || "word";
+                    el.modalTabBtns.forEach(btn => {
+                        btn.classList.toggle("active", btn.getAttribute("data-mode") === state.searchMode);
+                    });
+                    performSearch();
+                }
+            });
+        });
+
+        // Delete single search item
+        el.historyItemsContainer.querySelectorAll(".btn-delete-history").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute("data-delete-search-id");
+                HistoryManager.deleteSearchItem(id);
+                renderHistoryModalContent();
+            });
+        });
+    }
 }
 
 function toggleSidebar(forceState = null) {
@@ -2406,6 +2937,7 @@ function setupEventListeners() {
         if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
             if (e.key === "Escape") {
                 closeSearchModal();
+                closeHistoryModal();
                 el.helpModal.classList.remove("open");
                 el.dictQuickPopover.style.display = "none";
             }
@@ -2419,6 +2951,9 @@ function setupEventListeners() {
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
             e.preventDefault();
             openSearchModal();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+            e.preventDefault();
+            openHistoryModal();
         } else if (e.key === "/" && !el.searchModal.classList.contains("open")) {
             e.preventDefault();
             openSearchModal();
@@ -2427,6 +2962,7 @@ function setupEventListeners() {
             el.helpModal.classList.add("open");
         } else if (e.key === "Escape") {
             closeSearchModal();
+            closeHistoryModal();
             el.helpModal.classList.remove("open");
             el.dictQuickPopover.style.display = "none";
         }
@@ -2494,10 +3030,9 @@ function setupEventListeners() {
         });
     }
     if (el.btnNavRecent) {
-        el.btnNavRecent.addEventListener("click", async () => {
+        el.btnNavRecent.addEventListener("click", () => {
             closeSidebarMobile();
-            await loadRecentOrFirst();
-            setAppView("reader");
+            openHistoryModal();
         });
     }
     if (el.btnNavDict) {
@@ -2510,6 +3045,84 @@ function setupEventListeners() {
     }
     if (el.btnNavMore) {
         el.btnNavMore.addEventListener("click", () => toggleSidebar());
+    }
+
+    // Comprehensive History Modal Listeners
+    if (el.btnOpenHistory) {
+        el.btnOpenHistory.addEventListener("click", openHistoryModal);
+    }
+    if (el.btnOpenHistoryMobile) {
+        el.btnOpenHistoryMobile.addEventListener("click", () => {
+            closeSidebarMobile();
+            openHistoryModal();
+        });
+    }
+    if (el.btnCloseHistory) {
+        el.btnCloseHistory.addEventListener("click", closeHistoryModal);
+    }
+    if (el.historyModal) {
+        el.historyModal.addEventListener("click", (e) => {
+            if (e.target === el.historyModal) closeHistoryModal();
+        });
+    }
+    if (el.btnClearAllHistory) {
+        el.btnClearAllHistory.addEventListener("click", () => {
+            const isReading = state.historyActiveTab === "reading";
+            const msg = isReading 
+                ? "ဖတ်ရှုခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?" 
+                : "ရှာဖွေခဲ့သည့် မှတ်တမ်းအားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?";
+            if (confirm(msg)) {
+                if (isReading) {
+                    HistoryManager.clearReadingHistory();
+                } else {
+                    HistoryManager.clearSearchHistory();
+                }
+                renderHistoryModalContent();
+            }
+        });
+    }
+    if (el.historyFilterInput) {
+        let hDebounce = null;
+        el.historyFilterInput.addEventListener("input", () => {
+            if (el.btnClearHistoryFilter) {
+                el.btnClearHistoryFilter.style.display = el.historyFilterInput.value ? "block" : "none";
+            }
+            clearTimeout(hDebounce);
+            hDebounce = setTimeout(renderHistoryModalContent, 150);
+        });
+    }
+    if (el.btnClearHistoryFilter) {
+        el.btnClearHistoryFilter.addEventListener("click", () => {
+            el.historyFilterInput.value = "";
+            el.btnClearHistoryFilter.style.display = "none";
+            renderHistoryModalContent();
+        });
+    }
+    if (el.tabHistoryReading) {
+        el.tabHistoryReading.addEventListener("click", () => {
+            state.historyActiveTab = "reading";
+            el.tabHistoryReading.classList.add("active");
+            el.tabHistorySearch.classList.remove("active");
+            renderHistoryModalContent();
+        });
+    }
+    if (el.tabHistorySearch) {
+        el.tabHistorySearch.addEventListener("click", () => {
+            state.historyActiveTab = "search";
+            el.tabHistorySearch.classList.add("active");
+            el.tabHistoryReading.classList.remove("active");
+            renderHistoryModalContent();
+        });
+    }
+    if (el.historyFilterPills) {
+        el.historyFilterPills.querySelectorAll(".history-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                el.historyFilterPills.querySelectorAll(".history-pill").forEach(p => p.classList.remove("active"));
+                pill.classList.add("active");
+                state.historyModeFilter = pill.getAttribute("data-mode-filter") || "all";
+                renderHistoryModalContent();
+            });
+        });
     }
 }
 
@@ -2787,6 +3400,7 @@ function updateCurrentViewPage(pageNum) {
         el.btnPrevPage.disabled = (pageNum <= state.mmFirstPage);
         el.btnNextPage.disabled = (pageNum >= state.mmLastPage);
         highlightActiveToc(pageNum);
+        debounceRecent(state.mmBookId, pageNum);
     }
 }
 
@@ -2794,12 +3408,46 @@ let recentDebounceTimer = null;
 function debounceRecent(bookId, pageNum) {
     clearTimeout(recentDebounceTimer);
     recentDebounceTimer = setTimeout(() => {
+        if (!bookId || !pageNum) return;
+        const mode = state.readerMode || "pali";
+        let bookName = "";
+        let chapter = "";
+        let splitMMBookId = null;
+        let splitMMBookName = null;
+        let splitMMPage = null;
+
+        if (mode === "mm") {
+            bookName = state.mmBookName || bookId;
+            chapter = getCurrentChapterName("mm", pageNum);
+        } else if (mode === "split") {
+            bookName = state.paliBookName || bookId;
+            chapter = getCurrentChapterName("pali", pageNum);
+            splitMMBookId = state.mmBookId;
+            splitMMBookName = state.mmBookName;
+            splitMMPage = state.mmPage;
+        } else {
+            bookName = state.paliBookName || bookId;
+            chapter = getCurrentChapterName("pali", pageNum);
+        }
+
+        HistoryManager.recordReading({
+            mode: mode,
+            bookId: bookId,
+            bookName: bookName,
+            page: pageNum,
+            chapterName: chapter,
+            splitMMBookId: splitMMBookId,
+            splitMMBookName: splitMMBookName,
+            splitMMPage: splitMMPage
+        });
+
+        // Also ping backend /api/recent for backward compatibility
         fetch("/api/recent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ book_id: bookId, page_number: pageNum })
         }).catch(() => {});
-    }, 800);
+    }, 600);
 }
 
 function showSentinelLoading(show) {
