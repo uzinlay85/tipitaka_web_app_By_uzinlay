@@ -1,276 +1,154 @@
-# တိပိဋက Web App - VPS Deployment & Maintenance Guide
-(Local PC မှ VPS သို့ တင်ဆင်ခြင်း၊ စီမံခန့်ခွဲခြင်းနှင့် နောင်တွင် Update ပြုလုပ်ခြင်း လမ်းညွှန်)
+# တိပိဋက Web App - Modern VPS Deployment & Maintenance Guide
+(GitHub + Google Drive Hybrid Architecture - အဆင့် ၂ ဆင့်တည်းဖြင့် ပြီးပြည့်စုံသော တပ်ဆင်မှု လမ်းညွှန်)
 
 ---
 
-## 📌 စနစ် ဖွဲ့စည်းပုံ အကျဉ်းချုပ် (System Architecture)
+## 📌 စနစ် ဖွဲ့စည်းပုံ အကျဉ်းချုပ် (Modern System Architecture)
 
-| အမျိုးအစား | Local PC (စမ်းသပ်/ဖွံ့ဖြိုးရေး) | VPS Server (အမြဲတမ်း ၂၄ နာရီ) |
+ဤစနစ်သည် **Local PC နှင့် Cloudflare Tunnel များ ဖွင့်ထားရန် လုံးဝ မလိုအပ်တော့ဘဲ** Cloud အခြေပြု ခေတ်မီ စံပြုနည်းလမ်းဖြင့် တည်ဆောက်ထားပါသည်:
+
+```mermaid
+flowchart TD
+    subgraph Cloud Storage & Git
+        GD["Google Drive (Permanent Link)\nDatabases (150MB Zip)\ntipitaka_pali.db + tipitaka_mm.db"]
+        GH["GitHub Repository\nPython Code + Web UI\n(Few MBs)"]
+    end
+
+    subgraph VPS Server ["Ubuntu VPS (/opt/tipitaka)"]
+        APP["Tipitaka Web App\n(Gunicorn :5005)"]
+        SVC["Systemd Service\ntipitaka.service (24/7 Auto-restart)"]
+    end
+
+    GH -->|"1. sudo git clone"| VPS
+    GD -->|"2. setup_vps.sh pulls DB once"| VPS
+    GH -.->|"Future Updates: git pull origin main"| VPS
+```
+
+| ကဏ္ဍ | စီမံခန့်ခွဲမှု ပုံစံ | အားသာချက် |
 | :--- | :--- | :--- |
-| **OS** | Windows | Ubuntu Linux |
-| **Domain** | `https://tipitaka.upanna.top` | `https://tipi.upanna.top` |
-| **Port** | `localhost:5000` | `localhost:5005` |
-| **Runner** | Python `app.py` | Gunicorn (2 Workers) via Systemd |
-| **Status** | PC ဖွင့်ထားချိန်တွင်သာ ရရှိ | PC ပိတ်ထားလည်း ၂၄ နာရီ မပြတ် ရရှိ |
+| **ကုဒ်ဖိုင်များ (Code & UI)** | **GitHub Repository** | ပေါ့ပါးသွက်လက်ပြီး Version Control စနစ်တကျ ရှိခြင်း၊ `git pull` ဖြင့် ၂ စက္ကန့်အတွင်း Update ရရှိခြင်း |
+| **ဒေတာဘေ့စ် (Databases)** | **Google Drive အမြဲတမ်းလင့်ခ်** | ၈၅၀ MB ကျော်ရှိသော ပုံသေဒေတာများကို Initial Setup တွင် ၁ ကြိမ်သာ အလိုအလျောက် ဆွဲယူသိမ်းဆည်းခြင်း |
+| **Local PC မှီခိုမှု** | **လုံးဝ ကင်းစင် (0%)** | Local PC ဖွင့်ထားစရာမလို၊ Tunnel ဖွင့်ထားစရာမလိုဘဲ VPS သည် Cloud ပေါ်မှ တိုက်ရိုက် လည်ပတ်ခြင်း |
 
 ---
 
-## 🚀 အပိုင်း (၁) - အစအဆုံး အသစ် တပ်ဆင်ခြင်း (Initial Setup)
+## 🚀 အပိုင်း (၁) - VPS ပေါ်တွင် အသစ် စတင်တပ်ဆင်ခြင်း (Initial Setup)
 
-### အဆင့် ၁.၁ - Windows PC တွင် လိုအပ်သော ဖိုင်များကို Zip ဖိုင် ချုံ့ခြင်း
-Windows PowerShell တွင် အောက်ပါ command ဖြင့် လိုအပ်သော Core ဖိုင်များကိုသာ ရွေးထုတ်ပြီး Zip ဖိုင်အဖြစ် ချုံ့နိုင်ပါသည် -
+အသစ်စက်စက် Ubuntu / Debian VPS တစ်ခုပေါ်တွင် အောက်ပါ **အဆင့် ၂ ဆင့်တည်းဖြင့်** တိပိဋက Web App တစ်ခုလုံးကို ပြီးပြည့်စုံစွာ တပ်ဆင်နိုင်ပါသည်:
 
-```powershell
-python -c "
-import os, zipfile
-source_dir = r'C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app'
-output_zip = r'C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app\tipitaka_vps.zip'
-items = ['app.py', 'tipitaka_pali.db', 'tipitaka_mm.db', 'requirements.txt', 'templates', 'static']
-with zipfile.ZipFile(output_zip, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-    for item in items:
-        p = os.path.join(source_dir, item)
-        if os.path.isfile(p): z.write(p, arcname=item)
-        elif os.path.isdir(p):
-            for root, dirs, files in os.walk(p):
-                for f in files:
-                    fp = os.path.join(root, f)
-                    z.write(fp, arcname=os.path.relpath(fp, source_dir))
-print('Zip Done!')
-"
-```
-*(မူရင်း 850 MB မှ ~150 MB အထိ ကျစ်လျစ်စွာ ချုံ့ပေးသွားပါမည်)*
-
----
-
-### အဆင့် ၁.၂ - VPS ပေါ်သို့ ဖိုင် ရယူခြင်း (Direct Web Download / USB Stick / Google Drive / SCP)
-
-VPS ပေါ်သို့ `tipitaka_vps.zip` (~150 MB) ဖိုင် ရောက်ရှိစေရန် အောက်ပါ နည်းလမ်းများအနက် အဆင်ပြေရာ တစ်ခုခုဖြင့် ဆောင်ရွက်နိုင်ပါသည် -
-
-#### နည်းလမ်း (က) - Direct Web Download (အလွယ်ဆုံးနှင့် အမြန်ဆုံးနည်း)
-Local PC တွင် Web App ပွင့်နေချိန်တွင် VPS Terminal ထဲမှ တိုက်ရိုက် တစ်ကြောင်းတည်းဖြင့် ဆွဲယူနိုင်ပါသည် -
+### အဆင့် ၁ - GitHub မှ Code များကို VPS ပေါ်သို့ Clone ခေါ်ယူခြင်း
+VPS Terminal (SSH) ထဲတွင် အောက်ပါ command ကို run ပါ -
 ```bash
-wget https://tipitaka.upanna.top/download-vps-zip -O tipitaka_vps.zip
-```
-
-#### နည်းလမ်း (ခ) - USB Stick (Flash Drive) ဖြင့် ကူးယူခြင်း (Offline / Portable)
-- `Tipitaka_Deploy_Package` ဖိုဒါထဲရှိ `tipitaka_vps.zip` (150 MB) နှင့် `install_vps.sh` ဖိုင်များကို USB Stick ထဲသို့ ကူးထည့်ပါ။
-- **အခြား Windows PC တွင် Offline သုံးလိုပါက:** USB ထဲမှ `tipitaka_vps.zip` ကို Extract ဖြည်ပြီး `run.bat` ကို နှိပ်ရုံဖြင့် အင်တာနက်မလိုဘဲ အပြည့်အဝ ဖတ်ရှုအသုံးပြုနိုင်ပါသည်။
-- **VPS သို့ တင်လိုပါက:** ကွန်ပျူတာတွင် USB တပ်ဆင်ထားစဉ် WinSCP / FileZilla သို့မဟုတ် PowerShell SCP command ဖြင့် VPS သို့ လွယ်ကူစွာ ကူးတင်နိုင်ပါသည်။
-
-#### နည်းလမ်း (ဂ) - Google Drive အမြဲတမ်းလင့်ခ်မှ တိုက်ရိုက်ဆွဲယူခြင်း (Permanent Google Drive Link)
-- **အမြဲတမ်း Google Drive လင့်ခ်:**  
-  [https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link](https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link)
-- **Google Drive File ID:** `1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx`
-
-VPS Terminal တွင် `gdown` ဖြင့် Browser ဖွင့်စရာမလိုဘဲ အောက်ပါ command ၂ ကြောင်းဖြင့် တိုက်ရိုက် ဆွဲယူနိုင်ပါသည် -
-```bash
-pip install gdown || sudo apt install -y python3-pip && pip install gdown
-gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O tipitaka_vps.zip
-```
-
-#### နည်းလမ်း (ဃ) - Local PC မှ SCP / FileZilla ဖြင့် တိုက်ရိုက်ပို့ခြင်း
-```powershell
-scp -P 2213 tipitaka_vps.zip zinko@172.245.210.149:~/
-```
-
----
-
-### အဆင့် ၁.၂.၁ - အလိုအလျောက် ၁ ချက်နှိပ် တပ်ဆင်ခြင်း (1-Click Automated Setup - Recommended)
-`tipitaka_vps.zip` ကို VPS ပေါ် ရောက်ရှိပြီးပါက `install_vps.sh` ကို run လိုက်ရုံဖြင့် အောက်ပါ အဆင့် ၁.၃ မှ ၁.၆ အားလုံးကို အလိုအလျောက် ပြီးပြည့်စုံအောင် တပ်ဆင်ပေးသွားပါမည် -
-```bash
-sudo bash install_vps.sh
-```
-*(အောက်ပါ အဆင့် ၁.၃ မှ ၁.၆ များသည် ကိုယ်တိုင် manual တပ်ဆင်လိုသူများအတွက် အဆင့်ဆင့် ဖော်ပြထားခြင်း ဖြစ်ပါသည်)*
-
-### အဆင့် ၁.၃ - ဖိုဒါဆောက်၍ ဖိုင်များ ဖြည်ချခြင်းနှင့် Permission သတ်မှတ်ခြင်း
-```bash
-sudo apt update && sudo apt install -y unzip python3-pip python3-venv
-sudo mkdir -p /opt/tipitaka
-sudo mv tipitaka_vps.zip /opt/tipitaka/
+sudo git clone https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay.git /opt/tipitaka
 cd /opt/tipitaka
-sudo unzip -o tipitaka_vps.zip
-sudo chown -R zinko:zinko /opt/tipitaka
-sudo chmod -R 755 /opt/tipitaka
+```
+
+### အဆင့် ၂ - Automated Setup Script ကို run လိုက်ခြင်း
+```bash
+sudo bash setup_vps.sh
+```
+
+> [!NOTE]
+> **`setup_vps.sh` က အလိုအလျောက် ဆောင်ရွက်ပေးသွားမည့် အလုပ်များ:**
+> 1. လိုအပ်သော Linux packages များ (`python3-venv`, `pip`, `unzip`, `git`, `curl`) သွင်းယူခြင်း။
+> 2. ဆရာတော်၏ Google Drive အမြဲတမ်းလင့်ခ် (`1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx`) မှ ဒေတာဘေ့စ်များ (`tipitaka_pali.db` နှင့် `tipitaka_mm.db`) ကို အလိုအလျောက် ဆွဲယူဖြည်ချပေးခြင်း။
+> 3. Python Virtual Environment (`venv`) ဆောက်ပြီး `requirements.txt` နှင့် `gunicorn` သွင်းယူခြင်း။
+> 4. ဖိုင် Permission နှင့် ပိုင်ဆိုင်ခွင့်များ မှန်ကန်စွာ သတ်မှတ်ပေးခြင်း။
+> 5. ၂၄ နာရီ မပြတ်လည်ပတ်မည့် Systemd Service (`/etc/systemd/system/tipitaka.service`) ဖန်တီး၍ auto-start စတင်ပေးခြင်း။
+
+တပ်ဆင်ပြီးစီးပါက VPS ၏ Port `5005` (`127.0.0.1:5005`) တွင် တိပိဋက Web App စတင်လည်ပတ်နေမည် ဖြစ်ပါသည်။
+
+---
+
+## 🔄 အပိုင်း (၂) - နောင်တွင် ကုဒ်များ Update ပြုလုပ်နည်း (1-Line Instant Update)
+
+နောင်အခါ Local PC ပေါ်တွင် ကုဒ်အသစ်များ ပြင်ဆင်ပြီး GitHub သို့ `git push` လုပ်ပြီးပါက၊ VPS ပေါ်တွင် Database များကို ထပ်မံဒေါင်းလုဒ်ဆွဲစရာ မလိုတော့ဘဲ **အောက်ပါ ၁ ကြောင်းတည်းသော command ဖြင့် ၂ စက္ကန့်အတွင်း** ချက်ချင်း Update ရရှိပါမည်:
+
+```bash
+cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka
 ```
 
 ---
 
-### အဆင့် ၁.၄ - Python Virtual Environment ဆောက်ပြီး Packages သွင်းခြင်း
+## 🛠️ အပိုင်း (၃) - စနစ် စောင့်ကြည့်ခြင်းနှင့် ထိန်းသိမ်းမှု Commands (Maintenance)
+
+### ၁။ Web App လည်ပတ်နေမှု အခြေအနေ (Status) စစ်ဆေးခြင်း
 ```bash
-cd /opt/tipitaka
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt gunicorn
-```
-
----
-
-### အဆင့် ၁.၅ - ၂၄ နာရီ အလိုအလျောက် Run မည့် Systemd Service ဖိုင် တည်ဆောက်ခြင်း
-Service ဖိုင်ကို ဖွင့်ပါ -
-```bash
-sudo nano /etc/systemd/system/tipitaka.service
-```
-
-အောက်ပါ စာသားများကို ကူးထည့်ပါ -
-```ini
-[Unit]
-Description=Tipitaka Pali & Myanmar Web App
-After=network.target
-
-[Service]
-User=zinko
-WorkingDirectory=/opt/tipitaka
-ExecStart=/opt/tipitaka/venv/bin/gunicorn -w 2 -b 127.0.0.1:5005 app:app
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-*(သိမ်းဆည်းရန်: `Ctrl + O` -> `Enter` -> `Ctrl + X`)*
-
----
-
-### အဆင့် ၁.၆ - Service ကို စတင် Run ခြင်းနှင့် စစ်ဆေးခြင်း
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable tipitaka
-sudo systemctl start tipitaka
-
-# Status စစ်ဆေးရန် (active running ဖြစ်ရမည်)
 sudo systemctl status tipitaka
+```
+*(အစိမ်းရောင် `active (running)` ပေါ်နေပါက ပုံမှန် အလုပ်လုပ်နေပါသည်)*
 
-# Local စမ်းသပ်ရန်
-curl -I http://127.0.0.1:5005
+### ၂။ Web App ကို Restart လုပ်ခြင်း
+```bash
+sudo systemctl restart tipitaka
+```
+
+### ၃။ Live Logs များကို အချိန်နှင့်တစ်ပြေးညီ စောင့်ကြည့်ခြင်း
+```bash
+sudo journalctl -u tipitaka -f
+```
+*(ထွက်ရန်: `Ctrl + C`)*
+
+### ၄။ Port 5005 ဖွင့်လှစ်ထားမှု စစ်ဆေးခြင်း
+```bash
+sudo ss -tulpn | grep 5005
+# သို့မဟုတ်
+sudo netstat -tlpn | grep 5005
 ```
 
 ---
 
-### အဆင့် ၁.၇ - VPS တွင် Cloudflare Tunnel တပ်ဆင် ချိတ်ဆက်ခြင်း
+## 🌐 အပိုင်း (၄) - Nginx Reverse Proxy နှင့် SSL Domain ချိတ်ဆက်ခြင်း
 
-1. **`cloudflared` ကို VPS တွင် သွင်းခြင်း:**
-   ```bash
-   curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-   sudo dpkg -i cloudflared.deb
-   ```
+အကယ်၍ VPS တွင် Domain (ဥပမာ `tipi.upanna.top`) ဖြင့် ချိတ်ဆက်လိုပါက Nginx Reverse Proxy ကို အောက်ပါအတိုင်း သတ်မှတ်နိုင်ပါသည်:
 
-2. **Cloudflare Zero Trust Dashboard မှ Connector ချိတ်ဆက်ခြင်း:**
-   - [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/) > **Networks** > **Tunnels** သို့ သွားပါ။
-   - Tunnel အသစ်ဆောက်၍ (သို့မဟုတ် ရှိပြီးသား Tunnel ထဲတွင်) **Debian (64-bit)** ကို ရွေးပြီး ပေးထားသော `sudo cloudflared service install <TOKEN>` ကို VPS Terminal တွင် Run ပါ။
-
-3. **Public Hostname လမ်းကြောင်း ညွှန်ခြင်း:**
-   - **Subdomain:** `tipi`
-   - **Domain:** `upanna.top`
-   - **Type:** `HTTP`
-   - **URL:** `localhost:5005`
-   - **Complete setup** နှိပ်ပါ။
-
----
-
-## 🔄 အပိုင်း (၂) - နောင်တွင် Local PC ၌ ဖိုင်များ ပြင်ဆင်ပြီးပါက VPS သို့ အလွယ်တကူ Update တင်နည်း
-
-Database ဖိုင်များ (`tipitaka_pali.db` နှင့် `tipitaka_mm.db`) သည် အရွယ်အစားကြီးမားပြီး မကြာခဏ ပြင်ဆင်ရန် မလိုသဖြင့် UI / CSS / JS / Python Code များကိုသာ **စက္ကန့်ပိုင်းအတွင်း အလွယ်တကူ Update လုပ်နိုင်သော နည်းလမ်း** ဖြစ်ပါသည်။
-
-### နည်းလမ်း (A) - GitHub ဖြင့် တိုက်ရိုက် Update ပြုလုပ်ခြင်း (အလွယ်ကူဆုံးနှင့် အကြံပြုဆုံး နည်းလမ်း)
-
-GitHub Repo သို့ Code များ Push တင်ပြီးသည့်အခါတိုင်း VPS Terminal (SSH) သို့ ဝင်ရောက်ပြီး အောက်ပါ command (၃) ကြောင်းကိုသာ Run ပေးရုံဖြင့် စက္ကန့်ပိုင်းအတွင်း Update ပြီးစီးပါသည် -
-
+### ၁။ Nginx Configuration ဖိုင် ဖွင့်ပါ
 ```bash
-cd /opt/tipitaka
-git pull origin main
-sudo systemctl restart tipitaka
+sudo nano /etc/nginx/sites-available/tipitaka
 ```
 
-> [!TIP]
-> **အမြန် Run ရန် (တစ်ကြောင်းတည်း Run နည်း):**
-> ```bash
-> cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka
-> ```
+### ၂။ အောက်ပါ Configuration ကို ထည့်သွင်းပါ
+```nginx
+server {
+    server_name tipi.upanna.top;
 
-#### ⚠️ `git pull` ပြုလုပ်စဉ် Error (Conflict / Local Changes) ပေါ်ခဲ့ပါက ဖြေရှင်းနည်း:
-အကယ်၍ VPS ပေါ်တွင် ဖိုင်တစ်ခုခု အမှတ်မထင် ပြင်ဆင်မိထား၍ `error: Your local changes to the following files would be overwritten by merge` ဟု ပြပါက GitHub ရှိ မူရင်းအတိုင်း အသစ်ပြန်လဲလှယ်ရန် အောက်ပါ command ကို Run ပါ -
+    client_max_body_size 50M;
 
-```bash
-cd /opt/tipitaka
-git fetch origin main
-git reset --hard origin/main
-sudo systemctl restart tipitaka
+    location / {
+        proxy_pass http://127.0.0.1:5005;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket and timeout support
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
 ```
 
-#### 📦 Python Library အသစ်များ (`requirements.txt`) ပါဝင်လာသည့် အခါမျိုးတွင်:
+### ၃။ Config ကို Enable လုပ်ပြီး Nginx ကို Restart လုပ်ပါ
 ```bash
-cd /opt/tipitaka
-git pull origin main
-./venv/bin/pip install -r requirements.txt
-sudo systemctl restart tipitaka
+sudo ln -sf /etc/nginx/sites-available/tipitaka /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### ၄။ အခမဲ့ SSL လက်မှတ် (HTTPS) ထည့်သွင်းပါ
+```bash
+sudo certbot --nginx -d tipi.upanna.top
 ```
 
 ---
 
-### နည်းလမ်း (B) - `code_update.zip` Upload တင်၍ Update ပြုလုပ်ခြင်း (Zip Method)
+## 💾 အပိုင်း (၅) - အင်တာနက်မရှိသောအခါ Offline / USB Stick ဖြင့် တပ်ဆင်နည်း
 
-အကယ်၍ Git မသုံးလိုဘဲ ဖိုင်များကို Zip ဖြင့်သာ Upload တင်လိုပါက -
+အကယ်၍ VPS သို့မဟုတ် စက်အသစ်တွင် Google Drive မှ တိုက်ရိုက်ဒေါင်းလုဒ် မဆွဲလိုဘဲ Offline USB Stick ဖြင့် တပ်ဆင်လိုပါက:
 
-#### အဆင့် ၁ (Local PC တွင်):
-Windows PowerShell တွင် အောက်ပါ command ဖြင့် Code ဖိုင်များကိုသာ သီးသန့် Zip အသေးလေး လုပ်ပါ (~1 MB သာ ရှိပါသည်) -
+၁။ `Tipitaka_Deploy_Package` ဖိုဒါထဲရှိ `tipitaka_vps.zip` (~150 MB) ကို USB Stick ထဲသို့ ကူးထည့်ပါ။  
+၂။ VPS ထဲသို့ `scp` သို့မဟုတ် WinSCP ဖြင့် တိုက်ရိုက် ကူးတင်ပါ:
 ```powershell
-python -c "
-import os, zipfile
-source_dir = r'C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app'
-output_zip = r'C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app\code_update.zip'
-items = ['app.py', 'requirements.txt', 'templates', 'static']
-with zipfile.ZipFile(output_zip, 'w', compression=zipfile.ZIP_DEFLATED) as z:
-    for item in items:
-        p = os.path.join(source_dir, item)
-        if os.path.isfile(p): z.write(p, arcname=item)
-        elif os.path.isdir(p):
-            for root, dirs, files in os.walk(p):
-                for f in files:
-                    fp = os.path.join(root, f)
-                    z.write(fp, arcname=os.path.relpath(fp, source_dir))
-print('Code zip ready!')
-"
+scp -P 2213 tipitaka_vps.zip zinko@172.245.210.149:/opt/tipitaka/
 ```
-
-#### အဆင့် ၂ (VPS သို့ ပို့ခြင်း):
-Windows PowerShell မှတစ်ဆင့် VPS သို့ တိုက်ရိုက် ပို့ပါ -
-```powershell
-scp -P 2213 "C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_app\code_update.zip" zinko@172.245.210.149:/opt/tipitaka/
-```
-
-#### အဆင့် ၃ (VPS Terminal တွင် ဖြည်ချပြီး Service Restart လုပ်ခြင်း):
-VPS Terminal တွင် အောက်ပါ command ကို Run ပါ -
-```bash
-cd /opt/tipitaka
-unzip -o code_update.zip && sudo systemctl restart tipitaka
-```
-
----
-
-### နည်းလမ်း (B) - Database ဖိုင်များပါ ပြင်ဆင်ထား၍ အကုန်လုံး Update လုပ်လိုပါက
-1. အပိုင်း (၁) ရှိ အဆင့် ၁.၁ အတိုင်း `tipitaka_vps.zip` အသစ် ပြန်ထုတ်ပါ။
-2. Local PC တွင် app ဖွင့်ထားပြီး VPS ထဲမှ:
-   ```bash
-   cd /opt/tipitaka
-   wget https://tipitaka.upanna.top/download-vps-zip -O tipitaka_vps.zip
-   unzip -o tipitaka_vps.zip
-   sudo chown -R zinko:zinko /opt/tipitaka
-   sudo systemctl restart tipitaka
-   ```
-
----
-
-## 🛠️ အပိုင်း (၃) - VPS စီမံခန့်ခွဲမှု အထောက်အကူပြု Commands (Cheat Sheet)
-
-| လိုလားချက် | Command |
-| :--- | :--- |
-| **Service အခြေအနေ ကြည့်ရန်** | `sudo systemctl status tipitaka` |
-| **Service ကို ပြန်လည် စတင်ရန် (Restart)** | `sudo systemctl restart tipitaka` |
-| **Service ကို ခေတ္တ ပိတ်ထားရန်** | `sudo systemctl stop tipitaka` |
-| **Error Log / Live Log ဖတ်ရန်** | `sudo journalctl -u tipitaka -f` |
-| **နောက်ဆုံး Error ၁၅ ကြောင်း ကြည့်ရန်** | `sudo journalctl -u tipitaka -n 15 --no-pager` |
-| **Port 5005 အလုပ်လုပ်နေမှု စစ်ရန်** | `curl -I http://127.0.0.1:5005` |
-| **Cloudflare Tunnel Status စစ်ရန်** | `sudo systemctl status cloudflared` |
-
----
-
-> **မှတ်ချက်:** အသုံးပြုသူများ Browser တွင် Update အသစ်များကို ချက်ချင်း မြင်တွေ့နိုင်စေရန် Browser ၏ Cache ကို `Ctrl + F5` နှိပ်၍ Refresh ပြုလုပ်ရန် လိုအပ်နိုင်ပါသည်။
+၃။ `/opt/tipitaka` ထဲတွင် `tipitaka_vps.zip` ရှိနေပါက `setup_vps.sh` ကို run လိုက်သည်နှင့် Google Drive မှ ထပ်မဆွဲတော့ဘဲ ထို zip ဖိုင်မှ database များကို အလိုအလျောက် ဖြည်ချအသုံးပြုသွားမည် ဖြစ်ပါသည်။

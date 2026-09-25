@@ -60,23 +60,13 @@ gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O tipitaka_vps.zip
 
 ---
 
-## 🌐 နည်းလမ်း (၃) - Direct Web Download (လက်ရှိအလွယ်ဆုံးနည်း)
+## ⚡ နည်းလမ်း (၃) - VPS ပေါ်တွင် အလိုအလျောက် ၁ ချက်နှိပ် တပ်ဆင်ခြင်း (1-Click Automated Setup)
 
-Local PC တွင် တိပိဋက Web App ပွင့်နေပါက (သို့မဟုတ် Cloudflare Tunnel ပွင့်နေပါက) VPS Terminal ထဲမှ တိုက်ရိုက် တစ်ကြောင်းတည်းဖြင့် အလွယ်ဆုံး ဆွဲယူနိုင်ပါသည် -
-
-```bash
-wget https://tipitaka.upanna.top/download-vps-zip -O tipitaka_vps.zip
-```
-
----
-
-## ⚡ အဆင့် (၄) - VPS ပေါ်တွင် အလိုအလျောက် ၁ ချက်နှိပ် တပ်ဆင်ခြင်း (1-Click Automated Install)
-
-`tipitaka_vps.zip` ဖိုင်ကို VPS Server သို့ ရောက်ရှိသွားပြီဆိုပါက `install_vps.sh` ကို run လိုက်ရုံဖြင့် စနစ်တစ်ခုလုံး (Unzip, Python venv, dependencies, systemd service) အားလုံးကို အလိုအလျောက် တပ်ဆင်မောင်းနှင်ပေးသွားပါမည်:
+`setup_vps.sh` (သို့မဟုတ် `install_vps.sh`) ကို run လိုက်ရုံဖြင့် စနစ်တစ်ခုလုံး (Google Drive မှ Database ဆွဲယူဖြည်ချခြင်း၊ Python venv၊ dependencies၊ systemd service) အားလုံးကို အလိုအလျောက် အစအဆုံး တပ်ဆင်မောင်းနှင်ပေးသွားပါမည်:
 
 ```bash
-# tipitaka_vps.zip ရှိသော ဖိုဒါတွင်
-sudo bash install_vps.sh
+# /opt/tipitaka ဖိုဒါထဲတွင်
+sudo bash setup_vps.sh
 ```
 
 တပ်ဆင်ပြီးစီးပါက `https://tipi.upanna.top` (သို့မဟုတ် VPS port 5005) တွင် တိပိဋက Web App အမြဲတမ်း ၂၄ နာရီ ချောမွေ့စွာ စတင်လည်ပတ်နေမည် ဖြစ်ပါသည် ဘုရား။
