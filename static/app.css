@@ -114,17 +114,34 @@ button, input, select {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 12px;
+    padding: 0 10px;
     z-index: 50;
     box-shadow: 0 1px 3px var(--shadow-color);
     flex-shrink: 0;
-    overflow: hidden;
+    gap: 6px;
+    position: relative;
 }
 
-.header-left, .header-center, .header-right {
+.header-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
     white-space: nowrap;
 }
@@ -2183,8 +2200,8 @@ body.hide-notes .note {
    Responsive Media Queries & Screen Adaptations
    ============================================================ */
 
-/* Large Laptops & Medium Desktops (<= 1400px) */
-@media (max-width: 1400px) {
+/* Stage 1: Large Laptops & Standard Monitors (<= 1720px) */
+@media (max-width: 1720px) {
     .kbd-shortcut {
         display: none !important;
     }
@@ -2194,25 +2211,107 @@ body.hide-notes .note {
     .current-book-badge {
         max-width: 130px;
     }
+    /* Hide text on secondary utilities first */
+    #btnOpenHelp .btn-text,
+    #btnToggleFullscreen .btn-text {
+        display: none !important;
+    }
 }
 
-/* Standard Laptops & Tablets Landscape (<= 1200px) */
-@media (max-width: 1200px) {
-    .current-book-badge {
-        display: none !important;
+/* Stage 2: Medium Laptops & Standard Desktops (<= 1560px) - Prevents header buttons clipping */
+@media (max-width: 1560px) {
+    .app-header {
+        padding: 0 8px;
+        gap: 5px;
     }
-    .tool-btn .btn-text {
-        display: none !important;
+    .header-left {
+        gap: 5px;
+    }
+    .header-right {
+        gap: 4px;
     }
     .tool-btn {
-        padding: 5px 8px;
+        padding: 4px 7px;
+        gap: 4px;
     }
+    /* Collapse text for search, history, related commentary, and dictionary */
+    #btnOpenSearch .btn-text,
+    #btnRelated .btn-text,
+    #btnOpenHistory .btn-text,
+    #btnToggleDict .btn-text {
+        display: none !important;
+    }
+    /* Show clean arrows only in page navigation */
+    .nav-btn span {
+        display: none !important;
+    }
+    .nav-btn {
+        padding: 4px 6px;
+    }
+    .current-book-badge {
+        max-width: 110px;
+    }
+}
+
+/* Stage 3: Compact Laptops & Split Windows (<= 1380px) */
+@media (max-width: 1380px) {
+    /* Collapse remaining text labels into clean, sleek icon buttons */
+    #btnToggleNotes .btn-text,
+    #btnScrollMode .btn-text,
     #crossLinkLabel {
-        font-size: 0.82rem;
+        display: none !important;
+    }
+    .current-book-badge {
+        max-width: 90px;
     }
     .edition-btn {
         padding: 4px 6px;
-        font-size: 0.78rem;
+        font-size: 0.8rem;
+    }
+    .font-controls {
+        padding: 1px 3px;
+        gap: 2px;
+    }
+    #fontSizeDisplay {
+        min-width: 32px;
+        font-size: 0.72rem;
+    }
+    .icon-btn-sm {
+        width: 22px;
+        height: 22px;
+        font-size: 0.72rem;
+    }
+    .theme-switcher {
+        padding: 1px;
+        gap: 1px;
+    }
+    .theme-btn {
+        padding: 3px 4px;
+        font-size: 0.88rem;
+    }
+}
+
+/* Stage 4: Small Displays & Landscape Tablets (<= 1180px) */
+@media (max-width: 1180px) {
+    .current-book-badge {
+        display: none !important;
+    }
+    .edition-btn-text {
+        display: none !important; /* Shows icons ☸️, 🇲🇲, 📖 only */
+    }
+    .edition-btn {
+        padding: 4px 6px;
+        min-width: 32px;
+        text-align: center;
+    }
+    .tool-btn {
+        min-width: 32px;
+        height: 32px;
+        padding: 4px 6px;
+    }
+    .icon-btn {
+        width: 32px;
+        height: 32px;
     }
 }
 
