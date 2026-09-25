@@ -664,6 +664,12 @@ button, input, select {
     text-align: justify;
 }
 
+/* Prevent line-break splitting of Pali words and stacked consonants (virama +) */
+.pali-word,
+.no-split {
+    white-space: nowrap;
+}
+
 .pali-content .nikaya {
     text-align: center;
     font-size: 1.4em;

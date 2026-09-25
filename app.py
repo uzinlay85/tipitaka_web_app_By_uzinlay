@@ -126,7 +126,27 @@ def format_chattasangayana_pali(html):
             cleaned = re.sub(r',(?![^<]*>)', '', content)
             return f'<p{attrs}>{cleaned}</p>'
             
-    return re.sub(r'<p\b([^>]*)>([\s\S]*?)</p>', repl_p, res_html, flags=re.I)
+    res_html = re.sub(r'<p\b([^>]*)>([\s\S]*?)</p>', repl_p, res_html, flags=re.I)
+
+    # 3. Protect Pali words (wrap in <span class="pali-word">) so browser never splits stacked consonants (+) across line breaks
+    unspanned = re.sub(r'<span class="(?:pali-word|no-split)">([\s\S]*?)</span>', r'\1', res_html)
+    parts = re.split(r'(<[^>]+>)', unspanned)
+    sym_pattern = re.compile(r'^[\s\d၀-၉၊။,.\-—–“’”"\'()\[\]<>:;?!/\\#*~`]+$')
+    res_parts = []
+    for part in parts:
+        if not part or part.startswith('<'):
+            res_parts.append(part)
+        else:
+            def repl_w(m):
+                w = m.group(0)
+                if sym_pattern.match(w):
+                    return w
+                if len(w) <= 35:
+                    return f'<span class="pali-word">{w}</span>'
+                else:
+                    return re.sub(r'([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])', r'<span class="no-split">\1</span>', w)
+            res_parts.append(re.sub(r'\S+', repl_w, part))
+    return ''.join(res_parts)
 
 def format_chattasangayana_mm(html):
     if not html:
@@ -142,7 +162,18 @@ def format_chattasangayana_mm(html):
             
     res = re.sub(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?', repl_peyala, html)
     res = re.sub(r'။\s*ပ\s*။', '။ ပ ။ ', res)
-    return re.sub(r'[ \t]{2,}', ' ', res)
+    res = re.sub(r'[ \t]{2,}', ' ', res)
+
+    # Protect stacked consonants in Myanmar translation text so virama (+) never splits across lines
+    unspanned = re.sub(r'<span class="no-split">([\s\S]*?)</span>', r'\1', res)
+    parts = re.split(r'(<[^>]+>)', unspanned)
+    res_parts = []
+    for part in parts:
+        if not part or part.startswith('<'):
+            res_parts.append(part)
+        else:
+            res_parts.append(re.sub(r'([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])', r'<span class="no-split">\1</span>', part))
+    return ''.join(res_parts)
 
 
 @app.route("/")

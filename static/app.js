@@ -410,12 +410,45 @@ function cleanPeyala(html) {
     }).replace(/[ \t]{2,}/g, " ");
 }
 
+function protectPaliWords(html) {
+    if (!html) return "";
+    // Clean any prior spans to be idempotent
+    const unspanned = html
+        .replace(/<span class="pali-word">([\s\S]*?)<\/span>/g, "$1")
+        .replace(/<span class="no-split">([\s\S]*?)<\/span>/g, "$1");
+        
+    const parts = unspanned.split(/(<[^>]+>)/g);
+    const symRegex = /^[\s\d၀-၉၊။,.\-—–“’”"'()\[\]<>:;?!/\\#*~`]+$/;
+    
+    return parts.map(part => {
+        if (!part || part.startsWith("<")) return part;
+        return part.replace(/\S+/g, (w) => {
+            if (symRegex.test(w)) return w;
+            if (w.length <= 35) {
+                return `<span class="pali-word">${w}</span>`;
+            } else {
+                return w.replace(/([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])/g, '<span class="no-split">$1</span>');
+            }
+        });
+    }).join("");
+}
+
+function protectMyanmarConjuncts(html) {
+    if (!html) return "";
+    const unspanned = html.replace(/<span class="no-split">([\s\S]*?)<\/span>/g, "$1");
+    const parts = unspanned.split(/(<[^>]+>)/g);
+    return parts.map(part => {
+        if (!part || part.startsWith("<")) return part;
+        return part.replace(/([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])/g, '<span class="no-split">$1</span>');
+    }).join("");
+}
+
 function cleanPaliContent(html) {
     if (!html) return "";
     // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
     const peyalaCleaned = cleanPeyala(html);
 
-    return peyalaCleaned.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
+    const formatted = peyalaCleaned.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
         // ဂါထာပါဠိတော်များ (Gāthā) စာပိုဒ်များဖြစ်ပါက ဆဋ္ဌမူစာအုပ် မူရင်းပုံစံအတိုင်း:
         // ပထမ နှင့် တတိယ ပုဒ်အဆုံးတွင် ပုဒ်ထီး "၊" သုံးသည်
         // ဒုတိယ နှင့် စတုတ္ထ ပုဒ်အဆုံးတွင် ပုဒ်မ "။" သုံးသည်
@@ -451,12 +484,16 @@ function cleanPaliContent(html) {
         const cleaned = content.replace(/,(?![^<]*>)/g, "");
         return `<p${attrs}>${cleaned}</p>`;
     });
+
+    // ၅။ စာကြောင်းအကူးအပြောင်းတွင် စာလုံးဆင့်များ ပြတ်တောက်၍ (+) မဖြစ်ပေါ်စေရန် ပါဠိစာလုံးများကို wrap ပြုလုပ်ပါမည်
+    return protectPaliWords(formatted);
 }
 
 function cleanMMContent(html) {
     if (!html) return "";
     let res = cleanPeyala(html);
-    return res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
+    res = res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
+    return protectMyanmarConjuncts(res);
 }
 
 async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppend = false, isPrepend = false) {
@@ -2295,34 +2332,39 @@ function setupEventListeners() {
 
         if (sel && sel.toString().trim()) {
             clickedWord = sel.toString().trim();
-        } else if (sel && sel.isCollapsed) {
-            try {
-                sel.modify("extend", "backward", "character");
-                let charBefore = sel.toString();
-                sel.modify("move", "forward", "character");
-                sel.modify("extend", "forward", "character");
-                let charAfter = sel.toString();
-                
-                if (!/\s/.test(charBefore) && !/\s/.test(charAfter)) {
-                    let p1 = sel.toString();
-                    while (!/\s/.test(p1) && p1.length < 50) {
-                        sel.modify("extend", "backward", "character");
-                        p1 = sel.toString();
-                    }
-                    p1 = p1.trim();
+        } else {
+            const wordEl = e.target.closest(".pali-word, .no-split");
+            if (wordEl) {
+                clickedWord = wordEl.textContent.trim();
+            } else if (sel && sel.isCollapsed) {
+                try {
+                    sel.modify("extend", "backward", "character");
+                    let charBefore = sel.toString();
                     sel.modify("move", "forward", "character");
-                    
                     sel.modify("extend", "forward", "character");
-                    let p2 = sel.toString();
-                    while (!/\s/.test(p2) && p2.length < 50) {
+                    let charAfter = sel.toString();
+                    
+                    if (!/\s/.test(charBefore) && !/\s/.test(charAfter)) {
+                        let p1 = sel.toString();
+                        while (!/\s/.test(p1) && p1.length < 50) {
+                            sel.modify("extend", "backward", "character");
+                            p1 = sel.toString();
+                        }
+                        p1 = p1.trim();
+                        sel.modify("move", "forward", "character");
+                        
                         sel.modify("extend", "forward", "character");
-                        p2 = sel.toString();
+                        let p2 = sel.toString();
+                        while (!/\s/.test(p2) && p2.length < 50) {
+                            sel.modify("extend", "forward", "character");
+                            p2 = sel.toString();
+                        }
+                        p2 = p2.trim();
+                        clickedWord = p1 + p2;
                     }
-                    p2 = p2.trim();
-                    clickedWord = p1 + p2;
-                }
-                sel.removeAllRanges();
-            } catch (ex) {}
+                    sel.removeAllRanges();
+                } catch (ex) {}
+            }
         }
 
         if (clickedWord) {
