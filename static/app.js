@@ -1317,6 +1317,13 @@ function getCleanCategoryName(catName, catId) {
 
 // ----------------- App View Controller (Home vs Reader) -----------------
 
+function switchToSidebarTab(tabId) {
+    if (!el.sidebarTabBtns || !el.sidebarPanels) return;
+    el.sidebarTabBtns.forEach(b => b.classList.toggle("active", b.getAttribute("data-tab") === tabId));
+    el.sidebarPanels.forEach(p => p.classList.toggle("active", p.id === tabId));
+    state.activeTab = tabId;
+}
+
 function setAppView(view) {
     state.appView = view;
 
@@ -1341,6 +1348,19 @@ function setAppView(view) {
         } else {
             if (el.readerContainer) el.readerContainer.style.display = "flex";
             if (el.readerPaper) el.readerPaper.style.display = "flex";
+        }
+
+        // On desktop/tablets (> 992px), open sidebar and activate TOC tab by default!
+        if (window.innerWidth > 992) {
+            state.isSidebarOpen = true;
+            if (el.appSidebar) el.appSidebar.classList.remove("collapsed");
+            localStorage.setItem("tipitaka_sidebar_open", "1");
+            switchToSidebarTab("tab-toc");
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
+        } else {
+            // On mobile, ensure TOC tab is active inside the drawer
+            switchToSidebarTab("tab-toc");
         }
     }
 
@@ -1454,12 +1474,12 @@ async function renderHomeCatalog() {
 
     // Book row click listener: open book & transition to reader
     el.homeCatalogInner.querySelectorAll(".home-book-row").forEach(row => {
-        row.addEventListener("click", () => {
+        row.addEventListener("click", async () => {
             const bId = row.getAttribute("data-id");
             if (state.readerMode === "mm") {
-                loadMMBook(bId, null);
+                await loadMMBook(bId, null);
             } else {
-                loadPaliBook(bId, null);
+                await loadPaliBook(bId, null);
             }
             setAppView("reader");
         });
@@ -1522,12 +1542,12 @@ function renderBooksTree() {
     el.booksTreeList.innerHTML = html || `<div class="empty-state">ကိုက်ညီသော ကျမ်းစာအုပ် မရှိပါ။</div>`;
 
     el.booksTreeList.querySelectorAll(".book-item-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", async () => {
             const bId = btn.getAttribute("data-id");
             if (state.readerMode === "mm") {
-                loadMMBook(bId, null);
+                await loadMMBook(bId, null);
             } else {
-                loadPaliBook(bId, null);
+                await loadPaliBook(bId, null);
             }
             setAppView("reader");
             closeSidebarMobile();
