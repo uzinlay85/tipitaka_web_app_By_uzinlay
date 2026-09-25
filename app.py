@@ -79,6 +79,62 @@ def clean_pali_word(word):
         return ""
     return re.sub(r"[\s\d၀-၉၊။,.\-—–“’”\"'()\[\]<>:;?!/\\#*~`]+", "", word).strip()
 
+def format_chattasangayana_pali(html):
+    if not html:
+        return ""
+    
+    # 1. Clean peyala abbreviations (...ပ..., ...ပေ..., …ပ…, …ပေ…) to "။ ပ ။"
+    def repl_peyala(m):
+        prefix = m.group(1)
+        if prefix in ['။', '၊']:
+            return f"{prefix} ။ ပ ။ "
+        elif prefix:
+            return f"{prefix}။ ပ ။ "
+        else:
+            return "။ ပ ။ "
+            
+    res_html = re.sub(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?', repl_peyala, html)
+    res_html = re.sub(r'[ \t]{2,}', ' ', res_html)
+    
+    # 2. Process paragraphs for gāthās and prose
+    def repl_p(m):
+        attrs = m.group(1)
+        content = m.group(2)
+        if re.search(r'\bclass\s*=\s*["\'][^"\']*gatha[^"\']*["\']', attrs, re.I):
+            cls_m = re.search(r'\bclass\s*=\s*["\']([^"\']+)["\']', attrs, re.I)
+            cls_name = cls_m.group(1).lower() if cls_m else ""
+            
+            has_comma = bool(re.search(r',(?![^<]*>)', content))
+            res = re.sub(r',(?![^<]*>)\s*', '၊ ', content)
+            
+            if has_comma:
+                res = re.sub(r'၊([’"”’]*\s*(?:<[^>]+>\s*)*)$', r'။\1', res)
+            elif 'gatha2' in cls_name or 'gatha4' in cls_name:
+                res = re.sub(r'၊([’"”’]*\s*(?:<[^>]+>\s*)*)$', r'။\1', res)
+            return f'<p{attrs}>{res}</p>'
+        else:
+            cleaned = re.sub(r',(?![^<]*>)', '', content)
+            return f'<p{attrs}>{cleaned}</p>'
+            
+    return re.sub(r'<p\b([^>]*)>([\s\S]*?)</p>', repl_p, res_html, flags=re.I)
+
+def format_chattasangayana_mm(html):
+    if not html:
+        return ""
+    def repl_peyala(m):
+        prefix = m.group(1)
+        if prefix in ['။', '၊']:
+            return f"{prefix} ။ ပ ။ "
+        elif prefix:
+            return f"{prefix}။ ပ ။ "
+        else:
+            return "။ ပ ။ "
+            
+    res = re.sub(r'([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?', repl_peyala, html)
+    res = re.sub(r'။\s*ပ\s*။', '။ ပ ။ ', res)
+    return re.sub(r'[ \t]{2,}', ' ', res)
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -315,7 +371,7 @@ def api_page(book_id, page_num):
 
     content_html = page_row["content"] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
     if content_html:
-        content_html = re.sub(r",(?![^<]*>)", "", content_html)
+        content_html = format_chattasangayana_pali(content_html)
 
     return jsonify({
         "book_id": book_id,
@@ -495,6 +551,8 @@ def api_mm_page(book_id, page_num):
     conn.close()
 
     content_html = page_row[0] if page_row else "<p>ဤစာမျက်နှာအတွက် အချက်အလက်မရှိပါ။</p>"
+    if content_html:
+        content_html = format_chattasangayana_mm(content_html)
 
     return jsonify({
         "book_id": book_id,
