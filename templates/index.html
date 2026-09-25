@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=3.6">
+    <link rel="stylesheet" href="/static/app.css?v=3.7">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -37,7 +37,7 @@
                 <button class="edition-btn" id="btnModeSplit" data-mode="split" title="ပါဠိတော်နှင့် မြန်မာပြန် ယှဉ်တွဲဖတ်ရှုရန်">📖 ယှဉ်တွဲဖတ်ရန်</button>
             </div>
 
-            <div class="current-book-badge" id="currentBookBadge">
+            <div class="current-book-badge" id="currentBookBadge" title="မာတိကာ အမြန်ဖွင့်လှစ်ရန် ကလစ်နှိပ်ပါ" style="cursor: pointer;">
                 <span class="book-title" id="bookTitleDisplay">ပါရာဇိကပါဠိ</span>
                 <span class="chapter-title" id="chapterTitleDisplay">ဝေရဉ္ဇကဏ္ဍံ</span>
             </div>
@@ -258,6 +258,16 @@
 
             <!-- Tab Content 2: Table of Contents (TOC) -->
             <div class="sidebar-tab-panel" id="tab-toc">
+                <!-- Sticky Current Reading Chapter Tracker Card -->
+                <div class="toc-current-card" id="tocCurrentCard" title="လက်ရှိ ရောက်ရှိနေသော မာတိကာ (ကလစ်နှိပ်၍ မာတိကာအကွက်သို့ သွားရန်)">
+                    <div class="toc-current-header">
+                        <span class="toc-current-tag">📖 လက်ရှိ ရောက်ရှိ မာတိကာ</span>
+                        <span class="toc-current-page-pill" id="tocCurrentPagePill">စာမျက်နှာ ၁</span>
+                    </div>
+                    <div class="toc-current-title" id="tocCurrentTitle">-</div>
+                    <div class="toc-current-range" id="tocCurrentRange">စာမျက်နှာ အချက်အလက် ဆွဲယူနေပါသည်...</div>
+                </div>
+
                 <div class="sidebar-search-box">
                     <input type="text" id="tocFilterInput" placeholder="မာတိကာ ခေါင်းစဉ် ရှာရန်...">
                 </div>
@@ -332,6 +342,20 @@
             <!-- Floating Page Transition Toast -->
             <div class="scroll-page-toast" id="scrollPageToast">
                 <span id="scrollPageToastText">⬇️ စာမျက်နှာ ၂ သို့ ရောက်ရှိပါသည်</span>
+            </div>
+
+            <!-- Mobile & Tablet Dynamic Chapter Breadcrumb (Tappable to open TOC) -->
+            <div class="mobile-chapter-breadcrumb" id="mobileChapterBreadcrumb" title="မာတိကာ ဖွင့်လှစ်ရန် နှိပ်ပါ">
+                <div class="breadcrumb-left">
+                    <span class="breadcrumb-icon">📖</span>
+                    <span class="breadcrumb-book" id="mobileBreadcrumbBook">ပါရာဇိကပါဠိ</span>
+                    <span class="breadcrumb-sep">•</span>
+                    <span class="breadcrumb-chapter" id="mobileBreadcrumbChapter">ဝေရဉ္ဇကဏ္ဍ</span>
+                </div>
+                <div class="breadcrumb-right">
+                    <span class="breadcrumb-page" id="mobileBreadcrumbPage">စာ-၁</span>
+                    <span class="breadcrumb-arrow">❯</span>
+                </div>
             </div>
 
             <!-- Normal Single Reading Paper (Pali or Myanmar) -->
@@ -903,6 +927,6 @@
     </nav>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=3.6"></script>
+    <script src="/static/app.js?v=3.7"></script>
 </body>
 </html>

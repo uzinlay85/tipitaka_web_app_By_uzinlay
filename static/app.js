@@ -95,8 +95,13 @@ const el = {
     paliBasketFilter: document.getElementById("paliBasketFilter"),
 
     // Header displays
+    currentBookBadge: document.getElementById("currentBookBadge"),
     bookTitleDisplay: document.getElementById("bookTitleDisplay"),
     chapterTitleDisplay: document.getElementById("chapterTitleDisplay"),
+    mobileChapterBreadcrumb: document.getElementById("mobileChapterBreadcrumb"),
+    mobileBreadcrumbBook: document.getElementById("mobileBreadcrumbBook"),
+    mobileBreadcrumbChapter: document.getElementById("mobileBreadcrumbChapter"),
+    mobileBreadcrumbPage: document.getElementById("mobileBreadcrumbPage"),
     pageNumberInput: document.getElementById("pageNumberInput"),
     totalPageDisplay: document.getElementById("totalPageDisplay"),
     btnPrevPage: document.getElementById("btnPrevPage"),
@@ -152,6 +157,10 @@ const el = {
     booksTreeList: document.getElementById("booksTreeList"),
     tocFilterInput: document.getElementById("tocFilterInput"),
     tocList: document.getElementById("tocList"),
+    tocCurrentCard: document.getElementById("tocCurrentCard"),
+    tocCurrentPagePill: document.getElementById("tocCurrentPagePill"),
+    tocCurrentTitle: document.getElementById("tocCurrentTitle"),
+    tocCurrentRange: document.getElementById("tocCurrentRange"),
     suttaFilterInput: document.getElementById("suttaFilterInput"),
     suttaList: document.getElementById("suttaList"),
     bookmarksList: document.getElementById("bookmarksList"),
@@ -662,6 +671,9 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     state.feedLoadedPages.add(actualPage);
                     state.feedLastLoadedPage = actualPage;
 
+                    const chName = getCurrentChapterName("pali", actualPage);
+                    const chPart = chName ? `<span class="badge-chapter">${escapeHtml(chName)}</span><span class="badge-sep">•</span>` : "";
+
                     const div = document.createElement("div");
                     div.className = "page-divider";
                     div.setAttribute("data-page", actualPage);
@@ -669,6 +681,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
+                            ${chPart}
                             <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage)}</span>
                         </div>
                         <div class="divider-line"></div>
@@ -702,6 +715,9 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     state.feedLoadedPages.add(actualPage);
                     state.feedFirstLoadedPage = actualPage;
 
+                    const chNamePre = getCurrentChapterName("pali", actualPage + 1);
+                    const chPartPre = chNamePre ? `<span class="badge-chapter">${escapeHtml(chNamePre)}</span><span class="badge-sep">•</span>` : "";
+
                     const div = document.createElement("div");
                     div.className = "page-divider";
                     div.setAttribute("data-page", actualPage + 1);
@@ -709,6 +725,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
+                            ${chPartPre}
                             <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage + 1)}</span>
                         </div>
                         <div class="divider-line"></div>
@@ -939,6 +956,9 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     state.feedLoadedPages.add(actualPage);
                     state.feedLastLoadedPage = actualPage;
 
+                    const chName = getCurrentChapterName("mm", actualPage);
+                    const chPart = chName ? `<span class="badge-chapter">${escapeHtml(chName)}</span><span class="badge-sep">•</span>` : "";
+
                     const div = document.createElement("div");
                     div.className = "page-divider";
                     div.setAttribute("data-page", actualPage);
@@ -946,6 +966,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
+                            ${chPart}
                             <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage)}</span>
                         </div>
                         <div class="divider-line"></div>
@@ -979,6 +1000,9 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     state.feedLoadedPages.add(actualPage);
                     state.feedFirstLoadedPage = actualPage;
 
+                    const chNamePre = getCurrentChapterName("mm", actualPage + 1);
+                    const chPartPre = chNamePre ? `<span class="badge-chapter">${escapeHtml(chNamePre)}</span><span class="badge-sep">•</span>` : "";
+
                     const div = document.createElement("div");
                     div.className = "page-divider";
                     div.setAttribute("data-page", actualPage + 1);
@@ -986,6 +1010,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                         <div class="divider-line"></div>
                         <div class="divider-badge">
                             <span class="badge-icon">📖</span>
+                            ${chPartPre}
                             <span class="badge-text">စာမျက်နှာ ${toMyanmarNum(actualPage + 1)}</span>
                         </div>
                         <div class="divider-line"></div>
@@ -1531,7 +1556,10 @@ function renderTOC() {
     filtered.forEach(t => {
         html += `
             <button class="toc-item-btn type-${t.type || 'item'}" data-page="${t.page_number}">
-                <span>${t.name}</span>
+                <span class="toc-item-title-wrapper">
+                    <span class="toc-bullet-icon"></span>
+                    <span class="toc-text">${escapeHtml(t.name)}</span>
+                </span>
                 <span class="item-page-badge">စာ-${t.page_number}</span>
             </button>
         `;
@@ -1549,16 +1577,113 @@ function renderTOC() {
             closeSidebarMobile();
         });
     });
+
+    const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+    highlightActiveToc(curPg, false);
 }
 
-function highlightActiveToc(currentPg) {
+function highlightActiveToc(currentPg, shouldScroll = false) {
+    if (!el.tocList) return;
+    const mode = (state.readerMode === "mm") ? "mm" : "pali";
+    const tocs = (mode === "mm") ? state.mmTocs : state.paliTocs;
+    const lastPage = (mode === "mm") ? state.mmLastPage : state.paliLastPage;
+    
+    if (!tocs || tocs.length === 0) {
+        if (el.tocCurrentCard) el.tocCurrentCard.style.display = "none";
+        return;
+    }
+
+    if (el.tocCurrentCard) el.tocCurrentCard.style.display = "block";
+
+    let activeIndex = -1;
+    for (let i = 0; i < tocs.length; i++) {
+        if (tocs[i].page_number <= currentPg) {
+            activeIndex = i;
+        } else {
+            break;
+        }
+    }
+
+    const activeTocObj = (activeIndex >= 0) ? tocs[activeIndex] : tocs[0];
+    const nextTocObj = (activeIndex >= 0 && activeIndex < tocs.length - 1) ? tocs[activeIndex + 1] : null;
+
+    // Page range of this section/chapter
+    let startPg = activeTocObj ? activeTocObj.page_number : 1;
+    let endPg = nextTocObj ? (nextTocObj.page_number - 1) : (lastPage || currentPg);
+    if (endPg < startPg) endPg = startPg;
+
+    // 1. Update the Sticky Current Reading Chapter Tracker Card
+    if (el.tocCurrentTitle && activeTocObj) {
+        el.tocCurrentTitle.textContent = activeTocObj.name;
+    }
+    if (el.tocCurrentPagePill) {
+        el.tocCurrentPagePill.textContent = `စာမျက်နှာ ${toMyanmarNum(currentPg)}`;
+    }
+    if (el.tocCurrentRange) {
+        if (startPg === endPg) {
+            el.tocCurrentRange.textContent = `စာမျက်နှာ ${toMyanmarNum(startPg)} (ကျမ်းစာမျက်နှာ ${toMyanmarNum(currentPg)} / ${toMyanmarNum(lastPage || 381)})`;
+        } else {
+            el.tocCurrentRange.textContent = `စာမျက်နှာ ${toMyanmarNum(startPg)} မှ ${toMyanmarNum(endPg)} အထိ (ကျမ်းစာမျက်နှာ ${toMyanmarNum(currentPg)} / ${toMyanmarNum(lastPage || 381)})`;
+        }
+    }
+
+    // 2. Update Mobile Chapter Breadcrumb
+    if (el.mobileChapterBreadcrumb) {
+        const bookName = (mode === "mm") ? (state.mmBookName || "မြန်မာပြန်") : (state.paliBookName || "ပါဠိတော်");
+        if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = bookName;
+        if (el.mobileBreadcrumbChapter && activeTocObj) el.mobileBreadcrumbChapter.textContent = activeTocObj.name;
+        if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
+    }
+
+    // 3. Highlight the active button in the TOC list
     let activeBtn = null;
-    el.tocList.querySelectorAll(".toc-item-btn").forEach(btn => {
+    const allBtns = el.tocList.querySelectorAll(".toc-item-btn");
+    allBtns.forEach(btn => {
         const p = parseInt(btn.getAttribute("data-page"), 10);
         btn.classList.remove("active");
-        if (p <= currentPg) activeBtn = btn;
+        const badge = btn.querySelector(".item-page-badge");
+        if (badge) {
+            badge.textContent = `စာ-${p}`;
+        }
+        if (p <= currentPg) {
+            activeBtn = btn;
+        }
     });
-    if (activeBtn) activeBtn.classList.add("active");
+
+    if (activeBtn) {
+        activeBtn.classList.add("active");
+        const badge = activeBtn.querySelector(".item-page-badge");
+        if (badge) {
+            const orgPage = activeBtn.getAttribute("data-page");
+            badge.textContent = `စာ-${orgPage} (လက်ရှိ စာ-${toMyanmarNum(currentPg)})`;
+        }
+        if (shouldScroll) {
+            activeBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+    }
+
+    // 4. Update the Top Header chapter title
+    if (activeTocObj && el.chapterTitleDisplay) {
+        el.chapterTitleDisplay.textContent = activeTocObj.name;
+    }
+
+    // 5. Also sync Sutta tab if available
+    highlightActiveSutta(currentPg);
+}
+
+function highlightActiveSutta(currentPg) {
+    if (!el.suttaList) return;
+    let activeSuttaBtn = null;
+    el.suttaList.querySelectorAll(".sutta-item-btn").forEach(btn => {
+        const p = parseInt(btn.getAttribute("data-page"), 10);
+        btn.classList.remove("active");
+        if (p <= currentPg) {
+            activeSuttaBtn = btn;
+        }
+    });
+    if (activeSuttaBtn) {
+        activeSuttaBtn.classList.add("active");
+    }
 }
 
 function renderSuttas() {
@@ -1575,7 +1700,10 @@ function renderSuttas() {
     filtered.forEach(s => {
         html += `
             <button class="sutta-item-btn" data-page="${s.page_number}">
-                <span>${s.name} ${s.sutta_id ? `(${s.sutta_id})` : ''}</span>
+                <span class="sutta-item-title-wrapper">
+                    <span class="toc-bullet-icon"></span>
+                    <span>${escapeHtml(s.name)} ${s.sutta_id ? `(${escapeHtml(s.sutta_id)})` : ''}</span>
+                </span>
                 <span class="item-page-badge">စာ-${s.page_number}</span>
             </button>
         `;
@@ -1593,6 +1721,9 @@ function renderSuttas() {
             closeSidebarMobile();
         });
     });
+
+    const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+    highlightActiveSutta(curPg);
 }
 
 function renderRelatedDropdown() {
@@ -3169,8 +3300,53 @@ function setupEventListeners() {
             btn.classList.add("active");
             document.getElementById(tabId).classList.add("active");
             state.activeTab = tabId;
+
+            if (tabId === "tab-toc") {
+                const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+                highlightActiveToc(curPg, true);
+            } else if (tabId === "tab-suttas") {
+                const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+                highlightActiveSutta(curPg);
+                const activeSuttaBtn = el.suttaList ? el.suttaList.querySelector(".sutta-item-btn.active") : null;
+                if (activeSuttaBtn) activeSuttaBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
         });
     });
+
+    // Click header current book/chapter badge to open TOC
+    if (el.currentBookBadge) {
+        el.currentBookBadge.addEventListener("click", () => {
+            toggleSidebar(true);
+            const tocTabBtn = document.querySelector('.sidebar-tabs .tab-btn[data-tab="tab-toc"]');
+            if (tocTabBtn) tocTabBtn.click();
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
+        });
+    }
+
+    // Click Mobile & Tablet Chapter Breadcrumb to open TOC directly
+    if (el.mobileChapterBreadcrumb) {
+        el.mobileChapterBreadcrumb.addEventListener("click", () => {
+            toggleSidebar(true);
+            const tocTabBtn = document.querySelector('.sidebar-tabs .tab-btn[data-tab="tab-toc"]');
+            if (tocTabBtn) tocTabBtn.click();
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
+        });
+    }
+
+    // Click Sticky Current Reading Card in TOC to smoothly focus on active item
+    if (el.tocCurrentCard) {
+        el.tocCurrentCard.addEventListener("click", () => {
+            if (!el.tocList) return;
+            const activeBtn = el.tocList.querySelector(".toc-item-btn.active");
+            if (activeBtn) {
+                activeBtn.scrollIntoView({ block: "center", behavior: "smooth" });
+                activeBtn.classList.add("toc-flash-highlight");
+                setTimeout(() => activeBtn.classList.remove("toc-flash-highlight"), 1200);
+            }
+        });
+    }
 
     // Basket Filtering in Books tab (Pali)
     el.basketBtns.forEach(btn => {
