@@ -100,7 +100,7 @@ sudo netstat -tlpn | grep 5005
 
 ## 🌐 အပိုင်း (၄) - Domain နှင့် ချိတ်ဆက်ခြင်း (Cloudflare Zero Trust Tunnel သို့မဟုတ် Nginx)
 
-VPS ပေါ်တွင် လည်ပတ်နေသော တိပိဋက Web App (Port `5005`) ကို Domain အမည် (ဥပမာ `tipi.upanna.top`) ဖြင့် အင်တာနက်ပေါ်မှ ချိတ်ဆက်ဖတ်ရှုနိုင်ရန် အောက်ပါ နည်းလမ်း ၂ မျိုးအနက် အဆင်ပြေရာကို သုံးနိုင်ပါသည်:
+VPS ပေါ်တွင် လည်ပတ်နေသော တိပိဋက Web App (Port `5005`) ကို Domain အမည် (ဥပမာ `your-domain.com` သို့မဟုတ် `tipi.your-domain.com`) ဖြင့် အင်တာနက်ပေါ်မှ ချိတ်ဆက်ဖတ်ရှုနိုင်ရန် အောက်ပါ နည်းလမ်း ၂ မျိုးအနက် အဆင်ပြေရာကို သုံးနိုင်ပါသည်:
 
 ---
 
@@ -126,12 +126,12 @@ VPS ပေါ်တွင် လည်ပတ်နေသော တိပိဋ�
    *(မှတ်ချက်: `<YOUR_TOKEN>` နေရာတွင် Cloudflare က ထုတ်ပေးသော Token ပါဝင်ပြီးဖြစ်ပါသည်)*  
 ၇။ Terminal တွင် Run ပြီးသည်နှင့် Cloudflare ဝဘ်စာမျက်နှာတွင် **"Connected"** (အစိမ်းရောင်) ပြသလာပါမည်။ **Next** ကို နှိပ်ပါ။  
 ၈။ **Public Hostname** စာမျက်နှာတွင် အောက်ပါအတိုင်း ဖြည့်စွက်ပါ:
-   - **Subdomain:** `tipi`
-   - **Domain:** `upanna.top` (ဆရာတော်၏ domain ကို ရွေးချယ်ပါ)
+   - **Subdomain:** `tipi` (သို့မဟုတ် မိမိကြိုက်နှစ်သက်ရာ subdomain)
+   - **Domain:** `your-domain.com` (မိမိ၏ domain ကို ရွေးချယ်ပါ)
    - **Type:** `HTTP`
    - **URL:** `localhost:5005` (သို့မဟုတ် `127.0.0.1:5005`)
 ၉။ အောက်ခြေရှိ **Save hostname** (သို့မဟုတ် **Save tunnel**) ကို နှိပ်လိုက်သည်နှင့် ချက်ချင်း ပြီးစီးသွားပါပြီ!  
-ယခုအခါ Browser မှ `https://tipi.upanna.top` သို့ ဝင်ရောက်ဖတ်ရှုနိုင်ပါပြီ ဘုရား။
+ယခုအခါ Browser မှ `https://tipi.your-domain.com` (သို့မဟုတ် မိမိသတ်မှတ်ထားသော domain) သို့ ဝင်ရောက်ဖတ်ရှုနိုင်ပါပြီ ဘုရား။
 
 ---
 
@@ -147,7 +147,7 @@ sudo nano /etc/nginx/sites-available/tipitaka
 #### ၂။ အောက်ပါ Configuration ကို ထည့်သွင်းပါ
 ```nginx
 server {
-    server_name tipi.upanna.top;
+    server_name tipi.your-domain.com;
 
     client_max_body_size 50M;
 
@@ -174,18 +174,5 @@ sudo systemctl restart nginx
 
 #### ၄။ အခမဲ့ SSL လက်မှတ် (HTTPS) ထည့်သွင်းပါ
 ```bash
-sudo certbot --nginx -d tipi.upanna.top
+sudo certbot --nginx -d tipi.your-domain.com
 ```
-
----
-
-## 💾 အပိုင်း (၅) - အင်တာနက်မရှိသောအခါ Offline / USB Stick ဖြင့် တပ်ဆင်နည်း
-
-အကယ်၍ VPS သို့မဟုတ် စက်အသစ်တွင် Google Drive မှ တိုက်ရိုက်ဒေါင်းလုဒ် မဆွဲလိုဘဲ Offline USB Stick ဖြင့် တပ်ဆင်လိုပါက:
-
-၁။ `Tipitaka_Deploy_Package` ဖိုဒါထဲရှိ `tipitaka_vps.zip` (~150 MB) ကို USB Stick ထဲသို့ ကူးထည့်ပါ။  
-၂။ VPS ထဲသို့ `scp` သို့မဟုတ် WinSCP ဖြင့် တိုက်ရိုက် ကူးတင်ပါ:
-```powershell
-scp -P 2213 tipitaka_vps.zip zinko@172.245.210.149:/opt/tipitaka/
-```
-၃။ `/opt/tipitaka` ထဲတွင် `tipitaka_vps.zip` ရှိနေပါက `setup_vps.sh` ကို run လိုက်သည်နှင့် Google Drive မှ ထပ်မဆွဲတော့ဘဲ ထို zip ဖိုင်မှ database များကို အလိုအလျောက် ဖြည်ချအသုံးပြုသွားမည် ဖြစ်ပါသည်။

@@ -34,7 +34,7 @@
 - **PowerShell (SCP) သုံးပါက:**
   ```powershell
   # USB Drive E: ဖြစ်ပါက
-  scp -P 2213 E:\Tipitaka_Deploy_Package\tipitaka_vps.zip zinko@172.245.210.149:~/
+  scp E:\Tipitaka_Deploy_Package\tipitaka_vps.zip username@YOUR_SERVER_IP:~/
   ```
 
 ---
@@ -69,4 +69,4 @@ gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O tipitaka_vps.zip
 sudo bash setup_vps.sh
 ```
 
-တပ်ဆင်ပြီးစီးပါက `https://tipi.upanna.top` (သို့မဟုတ် VPS port 5005) တွင် တိပိဋက Web App အမြဲတမ်း ၂၄ နာရီ ချောမွေ့စွာ စတင်လည်ပတ်နေမည် ဖြစ်ပါသည် ဘုရား။
+တပ်ဆင်ပြီးစီးပါက `https://tipi.your-domain.com` (သို့မဟုတ် VPS port 5005) တွင် တိပိဋက Web App အမြဲတမ်း ၂၄ နာရီ ချောမွေ့စွာ စတင်လည်ပတ်နေမည် ဖြစ်ပါသည် ဘုရား။

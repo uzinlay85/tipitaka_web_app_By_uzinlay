@@ -160,7 +160,7 @@
 ### နည်းလမ်း ၂ - Cloudflare Zero Trust Tunnel ဖြင့် အင်တာနက်ပေါ်မှ သုံးခြင်း
 VPS (Cloudflare Tunnel) တွင် ၂၄ နာရီ ချိတ်ဆက်ထားပြီးဖြစ်၍ အင်တာနက်ပေါ်ရှိ မည်သည့်ဖုန်း၊ Tablet၊ ကွန်ပျူတာမှမဆို အောက်ပါ Link ဖြင့် တိုက်ရိုက် အသုံးပြုနိုင်ပါသည် -
 
-👉 **https://tipi.upanna.top**
+👉 **https://your-domain.com** (သို့မဟုတ် မိမိ၏ VPS / Cloudflare Tunnel Domain)
 
 ---
 

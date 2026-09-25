@@ -249,6 +249,11 @@ async function initApp() {
     localStorage.removeItem("tipitaka_app_view");
     setAppView("home");
 
+    const domLink = document.getElementById("appCurrentDomainLink");
+    if (domLink && window.location.origin) {
+        domLink.textContent = window.location.origin;
+    }
+
     if (!state.isSidebarOpen) el.appSidebar.classList.add("collapsed");
     if (!state.isDictOpen || state.appView === "home") el.dictSidebar.classList.add("collapsed");
     el.btnToggleDict.classList.toggle("active", state.isDictOpen && state.appView !== "home");
