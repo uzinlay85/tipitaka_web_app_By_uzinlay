@@ -382,10 +382,29 @@ async function loadPaliBook(bookId, targetPage = null) {
 function cleanPaliContent(html) {
     if (!html) return "";
     return html.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
-        // ဂါထာပါဠိတော်များ (Gāthā) တွင် စာပိုဒ် (၄) ပုဒ်ကို ပိုင်းခြားထားသော အလယ်ကော်မာများကို မူရင်း APK အတိုင်း မဖြုတ်ဘဲ ထားရှိပါမည်
+        // ဂါထာပါဠိတော်များ (Gāthā) စာပိုဒ်များဖြစ်ပါက ဆဋ္ဌမူစာအုပ် မူရင်းပုံစံအတိုင်း:
+        // ပထမ နှင့် တတိယ ပုဒ်အဆုံးတွင် ပုဒ်ထီး "၊" သုံးသည်
+        // ဒုတိယ နှင့် စတုတ္ထ ပုဒ်အဆုံးတွင် ပုဒ်မ "။" သုံးသည်
         if (/\bclass\s*=\s*["'][^"']*gatha[^"']*["']/i.test(attrs)) {
-            return match;
+            const clsMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
+            const clsName = clsMatch ? clsMatch[1].toLowerCase() : "";
+            
+            // ၁။ ဂါထာစာပိုဒ်အတွင်းရှိ အင်္ဂလိပ်ကော်မာ (comma) များကို ပုဒ်ထီး "၊ " သို့ ပြောင်းလဲပါမည်
+            const hasComma = /,(?![^<]*>)/.test(content);
+            let res = content.replace(/,(?![^<]*>)\s*/g, "၊ ");
+            
+            // ၂။ စာကြောင်းတစ်ခုတည်းတွင် အပုဒ် ၂ ခုတွဲပါဝင်နေပါက (comma ပါဝင်ခဲ့ပါက) ဒုတိယပုဒ်/စတုတ္ထပုဒ် အဆုံးသတ်ဖြစ်သော
+            // စာကြောင်းအဆုံးရှိ "၊" ကို ပုဒ်မ "။" သို့ ပြောင်းလဲပေးပါမည်
+            if (hasComma) {
+                res = res.replace(/၊([’"”’]*\s*(?:<[^>]+>\s*)*)$/, "။$1");
+            } else if (clsName.includes("gatha2") || clsName.includes("gatha4")) {
+                // စာကြောင်းတစ်ကြောင်းချင်း ခွဲထားသော ၄ ကြောင်းပါ ဂါထာမျိုးတွင်
+                // ဒုတိယပုဒ် (gatha2) နှင့် စတုတ္ထပုဒ် (gatha4) တို့သည် ပုဒ်မ "။" ဖြင့် ဆုံးရပါမည်
+                res = res.replace(/၊([’"”’]*\s*(?:<[^>]+>\s*)*)$/, "။$1");
+            }
+            return `<p${attrs}>${res}</p>`;
         }
+        
         // စကားပြေ (Prose / Bodytext) တွင် မလိုအပ်သော English comma များကို ဖယ်ရှားပါမည်
         const cleaned = content.replace(/,(?![^<]*>)/g, "");
         return `<p${attrs}>${cleaned}</p>`;
