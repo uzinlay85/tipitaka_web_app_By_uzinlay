@@ -379,9 +379,26 @@ async function loadPaliBook(bookId, targetPage = null) {
     await loadPaliPage(bookId, page);
 }
 
+function cleanPeyala(html) {
+    if (!html) return "";
+    // ဆဋ္ဌမူစာအုပ် မူရင်းအတိုင်း အရင်စာပိုဒ်နှင့်တူသော အကျဉ်းချုံး ပေယျာလနေရာများ (...ပ..., ...ပေ..., …ပ…, …ပေ…) ကို "။ ပ ။" သို့ ပြောင်းလဲခြင်း
+    return html.replace(/([^\s\.\…<]?)\s*(?:…|\.{2,})\s*(?:ပေ|ပ)\s*(?:…|\.{2,})\s*[၊။]?/g, (match, prefix) => {
+        if (prefix === '။' || prefix === '၊') {
+            return `${prefix} ။ ပ ။ `;
+        } else if (prefix) {
+            return `${prefix}။ ပ ။ `;
+        } else {
+            return `။ ပ ။ `;
+        }
+    }).replace(/[ \t]{2,}/g, " ");
+}
+
 function cleanPaliContent(html) {
     if (!html) return "";
-    return html.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
+    // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
+    const peyalaCleaned = cleanPeyala(html);
+
+    return peyalaCleaned.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
         // ဂါထာပါဠိတော်များ (Gāthā) စာပိုဒ်များဖြစ်ပါက ဆဋ္ဌမူစာအုပ် မူရင်းပုံစံအတိုင်း:
         // ပထမ နှင့် တတိယ ပုဒ်အဆုံးတွင် ပုဒ်ထီး "၊" သုံးသည်
         // ဒုတိယ နှင့် စတုတ္ထ ပုဒ်အဆုံးတွင် ပုဒ်မ "။" သုံးသည်
@@ -409,6 +426,12 @@ function cleanPaliContent(html) {
         const cleaned = content.replace(/,(?![^<]*>)/g, "");
         return `<p${attrs}>${cleaned}</p>`;
     });
+}
+
+function cleanMMContent(html) {
+    if (!html) return "";
+    let res = cleanPeyala(html);
+    return res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
 }
 
 async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppend = false, isPrepend = false) {
@@ -715,6 +738,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
         const res = await fetch(`/api/mm/page/${bookId}/${targetNum}`);
         if (thisSession !== state.feedSessionId) return;
         const data = await res.json();
+        if (data && data.content) data.content = cleanMMContent(data.content);
 
         state.mmFirstPage = data.first_page;
         state.mmLastPage = data.last_page;
