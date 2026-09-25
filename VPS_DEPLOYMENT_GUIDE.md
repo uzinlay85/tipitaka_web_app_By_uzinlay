@@ -98,16 +98,53 @@ sudo netstat -tlpn | grep 5005
 
 ---
 
-## 🌐 အပိုင်း (၄) - Nginx Reverse Proxy နှင့် SSL Domain ချိတ်ဆက်ခြင်း
+## 🌐 အပိုင်း (၄) - Domain နှင့် ချိတ်ဆက်ခြင်း (Cloudflare Zero Trust Tunnel သို့မဟုတ် Nginx)
 
-အကယ်၍ VPS တွင် Domain (ဥပမာ `tipi.upanna.top`) ဖြင့် ချိတ်ဆက်လိုပါက Nginx Reverse Proxy ကို အောက်ပါအတိုင်း သတ်မှတ်နိုင်ပါသည်:
+VPS ပေါ်တွင် လည်ပတ်နေသော တိပိဋက Web App (Port `5005`) ကို Domain အမည် (ဥပမာ `tipi.upanna.top`) ဖြင့် အင်တာနက်ပေါ်မှ ချိတ်ဆက်ဖတ်ရှုနိုင်ရန် အောက်ပါ နည်းလမ်း ၂ မျိုးအနက် အဆင်ပြေရာကို သုံးနိုင်ပါသည်:
 
-### ၁။ Nginx Configuration ဖိုင် ဖွင့်ပါ
+---
+
+### နည်းလမ်း (က) - Cloudflare Zero Trust Tunnel ဖြင့် ချိတ်ဆက်ခြင်း (အလွယ်ဆုံးနှင့် အလုံခြုံဆုံး အကြံပြုနည်းလမ်း - Recommended)
+
+ဤနည်းလမ်းသည် **Port 80/443 ဖွင့်စရာမလို**၊ **SSL လက်မှတ်များ စီမံစရာမလို**၊ **Nginx သွင်းစရာမလိုဘဲ** Cloudflare ၏ Cloudflare daemon (`cloudflared`) ဖြင့် တိုက်ရိုက် ချိတ်ဆက်ပေးသော အကောင်းဆုံး နည်းလမ်းဖြစ်ပါသည်:
+
+#### အားသာချက်များ:
+1. **Firewall / Port ဖွင့်ရန်မလိုခြင်း:** VPS ၏ Port များကို အင်တာနက်သို့ ဖွင့်မပေးရသဖြင့် Hacker များ တိုက်ခိုက်မှုမှ ၁၀၀% ကင်းဝေးခြင်း။
+2. **အခမဲ့ အမြဲတမ်း SSL (HTTPS):** Cloudflare Edge က HTTPS လက်မှတ်ကို အလိုအလျောက် ထုတ်ပေးပြီး သက်တမ်းအမြဲတမ်း တိုးပေးခြင်း။
+3. **DDoS Protection & Caching:** Cloudflare ၏ Global CDN က အမြန်နှုန်း မြှင့်တင်ပေးပြီး တိုက်ခိုက်မှုများကို ကာကွယ်ပေးခြင်း။
+
+#### အဆင့်ဆင့် ပြုလုပ်ပုံ (၁ မိနစ်အတွင်း ပြီးစီး):
+၁။ [Cloudflare Dashboard](https://dash.cloudflare.com) သို့ ဝင်ရောက်ပြီး ဘယ်ဘက်မီနူးမှ **Zero Trust** ကို နှိပ်ပါ။  
+၂။ ဘယ်ဘက်ခြမ်းရှိ **Networks** -> **Tunnels** သို့ သွားပြီး **"Add a tunnel"** (သို့မဟုတ် **"Create a tunnel"**) ကို နှိပ်ပါ။  
+၃။ **Select Cloudflare Tunnel (recommended)** ကို ရွေးပြီး **Next** နှိပ်ပါ။  
+၄။ Tunnel အမည် ထည့်ပါ (ဥပမာ: `tipitaka-vps`) -> **Save tunnel** ကို နှိပ်ပါ။  
+၅။ **Choose your environment:** တွင် **"Debian"** သို့မဟုတ် **"Ubuntu" (64-bit)** ကို ရွေးချယ်ပါ။  
+၆။ Cloudflare က ထုတ်ပေးသော Command တစ်ကြောင်းလုံးကို Copy ယူပြီး VPS SSH Terminal တွင် Paste ချ၍ Run လိုက်ပါ:  
+   ```bash
+   curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && sudo dpkg -i cloudflared.deb && sudo cloudflared service install <YOUR_TOKEN>
+   ```
+   *(မှတ်ချက်: `<YOUR_TOKEN>` နေရာတွင် Cloudflare က ထုတ်ပေးသော Token ပါဝင်ပြီးဖြစ်ပါသည်)*  
+၇။ Terminal တွင် Run ပြီးသည်နှင့် Cloudflare ဝဘ်စာမျက်နှာတွင် **"Connected"** (အစိမ်းရောင်) ပြသလာပါမည်။ **Next** ကို နှိပ်ပါ။  
+၈။ **Public Hostname** စာမျက်နှာတွင် အောက်ပါအတိုင်း ဖြည့်စွက်ပါ:
+   - **Subdomain:** `tipi`
+   - **Domain:** `upanna.top` (ဆရာတော်၏ domain ကို ရွေးချယ်ပါ)
+   - **Type:** `HTTP`
+   - **URL:** `localhost:5005` (သို့မဟုတ် `127.0.0.1:5005`)
+၉။ အောက်ခြေရှိ **Save hostname** (သို့မဟုတ် **Save tunnel**) ကို နှိပ်လိုက်သည်နှင့် ချက်ချင်း ပြီးစီးသွားပါပြီ!  
+ယခုအခါ Browser မှ `https://tipi.upanna.top` သို့ ဝင်ရောက်ဖတ်ရှုနိုင်ပါပြီ ဘုရား။
+
+---
+
+### နည်းလမ်း (ခ) - Nginx Reverse Proxy + Certbot SSL ဖြင့် ချိတ်ဆက်ခြင်း (ရိုးရာ Standard နည်းလမ်း)
+
+အကယ်၍ VPS တွင် Cloudflare Tunnel အစား Nginx Web Server ဖြင့် တိုက်ရိုက် မောင်းနှင်လိုပါက အောက်ပါအတိုင်း ပြုလုပ်နိုင်ပါသည်:
+
+#### ၁။ Nginx Configuration ဖိုင် ဖွင့်ပါ
 ```bash
 sudo nano /etc/nginx/sites-available/tipitaka
 ```
 
-### ၂။ အောက်ပါ Configuration ကို ထည့်သွင်းပါ
+#### ၂။ အောက်ပါ Configuration ကို ထည့်သွင်းပါ
 ```nginx
 server {
     server_name tipi.upanna.top;
@@ -128,14 +165,14 @@ server {
 }
 ```
 
-### ၃။ Config ကို Enable လုပ်ပြီး Nginx ကို Restart လုပ်ပါ
+#### ၃။ Config ကို Enable လုပ်ပြီး Nginx ကို Restart လုပ်ပါ
 ```bash
 sudo ln -sf /etc/nginx/sites-available/tipitaka /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-### ၄။ အခမဲ့ SSL လက်မှတ် (HTTPS) ထည့်သွင်းပါ
+#### ၄။ အခမဲ့ SSL လက်မှတ် (HTTPS) ထည့်သွင်းပါ
 ```bash
 sudo certbot --nginx -d tipi.upanna.top
 ```
