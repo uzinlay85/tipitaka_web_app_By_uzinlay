@@ -57,15 +57,16 @@ wget https://tipitaka.upanna.top/download-vps-zip -O tipitaka_vps.zip
 - **အခြား Windows PC တွင် Offline သုံးလိုပါက:** USB ထဲမှ `tipitaka_vps.zip` ကို Extract ဖြည်ပြီး `run.bat` ကို နှိပ်ရုံဖြင့် အင်တာနက်မလိုဘဲ အပြည့်အဝ ဖတ်ရှုအသုံးပြုနိုင်ပါသည်။
 - **VPS သို့ တင်လိုပါက:** ကွန်ပျူတာတွင် USB တပ်ဆင်ထားစဉ် WinSCP / FileZilla သို့မဟုတ် PowerShell SCP command ဖြင့် VPS သို့ လွယ်ကူစွာ ကူးတင်နိုင်ပါသည်။
 
-#### နည်းလမ်း (ဂ) - Google Drive တွင် တင်ပြီး VPS Terminal မှ ပြန်လည်ဆွဲယူခြင်း
-၁။ Google Drive သို့ `tipitaka_vps.zip` (150 MB) ကို Upload တင်ပါ။
-၂။ ဖိုင်ပေါ်တွင် Right-click -> Share -> "Anyone with the link" (လင့်ခ်ရှိသူတိုင်း) ဟု သတ်မှတ်ပြီး Copy link ယူပါ။
-၃။ VPS Terminal တွင် `gdown` tool ဖြင့် အလွယ်တကူ တိုက်ရိုက် ဆွဲယူနိုင်ပါသည် -
+#### နည်းလမ်း (ဂ) - Google Drive အမြဲတမ်းလင့်ခ်မှ တိုက်ရိုက်ဆွဲယူခြင်း (Permanent Google Drive Link)
+- **အမြဲတမ်း Google Drive လင့်ခ်:**  
+  [https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link](https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link)
+- **Google Drive File ID:** `1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx`
+
+VPS Terminal တွင် `gdown` ဖြင့် Browser ဖွင့်စရာမလိုဘဲ အောက်ပါ command ၂ ကြောင်းဖြင့် တိုက်ရိုက် ဆွဲယူနိုင်ပါသည် -
 ```bash
 pip install gdown || sudo apt install -y python3-pip && pip install gdown
-gdown "https://drive.google.com/uc?id=YOUR_FILE_ID" -O tipitaka_vps.zip
+gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O tipitaka_vps.zip
 ```
-*(မှတ်ချက်: `YOUR_FILE_ID` နေရာတွင် Google Drive Share link ထဲရှိ ID ကုဒ်ကို ထည့်သွင်းပေးပါ)*
 
 #### နည်းလမ်း (ဃ) - Local PC မှ SCP / FileZilla ဖြင့် တိုက်ရိုက်ပို့ခြင်း
 ```powershell

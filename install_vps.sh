@@ -31,9 +31,9 @@ if [ -f "tipitaka_vps.zip" ]; then
 elif [ -f "$TARGET_DIR/tipitaka_vps.zip" ]; then
     echo "$TARGET_DIR ထဲတွင် tipitaka_vps.zip ရှိနှင့်ပြီးဖြစ်ပါသည်..."
 else
-    echo "❌ အမှား: tipitaka_vps.zip ဖိုင် မတွေ့ရှိပါ!"
-    echo "ကျေးဇူးပြု၍ tipitaka_vps.zip ကို လက်ရှိဖိုဒါ သို့မဟုတ် /opt/tipitaka/ ထဲသို့ အရင်ကူးထည့်ပေးပါဘုရား။"
-    exit 1
+    echo "⚠️ tipitaka_vps.zip မတွေ့ရှိပါသဖြင့် ဆရာတော်၏ Google Drive အမြဲတမ်းလင့်ခ်မှ အလိုအလျောက် ဆွဲယူနေပါသည်..."
+    pip install gdown || apt install -y python3-pip && pip install gdown
+    gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O "$TARGET_DIR/tipitaka_vps.zip"
 fi
 
 cd "$TARGET_DIR"

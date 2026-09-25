@@ -39,27 +39,24 @@
 
 ---
 
-## ☁️ နည်းလမ်း (၂) - Google Drive တွင် Upload တင်၍ မျှဝေ/ရယူခြင်း
+## ☁️ နည်းလမ်း (၂) - Google Drive အမြဲတမ်းလင့်ခ်မှ တိုက်ရိုက် ရယူခြင်း (Permanent Google Drive Link)
 
-ဤနည်းလမ်းသည် ဖိုင်ကို အွန်လိုင်းတွင် အမြဲသိမ်းဆည်းထားပြီး လိုအပ်သည့် VPS Server သို့မဟုတ် မည်သည့်စက်မှမဆို လွယ်ကူစွာ ပြန်လည်ဒေါင်းလုဒ်ဆွဲယူနိုင်ရန် ဖြစ်ပါသည်။
+ဆရာတော်၏ Google Drive ပေါ်တွင် `tipitaka_vps.zip` (~150 MB) ကို အမြဲတမ်း အဆင်သင့် တင်ထားပြီးဖြစ်ပါသည်:
+- **အမြဲတမ်း Google Drive လင့်ခ်:**  
+  [https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link](https://drive.google.com/file/d/1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx/view?usp=drive_link)
+- **Google Drive File ID:** `1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx`
 
-### အဆင့် ၁ - Google Drive သို့ Upload တင်ခြင်း
-1. Browser မှတစ်ဆင့် [Google Drive](https://drive.google.com) သို့ ဝင်ရောက်ပါ။
-2. `Tipitaka_Deploy_Package` ဖိုဒါထဲမှ **`tipitaka_vps.zip`** (150 MB) ကို Google Drive ထဲသို့ ဆွဲထည့် (Upload) ပါ။
-3. Upload ပြီးပါက ဖိုင်ပေါ်တွင် Right-click နှိပ် -> **Share (မျှဝေရန်)** -> General access တွင် **"Anyone with the link" (လင့်ခ်ရှိသူတိုင်း)** ဟု ရွေးချယ်ပြီး **Copy link** နှိပ်ပါ။
-
-### အဆင့် ၂ - VPS Terminal ပေါ်မှ တိုက်ရိုက်ဆွဲယူနည်း (Direct Download via gdown)
-Google Drive မှ Large Zip ဖိုင်များကို VPS Terminal ပေါ်တွင် အလွယ်ကူဆုံး ဆွဲယူနိုင်ရန် `gdown` tool ကို အသုံးပြုနိုင်ပါသည်:
+### VPS Terminal ပေါ်မှ တိုက်ရိုက်ဆွဲယူနည်း (Direct Download via gdown)
+Google Drive မှ Large Zip ဖိုင်များကို VPS Terminal ပေါ်တွင် Browser ဖွင့်စရာမလိုဘဲ အောက်ပါ command ၂ ကြောင်းဖြင့် တိုက်ရိုက်ဆွဲယူနိုင်ပါသည်:
 
 ```bash
-# ၁။ gdown ထည့်သွင်းခြင်း (မရှိသေးပါက)
+# ၁။ gdown tool ထည့်သွင်းခြင်း (မရှိသေးပါက)
 pip install gdown || sudo apt install -y python3-pip && pip install gdown
 
-# ၂။ Google Drive Link ဖြင့် တိုက်ရိုက်ဆွဲယူခြင်း
-# (လင့်ခ်ထဲမှ File ID ကို ထည့်ပါ သို့မဟုတ် Link တစ်ခုလုံး ထည့်ပါ)
-gdown "https://drive.google.com/uc?id=YOUR_FILE_ID" -O tipitaka_vps.zip
+# ၂။ Google Drive အမြဲတမ်းလင့်ခ်မှ တိုက်ရိုက်ဆွဲယူခြင်း
+gdown 1WX-09wlmRDma__j4ErLTK8jrSn8a1Fbx -O tipitaka_vps.zip
 ```
-*(မှတ်ချက်: `YOUR_FILE_ID` နေရာတွင် Google Drive Share Link ထဲမှ ID နံပါတ်ကို ထည့်သွင်းပေးရပါမည်)*
+*(မှတ်ချက်: ဤ command ကို run လိုက်သည်နှင့် ဆရာတော်၏ Google Drive မှ tipitaka_vps.zip ကို မည်သည့် VPS / Linux terminal မှမဆို စက္ကန့်ပိုင်းအတွင်း အလိုအလျောက် ဆွဲယူပေးသွားမည် ဖြစ်ပါသည်)*
 
 ---
 
