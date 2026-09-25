@@ -14,6 +14,13 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 
+@app.after_request
+def add_cache_headers(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 def get_pali_db():
     conn = sqlite3.connect(DB_PALI_PATH)
     conn.row_factory = sqlite3.Row
