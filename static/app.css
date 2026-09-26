@@ -922,7 +922,8 @@ button, input, select {
     overflow: visible;
 }
 
-.pali-content p {
+.pali-content p,
+.split-pane-body p {
     margin-bottom: 1.4em;
     text-align: justify;
 }
@@ -975,13 +976,23 @@ button, input, select {
     line-height: 1.5;
 }
 
-.pali-content .bodytext {
+.pali-content .bodytext,
+.split-pane-body .bodytext {
     text-indent: 2em;
+    text-align: justify;
 }
 
-.pali-content .noindentbodytext {
+.pali-content .noindentbodytext,
+.split-pane-body .noindentbodytext {
     text-indent: 0;
+    text-align: justify;
 }
+
+.split-pane-body .indented,
+.split-pane-body .indent {
+    text-align: justify;
+}
+
 
 .pali-content .hangnum {
     float: left;
