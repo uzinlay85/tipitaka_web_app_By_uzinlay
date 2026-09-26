@@ -121,30 +121,36 @@ button, input, select {
     flex-shrink: 0;
     gap: 6px;
     position: relative;
+    overflow: hidden; /* Prevent buttons from bleeding outside header bounds on resize */
+    min-width: 0;     /* Required for flex children to shrink correctly */
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;
+    flex-shrink: 0;   /* Left section (logo/sidebar toggle/mode) never shrinks */
     white-space: nowrap;
+    min-width: 0;
 }
 
 .header-center {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex-shrink: 0;
+    flex-shrink: 1;   /* Center (page nav) can give space when needed */
     white-space: nowrap;
+    min-width: 0;
 }
 
 .header-right {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;
+    flex-shrink: 1;   /* Right section can shrink — responsive CSS handles hiding labels */
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden; /* Clip excess children instead of overflowing */
 }
 
 /* Current Book Badge */
@@ -2495,6 +2501,17 @@ body.hide-notes .note {
 
 /* Stage 4: Small Displays & Landscape Tablets (<= 1180px) */
 @media (max-width: 1180px) {
+    .app-header {
+        overflow: hidden;
+        gap: 4px;
+        padding: 0 6px;
+    }
+    .header-left,
+    .header-center,
+    .header-right {
+        overflow: hidden;
+        min-width: 0;
+    }
     .current-book-badge {
         display: none !important;
     }
