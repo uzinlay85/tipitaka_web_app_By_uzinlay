@@ -48,7 +48,7 @@ const state = {
     theme: localStorage.getItem("tipitaka_theme") || "paper",
     fontSize: parseInt(localStorage.getItem("tipitaka_font_size") || "100", 10),
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
-    isSidebarOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_sidebar_open") !== "0"),
+    isSidebarOpen: window.innerWidth > 992,
     showNotes: localStorage.getItem("tipitaka_show_notes") === "1",
     scrollMode: (function() {
         const m = localStorage.getItem("tipitaka_scroll_mode");
@@ -414,6 +414,14 @@ function setReaderMode(mode) {
     }
     renderBooksTree();
     renderHomeCatalog();
+
+    if (state.appView === "reader" && window.innerWidth > 992) {
+        state.isSidebarOpen = true;
+        if (el.appSidebar) el.appSidebar.classList.remove("collapsed");
+        switchToSidebarTab("tab-toc");
+        const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+        highlightActiveToc(curPg, true);
+    }
 }
 
 function handleCrossLink() {
@@ -464,10 +472,14 @@ async function loadPaliBook(bookId, targetPage = null) {
             state.paliRelated = data.related || [];
             state.companionData = data.companions || null;
             
+            if (el.tocFilterInput) el.tocFilterInput.value = "";
             renderTOC();
             renderSuttas();
             renderRelatedDropdown();
             highlightActiveBookInSidebar();
+            if (state.appView === "reader" && window.innerWidth > 992) {
+                switchToSidebarTab("tab-toc");
+            }
         } catch (err) {
             console.error("Failed to load pali book metadata:", err);
         }
@@ -884,9 +896,13 @@ async function loadMMBook(bookId, targetPage = null) {
             state.mmTocs = data.tocs || [];
             state.mmSuttas = data.suttas || [];
             
+            if (el.tocFilterInput) el.tocFilterInput.value = "";
             renderTOC();
             renderSuttas();
             highlightActiveBookInSidebar();
+            if (state.appView === "reader" && window.innerWidth > 992) {
+                switchToSidebarTab("tab-toc");
+            }
         } catch (err) {
             console.error("Failed to load mm book metadata:", err);
         }
@@ -1940,7 +1956,13 @@ function renderBooksTree() {
                 await loadPaliBook(bId, null);
             }
             setAppView("reader");
-            closeSidebarMobile();
+            if (window.innerWidth > 992) {
+                switchToSidebarTab("tab-toc");
+                const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+                highlightActiveToc(curPg, true);
+            } else {
+                closeSidebarMobile();
+            }
         });
     });
 }
@@ -1984,7 +2006,11 @@ function renderTOC() {
             } else {
                 loadPaliPage(state.paliBookId, p);
             }
-            closeSidebarMobile();
+            if (window.innerWidth <= 992) {
+                closeSidebarMobile();
+            } else {
+                highlightActiveToc(p, false);
+            }
         });
     });
 
@@ -2134,7 +2160,11 @@ function renderSuttas() {
             } else {
                 loadPaliPage(state.paliBookId, p);
             }
-            closeSidebarMobile();
+            if (window.innerWidth <= 992) {
+                closeSidebarMobile();
+            } else {
+                highlightActiveToc(p, false);
+            }
         });
     });
 
@@ -2368,12 +2398,18 @@ function renderBookmarksList() {
     el.bookmarksList.innerHTML = html;
 
     el.bookmarksList.querySelectorAll(".bookmark-item-btn").forEach(item => {
-        item.addEventListener("click", (e) => {
+        item.addEventListener("click", async (e) => {
             if (e.target.classList.contains("btn-delete-bm")) return;
             const bid = item.getAttribute("data-id");
             const page = parseInt(item.getAttribute("data-page"), 10);
-            loadPaliBook(bid, page);
-            closeSidebarMobile();
+            await loadPaliBook(bid, page);
+            setAppView("reader");
+            if (window.innerWidth > 992) {
+                switchToSidebarTab("tab-toc");
+                highlightActiveToc(page, true);
+            } else {
+                closeSidebarMobile();
+            }
         });
     });
 
@@ -3460,11 +3496,20 @@ function renderHistoryModalContent() {
 function toggleSidebar(forceState = null) {
     state.isSidebarOpen = (forceState !== null) ? forceState : !state.isSidebarOpen;
     el.appSidebar.classList.toggle("collapsed", !state.isSidebarOpen);
-    if (state.isSidebarOpen && window.innerWidth <= 992) {
-        toggleDictSidebar(false);
+    if (state.isSidebarOpen) {
+        if (window.innerWidth <= 992) {
+            toggleDictSidebar(false);
+        }
+        if (state.appView === "reader" && (!state.activeTab || state.activeTab === "tab-books")) {
+            switchToSidebarTab("tab-toc");
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
+        }
     }
     if (el.btnNavMore) el.btnNavMore.classList.toggle("active", state.isSidebarOpen);
-    localStorage.setItem("tipitaka_sidebar_open", state.isSidebarOpen ? "1" : "0");
+    if (window.innerWidth > 992) {
+        localStorage.setItem("tipitaka_sidebar_open", state.isSidebarOpen ? "1" : "0");
+    }
     updateSidebarBackdrop();
 }
 
@@ -3482,11 +3527,13 @@ function updateSidebarBackdrop() {
 }
 
 function closeSidebarMobile() {
-    if (state.isSidebarOpen) {
-        toggleSidebar(false);
-    }
-    if (state.isDictOpen) {
-        toggleDictSidebar(false);
+    if (window.innerWidth <= 992) {
+        if (state.isSidebarOpen) {
+            toggleSidebar(false);
+        }
+        if (state.isDictOpen) {
+            toggleDictSidebar(false);
+        }
     }
 }
 
@@ -4026,6 +4073,11 @@ function setupEventListeners() {
                 setReaderMode("pali");
                 loadPaliBook(bid, p);
             }
+            setAppView("reader");
+            if (window.innerWidth > 992) {
+                switchToSidebarTab("tab-toc");
+                highlightActiveToc(p, true);
+            }
         });
     }
 
@@ -4382,6 +4434,24 @@ function setupEventListeners() {
         if (!isFull && state.isFocusMode) {
             toggleFocusMode(false);
         }
+    });
+
+    // Responsive Window Resize Handler for Sidebar and Drawer State
+    let resizeDebounceTimer = null;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeDebounceTimer);
+        resizeDebounceTimer = setTimeout(() => {
+            const isDesktop = window.innerWidth > 992;
+            updateSidebarBackdrop();
+            if (isDesktop && state.appView === "reader") {
+                if (!state.isSidebarOpen) {
+                    toggleSidebar(true);
+                }
+                switchToSidebarTab("tab-toc");
+                const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+                highlightActiveToc(curPg, false);
+            }
+        }, 150);
     });
 }
 
