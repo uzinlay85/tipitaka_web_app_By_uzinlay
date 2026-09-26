@@ -1,4 +1,4 @@
-﻿@font-face {
+@font-face {
      font-family: Zawgyi-One;
      src: url('Zawgyi-One.ttf');
 }
@@ -15,23 +15,23 @@ p.bkname {
     font-style: italic;
     background: #e1efbb;
     border: 1px solid gray;}
-p {border-top: 0in; border-bottom: 0in;  padding-top: 0in; padding-bottom: 0in;  margin-top: 0in; margin-bottom: 1.3em; -webkit-touch-callout: none;}
+p {border-top: 0in; border-bottom: 0in;  padding-top: 0in; padding-bottom: 0in;  margin-top: 0in; margin-bottom: 1.3em; text-align: justify; -webkit-touch-callout: none;}
 a {text-decoration: none; color: black;}
 .note {color: gray; font-size: 0.9em;}
 .bld {font-weight: bold; color: white;}
 .paranum {font-weight: bold; }
 .hit {background-color: blue; color: white; }
 .context {background-color: green; color: white; }
-.indent { text-indent: 1.3em; margin-left: 2em;}
-.indented { text-indent: 1.3em;}
-.bodytext {  text-indent: 1.3em;}
+.indent { text-indent: 1.3em; margin-left: 2em; text-align: justify;}
+.indented { text-indent: 1.3em; text-align: justify;}
+.bodytext {  text-indent: 1.3em; text-align: justify;}
 .hangnum {  float: left; margin-left: 15pt; margin-top: 0;}
 .centered {  text-align:center;}
 .center {  text-align:center;}
 .bold_centered { font-weight: bold; text-align:center;}
 .center_bold { font-weight: bold; text-align:center;}
-.unindented { font-size: 1.3em; }
-.noindentbodytext { font-size: 1.3em; }
+.unindented { font-size: 1.3em; text-align: justify;}
+.noindentbodytext { font-size: 1.3em; text-align: justify;}
 .book { font-size: 1.9em; text-align:center; font-weight: bold;}
 .chapter { font-size: 1.7em; text-align:center; font-weight: bold;}
 .nikaya { font-size: 1.6em; text-align:center; font-weight: bold;}
