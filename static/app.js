@@ -3785,8 +3785,10 @@ function setupEventListeners() {
             e.stopPropagation();
             el.scrollModeDropdownWrapper.classList.toggle("open");
         });
-        document.addEventListener("click", () => {
-            el.scrollModeDropdownWrapper.classList.remove("open");
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest("#headerMoreDropdownWrapper")) {
+                el.scrollModeDropdownWrapper.classList.remove("open");
+            }
         });
     }
 
@@ -3958,8 +3960,10 @@ function setupEventListeners() {
         e.stopPropagation();
         el.relatedDropdownWrapper.classList.toggle("open");
     });
-    document.addEventListener("click", () => {
-        el.relatedDropdownWrapper.classList.remove("open");
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("#headerMoreDropdownWrapper")) {
+            el.relatedDropdownWrapper.classList.remove("open");
+        }
     });
 
     // Sidebar Tabs Switcher
@@ -4845,68 +4849,94 @@ window.addEventListener("DOMContentLoaded", initApp);
 // ============================================================
 window.addEventListener("DOMContentLoaded", function () {
     const moreWrapper = document.getElementById("headerMoreDropdownWrapper");
-    const moreBtn = document.getElementById("btnHeaderMore");
-    const moreMenu = document.getElementById("headerMoreMenu");
+    const moreBtn    = document.getElementById("btnHeaderMore");
+    const moreMenu   = document.getElementById("headerMoreMenu");
 
     if (!moreBtn || !moreMenu || !moreWrapper) return;
 
-    // Toggle More dropdown open/close
+    function openMoreMenu() {
+        // Close other dropdowns first
+        const scrollWrapper  = document.getElementById("scrollModeDropdownWrapper");
+        const relatedWrapper = document.getElementById("relatedDropdownWrapper");
+        if (scrollWrapper)  scrollWrapper.classList.remove("open");
+        if (relatedWrapper) relatedWrapper.classList.remove("open");
+
+        moreWrapper.classList.add("open");
+        moreBtn.setAttribute("aria-expanded", "true");
+    }
+
+    function closeMoreMenu() {
+        moreWrapper.classList.remove("open");
+        moreBtn.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleMoreMenu() {
+        if (moreWrapper.classList.contains("open")) {
+            closeMoreMenu();
+        } else {
+            openMoreMenu();
+        }
+    }
+
+    // Toggle on button click — use capture:false, stopPropagation to prevent
+    // the document-level handlers (scroll/related dropdown closers) from firing
     moreBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        const isOpen = moreWrapper.classList.toggle("open");
-        moreBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        e.preventDefault();
+        toggleMoreMenu();
     });
 
-    // Close More dropdown when clicking outside
+    // Close when clicking anywhere outside the More wrapper
     document.addEventListener("click", function (e) {
-        if (!moreWrapper.contains(e.target)) {
-            moreWrapper.classList.remove("open");
-            moreBtn.setAttribute("aria-expanded", "false");
+        if (moreWrapper.classList.contains("open") && !moreWrapper.contains(e.target)) {
+            closeMoreMenu();
         }
     });
 
-    // Close More dropdown on Escape
+    // Close on Escape key
     document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") {
-            moreWrapper.classList.remove("open");
-            moreBtn.setAttribute("aria-expanded", "false");
+        if (e.key === "Escape" && moreWrapper.classList.contains("open")) {
+            closeMoreMenu();
         }
     });
 
     // --- Mirror buttons inside More menu ---
+    // Each mirror button: close menu, then trigger the real hidden button
 
-    // Dict mirror
-    const btnMoreDict = document.getElementById("btnMoreDict");
-    const btnToggleDict = document.getElementById("btnToggleDict");
+    const btnMoreDict     = document.getElementById("btnMoreDict");
+    const btnToggleDict   = document.getElementById("btnToggleDict");
     if (btnMoreDict && btnToggleDict) {
-        btnMoreDict.addEventListener("click", function () {
-            moreWrapper.classList.remove("open");
-            btnToggleDict.click(); // delegate to the real button
+        btnMoreDict.addEventListener("click", function (e) {
+            e.stopPropagation();
+            closeMoreMenu();
+            // Trigger real button
+            btnToggleDict.dispatchEvent(new MouseEvent("click", { bubbles: false }));
         });
-        // Sync dict-active class when dict state changes (observe class on real button)
+        // Sync active highlight in More menu when dict toggles
         const dictObserver = new MutationObserver(function () {
             btnMoreDict.classList.toggle("dict-active", btnToggleDict.classList.contains("active"));
         });
         dictObserver.observe(btnToggleDict, { attributes: true, attributeFilter: ["class"] });
     }
 
-    // Fullscreen mirror
-    const btnMoreFullscreen = document.getElementById("btnMoreFullscreen");
+    const btnMoreFullscreen   = document.getElementById("btnMoreFullscreen");
     const btnToggleFullscreen = document.getElementById("btnToggleFullscreen");
     if (btnMoreFullscreen && btnToggleFullscreen) {
-        btnMoreFullscreen.addEventListener("click", function () {
-            moreWrapper.classList.remove("open");
-            btnToggleFullscreen.click();
+        btnMoreFullscreen.addEventListener("click", function (e) {
+            e.stopPropagation();
+            closeMoreMenu();
+            btnToggleFullscreen.dispatchEvent(new MouseEvent("click", { bubbles: false }));
         });
     }
 
-    // Help mirror
     const btnMoreHelp = document.getElementById("btnMoreHelp");
     const btnOpenHelp = document.getElementById("btnOpenHelp");
     if (btnMoreHelp && btnOpenHelp) {
-        btnMoreHelp.addEventListener("click", function () {
-            moreWrapper.classList.remove("open");
-            btnOpenHelp.click();
+        btnMoreHelp.addEventListener("click", function (e) {
+            e.stopPropagation();
+            closeMoreMenu();
+            btnOpenHelp.dispatchEvent(new MouseEvent("click", { bubbles: false }));
         });
     }
 });
+
