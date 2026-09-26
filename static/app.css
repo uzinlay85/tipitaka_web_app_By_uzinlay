@@ -121,15 +121,16 @@ button, input, select {
     flex-shrink: 0;
     gap: 6px;
     position: relative;
-    overflow: hidden; /* Prevent buttons from bleeding outside header bounds on resize */
-    min-width: 0;     /* Required for flex children to shrink correctly */
+    overflow: visible; /* Allow dropdowns to overflow; clipping is handled per-section */
+    min-width: 0;      /* Required for flex children to shrink correctly */
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;   /* Left section (logo/sidebar toggle/mode) never shrinks */
+    flex: 0 1 auto;   /* Can shrink if needed but won't grow beyond natural size */
+    overflow: hidden;
     white-space: nowrap;
     min-width: 0;
 }
@@ -147,10 +148,10 @@ button, input, select {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;
+    flex: 0 0 auto;   /* Right section: don't grow/shrink — hide individual buttons via media queries */
     white-space: nowrap;
     min-width: 0;
-    /* No overflow:hidden — visibility managed via display:none at each breakpoint */
+    overflow: visible; /* Ensure dropdowns are not clipped */
 }
 
 /* Current Book Badge */
@@ -2405,6 +2406,39 @@ body.hide-notes .note {
 }
 
 /* ============================================================
+   Header More (⋮) Overflow Dropdown
+   ============================================================ */
+
+/* "More" dropdown wrapper — hidden by default on large screens */
+.header-more-dropdown {
+    display: none;  /* Only shown via media queries when overflow items are hidden */
+}
+
+.header-more-btn {
+    gap: 4px;
+}
+
+.header-more-menu {
+    min-width: 220px;
+    right: 0;
+    left: auto;
+}
+
+.header-more-menu .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+}
+
+/* Sync dict active state in more menu */
+.header-more-menu .more-menu-dict.dict-active {
+    color: var(--accent);
+    background: var(--accent-light);
+}
+
+/* ============================================================
    Responsive Media Queries & Screen Adaptations
    ============================================================ */
 
@@ -2459,12 +2493,20 @@ body.hide-notes .note {
     .current-book-badge {
         max-width: 110px;
     }
-    /* Completely hide secondary utility buttons (least used) to free horizontal space */
+    /* Hide Help & Fullscreen from header bar — moved to More ⋮ dropdown */
     #btnOpenHelp,
     #btnToggleFullscreen {
         display: none !important;
     }
+    /* Show the More dropdown button to give access to hidden items */
+    .header-more-dropdown {
+        display: flex;
+    }
+    .header-more-btn .more-btn-label {
+        display: none !important; /* Icon-only at this size */
+    }
 }
+
 
 /* Stage 3: Compact Laptops & Split Windows (<= 1380px) */
 @media (max-width: 1380px) {
@@ -2534,11 +2576,17 @@ body.hide-notes .note {
         width: 32px;
         height: 32px;
     }
-    /* Hide font controls — accessible from mobile drawer at this width */
-    .font-controls {
+    /* Hide font controls and dict from header bar — accessible from mobile drawer / More menu */
+    .font-controls,
+    #btnToggleDict {
         display: none !important;
     }
+    /* Show More dropdown (if not already shown) */
+    .header-more-dropdown {
+        display: flex;
+    }
 }
+
 
 /* Sidebar Backdrop for Mobile Drawers */
 .sidebar-backdrop {
@@ -2699,9 +2747,10 @@ body.hide-notes .note {
         font-size: 0.82rem !important;
     }
 
-    /* Hide redundant tools from mobile header (Dict is in bottom nav, Help is in drawer) */
+    /* Hide redundant tools from mobile header (Dict is in drawer, Help is in drawer) */
     #btnOpenHelp,
-    #btnToggleDict {
+    #btnToggleDict,
+    .header-more-dropdown {
         display: none !important;
     }
 

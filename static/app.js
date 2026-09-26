@@ -4839,3 +4839,74 @@ function fromMyanmarNum(str) {
 
 // Start app
 window.addEventListener("DOMContentLoaded", initApp);
+
+// ============================================================
+// Header "More ⋮" Overflow Dropdown
+// ============================================================
+window.addEventListener("DOMContentLoaded", function () {
+    const moreWrapper = document.getElementById("headerMoreDropdownWrapper");
+    const moreBtn = document.getElementById("btnHeaderMore");
+    const moreMenu = document.getElementById("headerMoreMenu");
+
+    if (!moreBtn || !moreMenu || !moreWrapper) return;
+
+    // Toggle More dropdown open/close
+    moreBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const isOpen = moreWrapper.classList.toggle("open");
+        moreBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+
+    // Close More dropdown when clicking outside
+    document.addEventListener("click", function (e) {
+        if (!moreWrapper.contains(e.target)) {
+            moreWrapper.classList.remove("open");
+            moreBtn.setAttribute("aria-expanded", "false");
+        }
+    });
+
+    // Close More dropdown on Escape
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            moreWrapper.classList.remove("open");
+            moreBtn.setAttribute("aria-expanded", "false");
+        }
+    });
+
+    // --- Mirror buttons inside More menu ---
+
+    // Dict mirror
+    const btnMoreDict = document.getElementById("btnMoreDict");
+    const btnToggleDict = document.getElementById("btnToggleDict");
+    if (btnMoreDict && btnToggleDict) {
+        btnMoreDict.addEventListener("click", function () {
+            moreWrapper.classList.remove("open");
+            btnToggleDict.click(); // delegate to the real button
+        });
+        // Sync dict-active class when dict state changes (observe class on real button)
+        const dictObserver = new MutationObserver(function () {
+            btnMoreDict.classList.toggle("dict-active", btnToggleDict.classList.contains("active"));
+        });
+        dictObserver.observe(btnToggleDict, { attributes: true, attributeFilter: ["class"] });
+    }
+
+    // Fullscreen mirror
+    const btnMoreFullscreen = document.getElementById("btnMoreFullscreen");
+    const btnToggleFullscreen = document.getElementById("btnToggleFullscreen");
+    if (btnMoreFullscreen && btnToggleFullscreen) {
+        btnMoreFullscreen.addEventListener("click", function () {
+            moreWrapper.classList.remove("open");
+            btnToggleFullscreen.click();
+        });
+    }
+
+    // Help mirror
+    const btnMoreHelp = document.getElementById("btnMoreHelp");
+    const btnOpenHelp = document.getElementById("btnOpenHelp");
+    if (btnMoreHelp && btnOpenHelp) {
+        btnMoreHelp.addEventListener("click", function () {
+            moreWrapper.classList.remove("open");
+            btnOpenHelp.click();
+        });
+    }
+});

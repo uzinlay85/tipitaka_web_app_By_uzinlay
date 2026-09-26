@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=5.2">
+    <link rel="stylesheet" href="/static/app.css?v=5.3">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -148,13 +148,13 @@
             </div>
 
             <!-- Help / User Guide Button -->
-            <button id="btnOpenHelp" class="tool-btn help-btn" title="အသုံးပြုနည်း လမ်းညွှန် (User Guide)">
+            <button id="btnOpenHelp" class="tool-btn help-btn header-overflow-item" title="အသုံးပြုနည်း လမ်းညွှန် (User Guide)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 <span class="btn-text">လမ်းညွှန်</span>
             </button>
 
             <!-- Focus / Fullscreen Mode Toggle Button -->
-            <button id="btnToggleFullscreen" class="tool-btn fullscreen-toggle-btn" title="မျက်နှာပြင်ပြည့် / အာရုံစူးစိုက်ဖတ်ရှုရန် (Focus Mode - F11)">
+            <button id="btnToggleFullscreen" class="tool-btn fullscreen-toggle-btn header-overflow-item" title="မျက်နှာပြင်ပြည့် / အာရုံစူးစိုက်ဖတ်ရှုရန် (Focus Mode - F11)">
                 <svg id="fullscreenIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
@@ -162,10 +162,44 @@
             </button>
 
             <!-- Toggle Dictionary Sidebar -->
-            <button id="btnToggleDict" class="tool-btn dict-toggle-btn active" title="အဘိဓာန်ပြား ဖွင့်/ပိတ်">
+            <button id="btnToggleDict" class="tool-btn dict-toggle-btn active header-overflow-item" title="အဘိဓာန်ပြား ဖွင့်/ပိတ်">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                 <span class="btn-text">အဘိဓာန်</span>
             </button>
+
+            <!-- More Options Overflow Dropdown (shown when window is too narrow) -->
+            <div class="dropdown-wrapper header-more-dropdown" id="headerMoreDropdownWrapper">
+                <button id="btnHeaderMore" class="tool-btn header-more-btn" title="နောက်ထပ် ရွေးချယ်မှုများ">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="5" r="1.5" fill="currentColor"></circle>
+                        <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+                        <circle cx="12" cy="19" r="1.5" fill="currentColor"></circle>
+                    </svg>
+                    <span class="btn-text more-btn-label">နောက်ထပ်</span>
+                </button>
+                <div class="dropdown-menu header-more-menu" id="headerMoreMenu">
+                    <div class="dropdown-header">နောက်ထပ် ကိရိယာများ</div>
+                    <div class="dropdown-list">
+                        <!-- Mirror: Dict button -->
+                        <button class="dropdown-item more-menu-dict" id="btnMoreDict" title="အဘိဓာန်ပြား ဖွင့်/ပိတ်">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                            <span>အဘိဓာန်ပြား ဖွင့်/ပိတ်</span>
+                        </button>
+                        <!-- Mirror: Fullscreen button -->
+                        <button class="dropdown-item more-menu-fullscreen" id="btnMoreFullscreen" title="မျက်နှာပြင်ပြည့်">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                            <span>မျက်နှာပြင်ပြည့် (Focus Mode)</span>
+                        </button>
+                        <!-- Mirror: Help button -->
+                        <button class="dropdown-item more-menu-help" id="btnMoreHelp" title="လမ်းညွှန်">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <span>အသုံးပြုနည်း လမ်းညွှန်</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
