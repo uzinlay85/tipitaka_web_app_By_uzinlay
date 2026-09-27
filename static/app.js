@@ -312,40 +312,6 @@ const AnnotationManager = {
 let _annPopupTarget = null; // { el, bookId, page, paraId, paraText }
 let _annSelectedColor = "amber";
 
-function openAnnotationPopup(paraEl, bookId, page, paraId, paraText, anchorEl) {
-    const popup = document.getElementById("annotationPopup");
-    if (!popup) return;
-
-    _annPopupTarget = { el: paraEl, bookId, page, paraId, paraText };
-    _annSelectedColor = "amber";
-
-    // Load existing annotation if any
-    const existing = AnnotationManager.getForPara(bookId, page, paraId);
-    const noteInput = document.getElementById("annotationNoteInput");
-    const deleteBtn = document.getElementById("btnDeleteAnnotation");
-
-    if (noteInput) noteInput.value = existing ? (existing.note || "") : "";
-    if (deleteBtn) deleteBtn.style.display = existing ? "inline-flex" : "none";
-
-    // Set selected color
-    if (existing) _annSelectedColor = existing.color || "amber";
-    popup.querySelectorAll(".ann-color-btn").forEach(btn => {
-        btn.classList.toggle("selected", btn.getAttribute("data-color") === _annSelectedColor);
-    });
-
-    // Position popup near the anchor element
-    const rect = anchorEl.getBoundingClientRect();
-    popup.style.display = "block";
-    let top = rect.bottom + 8;
-    let left = rect.left;
-    const popW = 280;
-    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
-    if (left < 8) left = 8;
-    if (top + 200 > window.innerHeight) top = rect.top - 210;
-    popup.style.top = `${top}px`;
-    popup.style.left = `${left}px`;
-}
-
 function closeAnnotationPopup() {
     const popup = document.getElementById("annotationPopup");
     if (popup) popup.style.display = "none";
@@ -354,22 +320,32 @@ function closeAnnotationPopup() {
 
 function saveAnnotation() {
     if (!_annPopupTarget) return;
-    const { el: paraEl, bookId, page, paraId, paraText } = _annPopupTarget;
+    const { el: paraEl, bookId, page, paraId, paraText, selText, selStart, range, isSelection } = _annPopupTarget;
     const note = (document.getElementById("annotationNoteInput")?.value || "").trim();
     const color = _annSelectedColor;
 
-    AnnotationManager.add({
+    const entry = {
         bookId,
         bookName: state.paliBookName || state.mmBookName || bookId,
         page,
         paraId,
-        paraText: paraText.substring(0, 120),
+        paraText: (paraText || "").substring(0, 120),
         color,
         note
-    });
+    };
 
-    // Apply visual highlight to the paragraph element
-    applyAnnotationStyleToPara(paraEl, color);
+    if (isSelection && range) {
+        // Text-selection annotation: store selected text + highlight it inline
+        entry.selText = (selText || "").substring(0, 500);
+        entry.selStart = selStart || 0;
+        wrapRangeWithHighlight(range, color);
+    } else {
+        // Legacy paragraph-level annotation
+        applyAnnotationStyleToPara(paraEl, color);
+    }
+
+    AnnotationManager.add(entry);
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
     closeAnnotationPopup();
     renderAnnotationSidebar();
 }
@@ -392,39 +368,184 @@ function removeAnnotationStyleFromPara(paraEl) {
     paraEl.classList.remove("has-annotation", "ann-amber", "ann-blue", "ann-green", "ann-red");
 }
 
-// Inject pin buttons + annotation highlights into rendered paragraphs
+// Prepare paragraphs for text-selection annotation (no pin buttons):
+// assign stable para ids + re-apply saved highlights (legacy paragraph
+// highlights and text-selection highlights).
 function injectAnnotationPins(containerEl, bookId, page) {
     if (!containerEl) return;
 
-    // Find all block-level para elements: <p>, and .paranum containers
+    // Remove any legacy pin buttons left from older versions
+    containerEl.querySelectorAll(".para-pin-btn").forEach(b => b.remove());
+
     const paras = containerEl.querySelectorAll("p");
     paras.forEach((p, idx) => {
-        if (p.closest(".para-pin-btn")) return; // skip nested
-        if (p.classList.contains("annotatable-para")) return; // already processed
+        if (!p.classList.contains("annotatable-para") || !p.getAttribute("data-para-id")) {
+            p.classList.add("annotatable-para");
+            p.setAttribute("data-para-id", `p${page}_${idx}`);
+        }
+        // Remember reading context on the paragraph for selection handler
+        p.setAttribute("data-ann-book", bookId);
+        p.setAttribute("data-ann-page", page);
 
-        p.classList.add("annotatable-para");
-        const paraId = `p${page}_${idx}`;
-        p.setAttribute("data-para-id", paraId);
-
-        // Check if existing annotation
-        const existing = AnnotationManager.getForPara(bookId, page, paraId);
-        if (existing) applyAnnotationStyleToPara(p, existing.color);
-
-        // Create pin button
-        const btn = document.createElement("button");
-        btn.className = "para-pin-btn";
-        btn.title = "📌 မှတ်ချက် ထည့်ရန်";
-        btn.innerHTML = "📌";
-        btn.setAttribute("data-para-id", paraId);
-
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const paraText = p.textContent.trim();
-            openAnnotationPopup(p, bookId, page, paraId, paraText, btn);
+        // Re-apply saved annotations for this paragraph
+        const paraId = p.getAttribute("data-para-id");
+        const entries = AnnotationManager.getAll().filter(a =>
+            a.bookId === bookId && String(a.page) === String(page) && a.paraId === paraId);
+        entries.forEach(a => {
+            if (a.selText) {
+                highlightTextInPara(p, a.selText, a.color, a.selStart || 0);
+            } else {
+                applyAnnotationStyleToPara(p, a.color);
+            }
         });
-
-        p.appendChild(btn);
     });
+}
+
+// Find the annotatable paragraph containing a DOM node
+function getParaOf(node) {
+    if (!node) return null;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    return el ? el.closest("p.annotatable-para") : null;
+}
+
+// Character offset of a range's start inside its paragraph (for re-highlight anchoring)
+function getSelectionOffsetInPara(range, paraEl) {
+    try {
+        const pre = range.cloneRange();
+        pre.selectNodeContents(paraEl);
+        pre.setEnd(range.startContainer, range.startOffset);
+        return pre.toString().length;
+    } catch (e) { return 0; }
+}
+
+// Wrap a Range with a colored inline highlight span (selection annotation)
+function wrapRangeWithHighlight(range, color) {
+    if (!range || range.collapsed) return null;
+    const span = document.createElement("span");
+    span.className = `ann-sel ann-sel-${color || "amber"}`;
+    try {
+        range.surroundContents(span);
+    } catch (e) {
+        try {
+            const frag = range.extractContents();
+            span.appendChild(frag);
+            range.insertNode(span);
+        } catch (e2) {
+            return null;
+        }
+    }
+    return span;
+}
+
+// Re-highlight saved selected text inside a paragraph (multi text-node aware)
+function highlightTextInPara(paraEl, text, color, fromIndex) {
+    if (!paraEl || !text) return false;
+    const walker = document.createTreeWalker(paraEl, NodeFilter.SHOW_TEXT);
+    const map = []; // char index -> {node, offset}
+    let full = "";
+    while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.parentElement && n.parentElement.closest(".ann-sel")) continue; // skip already highlighted
+        const v = n.nodeValue;
+        for (let i = 0; i < v.length; i++) map.push({ node: n, offset: i });
+        full += v;
+    }
+    let idx = full.indexOf(text, fromIndex || 0);
+    if (idx === -1 && (fromIndex || 0) > 0) idx = full.indexOf(text); // fallback: search from start
+    if (idx === -1 || !map[idx] || !map[idx + text.length - 1]) return false;
+    const s = map[idx], e = map[idx + text.length - 1];
+    const range = document.createRange();
+    try {
+        range.setStart(s.node, s.offset);
+        range.setEnd(e.node, e.offset + 1);
+    } catch (err) { return false; }
+    return !!wrapRangeWithHighlight(range, color);
+}
+
+// Open the annotation popup for a text selection
+function openSelectionPopup(paraEl, bookId, page, paraId, selText, range) {
+    const popup = document.getElementById("annotationPopup");
+    if (!popup) return;
+
+    const selStart = getSelectionOffsetInPara(range, paraEl);
+    _annPopupTarget = {
+        el: paraEl, bookId, page, paraId,
+        paraText: selText, selText, selStart,
+        range: range.cloneRange(), isSelection: true
+    };
+    _annSelectedColor = "amber";
+
+    const noteInput = document.getElementById("annotationNoteInput");
+    const deleteBtn = document.getElementById("btnDeleteAnnotation");
+    if (noteInput) noteInput.value = "";
+    if (deleteBtn) deleteBtn.style.display = "none";
+    popup.querySelectorAll(".ann-color-btn").forEach(btn => {
+        btn.classList.toggle("selected", btn.getAttribute("data-color") === "amber");
+    });
+
+    // Position popup near the selection (popup is position:fixed → viewport coords)
+    let rect = null;
+    try { rect = range.getBoundingClientRect(); } catch (e) { /* ignore */ }
+    popup.style.display = "block";
+    const popW = 280, popH = 220;
+    let top = (rect ? rect.bottom : 200) + 8;
+    let left = rect ? rect.left : 100;
+    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+    if (left < 8) left = 8;
+    if (top + popH > window.innerHeight) top = Math.max(8, (rect ? rect.top : 200) - popH - 8);
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
+}
+
+// Stash the selection synchronously on mouseup/touchend (other handlers may
+// clear the live selection right after), then open the popup from the stash.
+let _pendingSelection = null;
+function stashSelection() {
+    _pendingSelection = null;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const rawRange = sel.getRangeAt(0);
+    const paraEl = getParaOf(rawRange.startContainer) || getParaOf(rawRange.endContainer);
+    if (!paraEl) return;
+    const range = rawRange.cloneRange();
+    try {
+        if (getParaOf(range.endContainer) !== paraEl) range.setEnd(paraEl, paraEl.childNodes.length);
+        if (getParaOf(range.startContainer) !== paraEl) range.setStart(paraEl, 0);
+    } catch (e) { return; }
+    const selectedText = range.toString().trim();
+    if (selectedText.length < 2) return;
+    const bookId = paraEl.getAttribute("data-ann-book");
+    const page = parseInt(paraEl.getAttribute("data-ann-page"), 10);
+    const paraId = paraEl.getAttribute("data-para-id");
+    if (!bookId || isNaN(page) || !paraId) return;
+    _pendingSelection = { paraEl, bookId, page, paraId, selectedText, range };
+}
+
+function setupSelectionAnnotation() {
+    // Mouse: stash on mouseup, open popup shortly after
+    document.addEventListener("mouseup", (e) => {
+        if (e.target.closest && e.target.closest("#annotationPopup")) return; // interacting with popup
+        stashSelection();
+        setTimeout(() => {
+            if (_pendingSelection) {
+                const p = _pendingSelection;
+                _pendingSelection = null;
+                openSelectionPopup(p.paraEl, p.bookId, p.page, p.paraId, p.selectedText, p.range);
+            }
+        }, 80);
+    });
+    // Touch: same idea with a longer delay (mobile selection handles)
+    document.addEventListener("touchend", (e) => {
+        if (e.target.closest && e.target.closest("#annotationPopup")) return;
+        stashSelection();
+        setTimeout(() => {
+            if (_pendingSelection) {
+                const p = _pendingSelection;
+                _pendingSelection = null;
+                openSelectionPopup(p.paraEl, p.bookId, p.page, p.paraId, p.selectedText, p.range);
+            }
+        }, 400);
+    }, { passive: true });
 }
 
 // Re-apply annotations after page content loads (called after loadPaliPage / loadMMPage)
@@ -444,7 +565,7 @@ function renderAnnotationSidebar() {
 
     const all = AnnotationManager.getAll();
     if (all.length === 0) {
-        listEl.innerHTML = `<div class="empty-state">📌 ကျမ်းဖတ်ရင်း paragraph ပေါ် hover ပြု၍ 📌 icon ကို နှိပ်ပါ။</div>`;
+        listEl.innerHTML = `<div class="empty-state">✨ ဖတ်နေရင်း လိုချင်တဲ့ စာသားကို select လုပ်လိုက်ရင် မှတ်ချက် ထည့်တဲ့ popup ပေါ်လာပါမယ်။</div>`;
         return;
     }
 
@@ -490,6 +611,16 @@ function renderAnnotationSidebar() {
             setAppView("reader");
             // Close sidebar on mobile
             if (window.innerWidth <= 992) closeSidebarMobile();
+            // Scroll to the annotated paragraph and flash it
+            const paraId = item.getAttribute("data-para");
+            setTimeout(() => {
+                const target = document.querySelector(`p.annotatable-para[data-para-id="${CSS.escape(paraId)}"]`);
+                if (target) {
+                    target.scrollIntoView({ block: "center", behavior: "smooth" });
+                    target.classList.add("ann-flash");
+                    setTimeout(() => target.classList.remove("ann-flash"), 1800);
+                }
+            }, 400);
         });
     });
 
@@ -510,6 +641,10 @@ function renderAnnotationSidebar() {
 function setupAnnotationListeners() {
     const popup = document.getElementById("annotationPopup");
     if (!popup) return;
+
+    // Prevent clicks inside the popup from triggering the global
+    // word-lookup / bar-toggle handler in click.js
+    popup.addEventListener("click", (e) => { e.stopPropagation(); });
 
     // Color selection
     popup.querySelectorAll(".ann-color-btn").forEach(btn => {
@@ -534,7 +669,7 @@ function setupAnnotationListeners() {
 
     // Click outside to close
     document.addEventListener("click", (e) => {
-        if (popup.style.display !== "none" && !popup.contains(e.target) && !e.target.classList.contains("para-pin-btn")) {
+        if (popup.style.display !== "none" && !popup.contains(e.target)) {
             closeAnnotationPopup();
         }
     });
@@ -555,6 +690,9 @@ function setupAnnotationListeners() {
             }
         });
     }
+
+    // Text-selection annotation (select text → popup → save)
+    setupSelectionAnnotation();
 }
 
 // Initialize Application

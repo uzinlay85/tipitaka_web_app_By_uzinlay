@@ -3993,39 +3993,14 @@ body.ios-fullscreen-fallback .reader-container {
 .annotatable-para:hover {
     background: rgba(128,128,128,0.05);
 }
-.para-pin-btn {
-    position: absolute;
-    left: -26px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text-secondary, #888);
-    font-size: 11px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    z-index: 10;
-    padding: 0;
-    line-height: 1;
-    transition: transform 0.15s, color 0.15s;
-}
-.para-pin-btn:hover {
-    transform: translateY(-50%) scale(1.2);
-    color: var(--accent);
-}
-.annotatable-para:hover .para-pin-btn,
-.annotatable-para.has-annotation .para-pin-btn {
-    display: flex;
-}
-.annotatable-para.has-annotation .para-pin-btn {
-    color: var(--accent);
-}
+/* Inline text-selection highlights (Kindle-style) */
+.ann-sel { border-radius: 3px; padding: 1px 0; }
+.ann-sel-amber { background: rgba(245,158,11,0.38); }
+.ann-sel-blue  { background: rgba(59,130,246,0.30); }
+.ann-sel-green { background: rgba(16,185,129,0.32); }
+.ann-sel-red   { background: rgba(239,68,68,0.32); }
+/* Flash effect when jumping to an annotation from the sidebar */
+.ann-flash { outline: 2px solid var(--accent, #b45309); outline-offset: 3px; border-radius: 4px; }
 .annotatable-para.ann-amber { background: rgba(245,158,11,0.12) !important; border-left: 3px solid #f59e0b; padding-left: 8px; }
 .annotatable-para.ann-blue  { background: rgba(59,130,246,0.10) !important; border-left: 3px solid #3b82f6; padding-left: 8px; }
 .annotatable-para.ann-green { background: rgba(16,185,129,0.10) !important; border-left: 3px solid #10b981; padding-left: 8px; }
