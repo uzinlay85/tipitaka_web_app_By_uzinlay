@@ -1346,6 +1346,8 @@ function setReaderMode(mode) {
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "none";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "none";
         el.relatedDropdownWrapper.style.display = "none";
+        // Immediate feedback: never leave the paper blank while the book/page loads
+        el.paliContent.innerHTML = `<div class="loading-state">မြန်မာပြန် စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
         loadMMBook(state.mmBookId, state.mmPage);
     } else { // 'pali'
         el.readerPaper.style.display = "flex";
@@ -1357,8 +1359,16 @@ function setReaderMode(mode) {
         if (el.crossLinkLabel) el.crossLinkLabel.textContent = "မြန်မာပြန်သို့";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
+        // Immediate feedback: never leave the paper blank while the book/page loads
+        el.paliContent.innerHTML = `<div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
         loadPaliBook(state.paliBookId, state.paliPage);
     }
+    // Re-render sidebar lists: the book metadata (and its renderTOC/renderSuttas
+    // calls) is skipped when the same book is already loaded, which would leave
+    // the other language's TOC visible after a reader-mode switch.
+    renderTOC();
+    renderSuttas();
+    highlightActiveBookInSidebar();
     renderBooksTree();
     renderHomeCatalog();
 
@@ -5149,6 +5159,14 @@ function setupEventListeners() {
                 closeHistoryModal();
                 el.helpModal.classList.remove("open");
                 el.dictQuickPopover.style.display = "none";
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+                // Allow Ctrl+K (search) even while typing in an input, e.g. page-number box
+                e.preventDefault();
+                openSearchModal();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+                // Allow Ctrl+H (history) even while typing in an input
+                e.preventDefault();
+                openHistoryModal();
             }
             return;
         }
