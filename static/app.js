@@ -267,10 +267,11 @@ const el = {
 const AnnotationManager = {
     KEY: "tipitaka_annotations_v1",
 
-    getAll() {
+    _readRaw() {
         try {
             const raw = localStorage.getItem(this.KEY);
-            return raw ? JSON.parse(raw) : [];
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
         } catch (e) { return []; }
     },
 
@@ -280,22 +281,77 @@ const AnnotationManager = {
         } catch (e) { console.error("Annotation save failed:", e); }
     },
 
-    add(entry) {
-        // entry: { bookId, bookName, page, paraId, paraText, color, note, timestamp }
-        const list = this.getAll();
-        // Remove existing for same para to avoid duplicates
-        const filtered = list.filter(a => !(a.bookId === entry.bookId && a.page === entry.page && a.paraId === entry.paraId));
-        filtered.unshift({ ...entry, id: "ann_" + Date.now(), timestamp: Date.now() });
-        this.save(filtered);
+    // Visible annotations (excludes tombstones)
+    getAll() {
+        return this._readRaw().filter(a => !a.deleted);
     },
 
-    remove(id) {
-        const list = this.getAll().filter(a => a.id !== id);
+    getAllIncludingDeleted() {
+        return this._readRaw();
+    },
+
+    get(id) {
+        return this._readRaw().find(a => a.id === id) || null;
+    },
+
+    add(entry) {
+        // entry: { bookId, bookName, page, paraId, paraText, selText, selStart, color, note }
+        const list = this._readRaw();
+        const now = Date.now();
+        // Guard against accidental double-save of the exact same selection
+        const dup = list.find(a => !a.deleted && a.bookId === entry.bookId && a.page === entry.page
+            && a.paraId === entry.paraId && (a.selText || "") === (entry.selText || "")
+            && (a.note || "") === (entry.note || ""));
+        if (dup) return dup;
+        const item = {
+            bookId: entry.bookId, bookName: entry.bookName, page: entry.page, paraId: entry.paraId,
+            paraText: entry.paraText || "", selText: entry.selText || "", selStart: entry.selStart || 0,
+            color: entry.color || "amber", note: entry.note || "",
+            id: "ann_" + now.toString(36) + "_" + Math.random().toString(36).slice(2, 8),
+            updatedAt: now, deleted: 0
+        };
+        list.unshift(item);
         this.save(list);
+        return item;
+    },
+
+    update(id, patch) {
+        const list = this._readRaw();
+        const it = list.find(a => a.id === id);
+        if (!it) return null;
+        if (patch.color) it.color = patch.color;
+        if (patch.note !== undefined) it.note = String(patch.note).substring(0, 500);
+        it.updatedAt = Date.now();
+        this.save(list);
+        return it;
+    },
+
+    // Tombstone delete (sync-friendly: deletions propagate to other devices)
+    remove(id) {
+        const list = this._readRaw();
+        const it = list.find(a => a.id === id);
+        if (it) {
+            it.deleted = 1;
+            it.updatedAt = Date.now();
+            this.save(list);
+        }
     },
 
     removeByPara(bookId, page, paraId) {
-        const list = this.getAll().filter(a => !(a.bookId === bookId && a.page === page && a.paraId === paraId));
+        const list = this._readRaw();
+        let changed = false;
+        list.forEach(a => {
+            if (!a.deleted && a.bookId === bookId && a.page === page && a.paraId === paraId) {
+                a.deleted = 1; a.updatedAt = Date.now(); changed = true;
+            }
+        });
+        if (changed) this.save(list);
+    },
+
+    clearAll() {
+        const list = this._readRaw();
+        const now = Date.now();
+        list.forEach(a => { a.deleted = 1; a.updatedAt = now; });
         this.save(list);
     },
 
@@ -303,14 +359,44 @@ const AnnotationManager = {
         return this.getAll().find(a => a.bookId === bookId && a.page === page && a.paraId === paraId) || null;
     },
 
-    clearAll() {
-        localStorage.removeItem(this.KEY);
+    // Merge remote annotations, last-write-wins per id. Returns true if local data changed.
+    mergeRemote(remoteList) {
+        if (!Array.isArray(remoteList) || remoteList.length === 0) return false;
+        const list = this._readRaw();
+        const byId = new Map(list.map(a => [a.id, a]));
+        let changed = false;
+        for (const r of remoteList) {
+            if (!r || typeof r.id !== "string" || !r.id) continue;
+            const rUpd = Number(r.updatedAt) || 0;
+            const local = byId.get(r.id);
+            if (!local) {
+                byId.set(r.id, { ...r, updatedAt: rUpd });
+                changed = true;
+            } else if (rUpd > (Number(local.updatedAt) || 0)) {
+                byId.set(r.id, { ...local, ...r, updatedAt: rUpd });
+                changed = true;
+            }
+        }
+        if (changed) {
+            // Prune ancient tombstones locally (server prunes them too)
+            const now = Date.now(), PRUNE_MS = 90 * 24 * 3600 * 1000;
+            const merged = [...byId.values()].filter(a =>
+                !(a.deleted && (now - (Number(a.updatedAt) || 0)) > PRUNE_MS));
+            this.save(merged);
+        }
+        return changed;
+    },
+
+    // Annotations (incl. tombstones) changed since ts — the push payload
+    changedSince(ts) {
+        return this._readRaw().filter(a => (Number(a.updatedAt) || 0) > (ts || 0));
     }
 };
 
 // Annotation popup state
-let _annPopupTarget = null; // { el, bookId, page, paraId, paraText }
+let _annPopupTarget = null; // { el, bookId, page, paraId, paraText } or { editId }
 let _annSelectedColor = "amber";
+let _annLastColor = "amber"; // last used color, for quick-highlight
 
 function closeAnnotationPopup() {
     const popup = document.getElementById("annotationPopup");
@@ -318,45 +404,75 @@ function closeAnnotationPopup() {
     _annPopupTarget = null;
 }
 
+// Remove an inline highlight span but keep its text
+function unwrapAnnotationSpan(annId) {
+    const span = document.querySelector(`span.ann-sel[data-ann-id="${CSS.escape(annId)}"]`);
+    if (!span || !span.parentNode) return;
+    const parent = span.parentNode;
+    while (span.firstChild) parent.insertBefore(span.firstChild, span);
+    parent.removeChild(span);
+    if (parent.normalize) parent.normalize();
+}
+
 function saveAnnotation() {
     if (!_annPopupTarget) return;
-    const { el: paraEl, bookId, page, paraId, paraText, selText, selStart, range, isSelection } = _annPopupTarget;
-    const note = (document.getElementById("annotationNoteInput")?.value || "").trim();
+    const t = _annPopupTarget;
+    const note = (document.getElementById("annotationNoteInput")?.value || "").trim().substring(0, 500);
     const color = _annSelectedColor;
+    _annLastColor = color;
 
-    const entry = {
-        bookId,
-        bookName: state.paliBookName || state.mmBookName || bookId,
-        page,
-        paraId,
-        paraText: (paraText || "").substring(0, 120),
-        color,
-        note
-    };
-
-    if (isSelection && range) {
-        // Text-selection annotation: store selected text + highlight it inline
-        entry.selText = (selText || "").substring(0, 500);
-        entry.selStart = selStart || 0;
-        wrapRangeWithHighlight(range, color);
+    if (t.editId) {
+        // Edit an existing annotation (opened by tapping its highlight)
+        const updated = AnnotationManager.update(t.editId, { color, note });
+        const span = document.querySelector(`span.ann-sel[data-ann-id="${CSS.escape(t.editId)}"]`);
+        if (span) {
+            span.classList.remove("ann-sel-amber", "ann-sel-blue", "ann-sel-green", "ann-sel-red");
+            span.classList.add(`ann-sel-${color}`);
+        }
+        if (updated && !updated.selText) {
+            const p = document.querySelector(`p.annotatable-para[data-para-id="${CSS.escape(updated.paraId)}"]`);
+            if (p) applyAnnotationStyleToPara(p, color);
+        }
     } else {
-        // Legacy paragraph-level annotation
-        applyAnnotationStyleToPara(paraEl, color);
+        const entry = {
+            bookId: t.bookId,
+            bookName: state.paliBookName || state.mmBookName || t.bookId,
+            page: t.page,
+            paraId: t.paraId,
+            paraText: (t.paraText || "").substring(0, 120),
+            color,
+            note
+        };
+        if (t.isSelection && t.range) {
+            entry.selText = (t.selText || "").substring(0, 500);
+            entry.selStart = t.selStart || 0;
+            const item = AnnotationManager.add(entry);
+            const span = wrapRangeWithHighlight(t.range, color);
+            if (span && item) span.setAttribute("data-ann-id", item.id);
+        } else {
+            // Legacy paragraph-level annotation
+            AnnotationManager.add(entry);
+            if (t.el) applyAnnotationStyleToPara(t.el, color);
+        }
     }
 
-    AnnotationManager.add(entry);
     try { window.getSelection().removeAllRanges(); } catch (e) {}
     closeAnnotationPopup();
+    hideSelectionToolbar();
     renderAnnotationSidebar();
+    applyAnnotationsToCurrentPage();
+    SyncManager.schedulePush();
 }
 
 function deleteAnnotationFromPopup() {
-    if (!_annPopupTarget) return;
-    const { el: paraEl, bookId, page, paraId } = _annPopupTarget;
-    AnnotationManager.removeByPara(bookId, page, paraId);
-    removeAnnotationStyleFromPara(paraEl);
+    if (!_annPopupTarget || !_annPopupTarget.editId) return;
+    const id = _annPopupTarget.editId;
+    AnnotationManager.remove(id);
+    unwrapAnnotationSpan(id);
     closeAnnotationPopup();
     renderAnnotationSidebar();
+    applyAnnotationsToCurrentPage();
+    SyncManager.schedulePush();
 }
 
 function applyAnnotationStyleToPara(paraEl, color) {
@@ -393,7 +509,7 @@ function injectAnnotationPins(containerEl, bookId, page) {
             a.bookId === bookId && String(a.page) === String(page) && a.paraId === paraId);
         entries.forEach(a => {
             if (a.selText) {
-                highlightTextInPara(p, a.selText, a.color, a.selStart || 0);
+                highlightTextInPara(p, a.selText, a.color, a.selStart || 0, a.id);
             } else {
                 applyAnnotationStyleToPara(p, a.color);
             }
@@ -438,7 +554,7 @@ function wrapRangeWithHighlight(range, color) {
 }
 
 // Re-highlight saved selected text inside a paragraph (multi text-node aware)
-function highlightTextInPara(paraEl, text, color, fromIndex) {
+function highlightTextInPara(paraEl, text, color, fromIndex, annId) {
     if (!paraEl || !text) return false;
     const walker = document.createTreeWalker(paraEl, NodeFilter.SHOW_TEXT);
     const map = []; // char index -> {node, offset}
@@ -459,7 +575,9 @@ function highlightTextInPara(paraEl, text, color, fromIndex) {
         range.setStart(s.node, s.offset);
         range.setEnd(e.node, e.offset + 1);
     } catch (err) { return false; }
-    return !!wrapRangeWithHighlight(range, color);
+    const span = wrapRangeWithHighlight(range, color);
+    if (span && annId) span.setAttribute("data-ann-id", annId);
+    return !!span;
 }
 
 // Open the annotation popup for a text selection
@@ -483,18 +601,14 @@ function openSelectionPopup(paraEl, bookId, page, paraId, selText, range) {
         btn.classList.toggle("selected", btn.getAttribute("data-color") === "amber");
     });
 
+    const title = popup.querySelector(".ann-popup-title");
+    if (title) title.textContent = "📌 မှတ်ချက် ထည့်ရန်";
+
     // Position popup near the selection (popup is position:fixed → viewport coords)
     let rect = null;
     try { rect = range.getBoundingClientRect(); } catch (e) { /* ignore */ }
+    positionAnnotationPopup(rect);
     popup.style.display = "block";
-    const popW = 280, popH = 220;
-    let top = (rect ? rect.bottom : 200) + 8;
-    let left = rect ? rect.left : 100;
-    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
-    if (left < 8) left = 8;
-    if (top + popH > window.innerHeight) top = Math.max(8, (rect ? rect.top : 200) - popH - 8);
-    popup.style.top = `${top}px`;
-    popup.style.left = `${left}px`;
 }
 
 // Stash the selection synchronously on mouseup/touchend (other handlers may
@@ -522,30 +636,144 @@ function stashSelection() {
 }
 
 function setupSelectionAnnotation() {
-    // Mouse: stash on mouseup, open popup shortly after
+    const isUiTarget = (e) => e.target.closest &&
+        e.target.closest("#annotationPopup, #annSelectToolbar, #syncModal");
+    // Mouse: stash on mouseup, show mini toolbar shortly after
     document.addEventListener("mouseup", (e) => {
-        if (e.target.closest && e.target.closest("#annotationPopup")) return; // interacting with popup
+        if (isUiTarget(e)) return; // interacting with popup/toolbar/modal
         stashSelection();
         setTimeout(() => {
             if (_pendingSelection) {
                 const p = _pendingSelection;
                 _pendingSelection = null;
-                openSelectionPopup(p.paraEl, p.bookId, p.page, p.paraId, p.selectedText, p.range);
+                showSelectionToolbar(p);
             }
         }, 80);
     });
     // Touch: same idea with a longer delay (mobile selection handles)
     document.addEventListener("touchend", (e) => {
-        if (e.target.closest && e.target.closest("#annotationPopup")) return;
+        if (isUiTarget(e)) return;
         stashSelection();
         setTimeout(() => {
             if (_pendingSelection) {
                 const p = _pendingSelection;
                 _pendingSelection = null;
-                openSelectionPopup(p.paraEl, p.bookId, p.page, p.paraId, p.selectedText, p.range);
+                showSelectionToolbar(p);
             }
         }, 400);
     }, { passive: true });
+    // Hide the toolbar when the page scrolls or the selection is cleared
+    document.addEventListener("scroll", () => hideSelectionToolbar(), { passive: true, capture: true });
+}
+
+// --- Mini floating toolbar on text selection (Medium-style) ---
+let _selToolbar = null;
+
+function showSelectionToolbar(info) {
+    hideSelectionToolbar();
+    let rect = null;
+    try { rect = info.range.getBoundingClientRect(); } catch (e) { /* ignore */ }
+    const bar = document.createElement("div");
+    bar.id = "annSelectToolbar";
+    bar.className = "ann-select-toolbar";
+    bar.innerHTML =
+        `<button class="ann-tb-btn" data-act="quick" title="အရောင်မှတ် (note မပါ)">🖍️</button>` +
+        `<button class="ann-tb-btn" data-act="note" title="မှတ်ချက် + အရောင်">📝</button>`;
+    document.body.appendChild(bar);
+
+    const bw = 104, bh = 44;
+    let left = rect ? rect.left + rect.width / 2 - bw / 2 : window.innerWidth / 2 - bw / 2;
+    let top = rect ? rect.top - bh - 10 : 120;
+    left = Math.max(8, Math.min(window.innerWidth - bw - 8, left));
+    if (top < 8) top = (rect ? rect.bottom : 120) + 10;
+    bar.style.left = `${left}px`;
+    bar.style.top = `${top}px`;
+    _selToolbar = bar;
+
+    bar.querySelector('[data-act="quick"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        quickSaveAnnotation(info);
+    });
+    bar.querySelector('[data-act="note"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        hideSelectionToolbar();
+        openSelectionPopup(info.paraEl, info.bookId, info.page, info.paraId, info.selectedText, info.range);
+    });
+}
+
+function hideSelectionToolbar() {
+    if (_selToolbar) { _selToolbar.remove(); _selToolbar = null; }
+}
+
+// One-tap highlight with the last used color (no popup)
+function quickSaveAnnotation(info) {
+    const color = _annLastColor || "amber";
+    const selStart = getSelectionOffsetInPara(info.range, info.paraEl);
+    const entry = {
+        bookId: info.bookId,
+        bookName: state.paliBookName || state.mmBookName || info.bookId,
+        page: info.page,
+        paraId: info.paraId,
+        paraText: info.selectedText.substring(0, 120),
+        selText: info.selectedText.substring(0, 500),
+        selStart, color, note: ""
+    };
+    const item = AnnotationManager.add(entry);
+    const span = wrapRangeWithHighlight(info.range, color);
+    if (span && item) span.setAttribute("data-ann-id", item.id);
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
+    hideSelectionToolbar();
+    renderAnnotationSidebar();
+    SyncManager.schedulePush();
+}
+
+// --- Edit existing annotation by tapping its highlight ---
+function openEditPopup(ann, anchorEl) {
+    const popup = document.getElementById("annotationPopup");
+    if (!popup) return;
+    _annPopupTarget = { editId: ann.id };
+    _annSelectedColor = ann.color || "amber";
+
+    const noteInput = document.getElementById("annotationNoteInput");
+    const deleteBtn = document.getElementById("btnDeleteAnnotation");
+    if (noteInput) noteInput.value = ann.note || "";
+    if (deleteBtn) deleteBtn.style.display = "inline-flex";
+    popup.querySelectorAll(".ann-color-btn").forEach(btn => {
+        btn.classList.toggle("selected", btn.getAttribute("data-color") === _annSelectedColor);
+    });
+    const title = popup.querySelector(".ann-popup-title");
+    if (title) title.textContent = "✏️ မှတ်ချက် ပြင်ရန်";
+
+    let rect = null;
+    try { rect = anchorEl.getBoundingClientRect(); } catch (e) { /* ignore */ }
+    positionAnnotationPopup(rect);
+    popup.style.display = "block";
+}
+
+function setupHighlightTapToEdit() {
+    document.addEventListener("click", (e) => {
+        const span = e.target.closest && e.target.closest("span.ann-sel[data-ann-id]");
+        if (!span) return;
+        const ann = AnnotationManager.get(span.getAttribute("data-ann-id"));
+        if (!ann || ann.deleted) return;
+        try { window.getSelection().removeAllRanges(); } catch (err) {}
+        hideSelectionToolbar();
+        openEditPopup(ann, span);
+    });
+}
+
+// Shared popup positioning (popup is position:fixed → viewport coords)
+function positionAnnotationPopup(rect) {
+    const popup = document.getElementById("annotationPopup");
+    if (!popup) return;
+    const popW = 280, popH = 230;
+    let top = (rect ? rect.bottom : 200) + 8;
+    let left = rect ? rect.left : 100;
+    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+    if (left < 8) left = 8;
+    if (top + popH > window.innerHeight) top = Math.max(8, (rect ? rect.top : 200) - popH - 8);
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
 }
 
 // Re-apply annotations after page content loads (called after loadPaliPage / loadMMPage)
@@ -575,12 +803,13 @@ function renderAnnotationSidebar() {
     all.forEach(a => {
         const col = colorMap[a.color] || colorMap.amber;
         const noteHtml = a.note ? `<div class="ann-item-note">${escapeHtml(a.note)}</div>` : "";
+        const preview = a.selText || a.paraText || "";
         html += `
-            <div class="annotation-item" data-book="${escapeHtml(a.bookId)}" data-page="${a.page}" data-para="${escapeHtml(a.paraId)}">
+            <div class="annotation-item" data-id="${escapeHtml(a.id)}" data-book="${escapeHtml(a.bookId)}" data-page="${a.page}" data-para="${escapeHtml(a.paraId)}">
                 <div class="ann-item-color" style="background:${col};"></div>
                 <div class="ann-item-body">
                     <div class="ann-item-meta">${escapeHtml(a.bookName || a.bookId)} • စာ-${toMyanmarNum(a.page)}</div>
-                    <div class="ann-item-preview">${escapeHtml(a.paraText || "")}</div>
+                    <div class="ann-item-preview">${escapeHtml(preview)}</div>
                     ${noteHtml}
                 </div>
                 <button class="ann-item-del" data-id="${escapeHtml(a.id)}" title="ဖျက်ရန်">✕</button>
@@ -593,6 +822,7 @@ function renderAnnotationSidebar() {
     listEl.querySelectorAll(".annotation-item").forEach(item => {
         item.addEventListener("click", async (e) => {
             if (e.target.closest(".ann-item-del")) return;
+            const annId = item.getAttribute("data-id");
             const bookId = item.getAttribute("data-book");
             const page = parseInt(item.getAttribute("data-page"), 10);
             if (!bookId || isNaN(page)) return;
@@ -611,10 +841,16 @@ function renderAnnotationSidebar() {
             setAppView("reader");
             // Close sidebar on mobile
             if (window.innerWidth <= 992) closeSidebarMobile();
-            // Scroll to the annotated paragraph and flash it
-            const paraId = item.getAttribute("data-para");
+            // Scroll to the annotation (exact highlight span if present) and flash it
             setTimeout(() => {
-                const target = document.querySelector(`p.annotatable-para[data-para-id="${CSS.escape(paraId)}"]`);
+                let target = null;
+                if (annId) {
+                    target = document.querySelector(`span.ann-sel[data-ann-id="${CSS.escape(annId)}"]`);
+                }
+                if (!target) {
+                    const paraId = item.getAttribute("data-para");
+                    target = document.querySelector(`p.annotatable-para[data-para-id="${CSS.escape(paraId)}"]`);
+                }
                 if (target) {
                     target.scrollIntoView({ block: "center", behavior: "smooth" });
                     target.classList.add("ann-flash");
@@ -630,10 +866,279 @@ function renderAnnotationSidebar() {
             e.stopPropagation();
             const id = btn.getAttribute("data-id");
             AnnotationManager.remove(id);
+            unwrapAnnotationSpan(id);
             renderAnnotationSidebar();
             // Also remove highlight from currently visible paragraphs
             applyAnnotationsToCurrentPage();
+            SyncManager.schedulePush();
         });
+    });
+}
+
+// ============================================================
+// Cross-device annotation sync (pairing-code based)
+// ============================================================
+const SyncManager = {
+    S_SECRET: "tipitaka_sync_secret",
+    S_CODE: "tipitaka_sync_code",
+    S_LAST: "tipitaka_sync_last",
+    _pushTimer: null,
+
+    get secret() { try { return localStorage.getItem(this.S_SECRET); } catch (e) { return null; } },
+    get code() { try { return localStorage.getItem(this.S_CODE); } catch (e) { return null; } },
+    get lastSync() { return parseInt(localStorage.getItem(this.S_LAST) || "0", 10) || 0; },
+    set lastSync(v) { try { localStorage.setItem(this.S_LAST, String(v)); } catch (e) {} },
+    isPaired() { return !!this.secret; },
+
+    deviceName() {
+        let n = null;
+        try { n = localStorage.getItem("tipitaka_device_name"); } catch (e) {}
+        if (!n) {
+            const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || "");
+            n = (mobile ? "Phone" : "Computer") + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+            try { localStorage.setItem("tipitaka_device_name", n); } catch (e) {}
+        }
+        return n;
+    },
+
+    async _post(path, body) {
+        const res = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body || {})
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+        return data;
+    },
+
+    // Create a new sync account on this device; returns the pairing code
+    async create() {
+        const data = await this._post("/api/sync/create", { device_name: this.deviceName() });
+        try {
+            localStorage.setItem(this.S_SECRET, data.secret);
+            localStorage.setItem(this.S_CODE, data.code);
+        } catch (e) {}
+        await this.syncNow();
+        updateSyncUI();
+        return data.code;
+    },
+
+    // Join an existing sync account with a pairing code
+    async claim(code) {
+        const clean = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (clean.length !== 8) throw new Error("ကုဒ် မမှန်ပါ (စာလုံး ၈ လုံး ဖြစ်ရမယ်)");
+        const formatted = clean.slice(0, 4) + "-" + clean.slice(4);
+        const data = await this._post("/api/sync/claim", { code: formatted, device_name: this.deviceName() });
+        try {
+            localStorage.setItem(this.S_SECRET, data.secret);
+            localStorage.setItem(this.S_CODE, data.code);
+        } catch (e) {}
+        this.lastSync = 0; // full pull on first join
+        await this.syncNow();
+        updateSyncUI();
+        return data.code;
+    },
+
+    async push() {
+        if (!this.isPaired()) return null;
+        const anns = AnnotationManager.changedSince(this.lastSync);
+        return this._post("/api/sync/push", { secret: this.secret, annotations: anns });
+    },
+
+    async pull() {
+        if (!this.isPaired()) return null;
+        const data = await this._post("/api/sync/pull", { secret: this.secret, since: this.lastSync });
+        const changed = AnnotationManager.mergeRemote(data.annotations || []);
+        if (changed) {
+            renderAnnotationSidebar();
+            applyAnnotationsToCurrentPage();
+        }
+        this.lastSync = data.server_time || Date.now();
+        return data;
+    },
+
+    async syncNow() {
+        if (!this.isPaired()) return;
+        setSyncStatus("syncing");
+        try {
+            await this.push();
+            await this.pull();
+            setSyncStatus("ok");
+        } catch (e) {
+            console.warn("Sync failed:", e);
+            setSyncStatus("error");
+        }
+        updateSyncUI();
+    },
+
+    // Debounced push after local changes
+    schedulePush() {
+        if (!this.isPaired()) return;
+        clearTimeout(this._pushTimer);
+        setSyncStatus("pending");
+        this._pushTimer = setTimeout(() => this.syncNow(), 2500);
+    },
+
+    async leave() {
+        try {
+            if (this.isPaired()) await this._post("/api/sync/leave", { secret: this.secret });
+        } catch (e) { /* ignore */ }
+        try {
+            localStorage.removeItem(this.S_SECRET);
+            localStorage.removeItem(this.S_CODE);
+            localStorage.removeItem(this.S_LAST);
+        } catch (e) {}
+        updateSyncUI();
+    }
+};
+
+function _fmtSyncTime(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function setSyncStatus(state) {
+    const el = document.getElementById("syncStatusLine");
+    if (!el) return;
+    const last = SyncManager.lastSync;
+    if (!SyncManager.isPaired()) {
+        el.innerHTML = `☁️ <span>sync မလုပ်ရသေး</span>`;
+        el.className = "sync-status";
+        return;
+    }
+    const map = {
+        syncing: [`☁️ <span>sync လုပ်နေတယ်…</span>`, "sync-status syncing"],
+        pending: [`☁️ <span>• စောင့်နေတယ်</span>`, "sync-status"],
+        ok: [`☁️ <span>✓ ${_fmtSyncTime(last) || "ပြီးပြီ"}</span>`, "sync-status ok"],
+        error: [`☁️ <span>sync မအောင်မြင်ပါ — နှိပ်ပြီး ပြန်လုပ်ပါ</span>`, "sync-status error"],
+    };
+    const [html, cls] = map[state] || map.ok;
+    el.innerHTML = html;
+    el.className = cls;
+}
+
+function updateSyncUI() {
+    setSyncStatus(SyncManager.isPaired() ? "ok" : "unpaired");
+    const codeEl = document.getElementById("syncCodeDisplay");
+    if (codeEl && SyncManager.isPaired()) codeEl.textContent = SyncManager.code || "";
+    if (document.getElementById("syncModal").style.display !== "none") renderSyncModal();
+}
+
+// --- Sync modal ---
+function openSyncModal() {
+    renderSyncModal();
+    document.getElementById("syncModal").style.display = "flex";
+}
+function closeSyncModal() {
+    document.getElementById("syncModal").style.display = "none";
+}
+
+function renderSyncModal() {
+    const body = document.getElementById("syncModalBody");
+    if (!body) return;
+    if (!SyncManager.isPaired()) {
+        body.innerHTML = `
+            <p class="sync-desc">ဖုန်း / ကွန်ပျူတာ အားလုံးမှာ မှတ်ချက်တွေ တူညီအောင် sync ကုဒ်နဲ့ ချိတ်ပါ။</p>
+            <button id="btnSyncCreate" class="sync-primary-btn">🔑 ကုဒ်အသစ် ထုတ်ရန်</button>
+            <div class="sync-divider"><span>သို့မဟုတ်</span></div>
+            <label class="sync-label">ရှိပြီးသား ကုဒ်နဲ့ ချိတ်ရန်</label>
+            <div class="sync-join-row">
+                <input id="syncCodeInput" class="sync-code-input" placeholder="XXXX-XXXX" maxlength="9"
+                       autocapitalize="characters" autocomplete="off" spellcheck="false" />
+                <button id="btnSyncClaim" class="sync-secondary-btn">ချိတ်မည်</button>
+            </div>
+            <div id="syncModalMsg" class="sync-msg"></div>`;
+        document.getElementById("btnSyncCreate").addEventListener("click", async (e) => {
+            const btn = e.currentTarget, msg = document.getElementById("syncModalMsg");
+            btn.disabled = true; msg.textContent = "ကုဒ် ထုတ်နေတယ်…";
+            try {
+                await SyncManager.create();
+                renderSyncModal();
+            } catch (err) {
+                msg.textContent = "မအောင်မြင်ပါ: " + (err.message || err);
+                btn.disabled = false;
+            }
+        });
+        const doClaim = async () => {
+            const input = document.getElementById("syncCodeInput");
+            const msg = document.getElementById("syncModalMsg");
+            msg.textContent = "ချိတ်နေတယ်…";
+            try {
+                await SyncManager.claim(input.value);
+                renderSyncModal();
+            } catch (err) {
+                msg.textContent = "မအောင်မြင်ပါ: " + (err.message || err);
+            }
+        };
+        document.getElementById("btnSyncClaim").addEventListener("click", doClaim);
+        document.getElementById("syncCodeInput").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") doClaim();
+        });
+    } else {
+        body.innerHTML = `
+            <p class="sync-desc">ဒီကုဒ်ကို နောက် device မှာ ရိုက်ထည့်ပြီး ချိတ်နိုင်တယ်။</p>
+            <div class="sync-code-box">
+                <span id="syncCodeDisplay" class="sync-code">${escapeHtml(SyncManager.code || "")}</span>
+                <button id="btnSyncCopyCode" class="sync-secondary-btn">📋 ကူးရန်</button>
+            </div>
+            <div id="syncModalMsg" class="sync-msg"></div>
+            <div class="sync-info" id="syncInfoLine">…</div>
+            <div class="sync-actions">
+                <button id="btnSyncNow" class="sync-primary-btn">🔄 ယခု Sync လုပ်ရန်</button>
+                <button id="btnSyncLeave" class="sync-danger-btn">🔌 ဒီ device ကို ဖြုတ်ရန်</button>
+            </div>`;
+        document.getElementById("btnSyncCopyCode").addEventListener("click", async () => {
+            const msg = document.getElementById("syncModalMsg");
+            try {
+                await navigator.clipboard.writeText(SyncManager.code || "");
+                msg.textContent = "ကုဒ် ကူးပြီးပြီ ✓";
+            } catch (e) { msg.textContent = "ကူးမရပါ၊ ကုဒ်ကို လက်နဲ့ မှတ်ပါ"; }
+        });
+        document.getElementById("btnSyncNow").addEventListener("click", () => SyncManager.syncNow());
+        document.getElementById("btnSyncLeave").addEventListener("click", async () => {
+            if (confirm("ဒီ device ကို sync ကနေ ဖြုတ်မှာလား? (မှတ်ချက်တွေက ဒီ device မှာ ကျန်မယ်)")) {
+                await SyncManager.leave();
+                renderSyncModal();
+            }
+        });
+        SyncManager._post("/api/sync/status", { secret: SyncManager.secret })
+            .then(s => {
+                const line = document.getElementById("syncInfoLine");
+                if (line) line.textContent = `📱 devices: ${s.devices} • 📝 မှတ်ချက်များ: ${s.annotations}`;
+            })
+            .catch(() => {});
+    }
+}
+
+function setupSyncUI() {
+    const openBtn = document.getElementById("btnOpenSync");
+    if (openBtn) openBtn.addEventListener("click", openSyncModal);
+    const closeBtn = document.getElementById("btnCloseSyncModal");
+    if (closeBtn) closeBtn.addEventListener("click", closeSyncModal);
+    const modal = document.getElementById("syncModal");
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeSyncModal();
+            e.stopPropagation();
+        });
+    }
+    const statusEl = document.getElementById("syncStatusLine");
+    if (statusEl) statusEl.addEventListener("click", () => {
+        if (SyncManager.isPaired()) SyncManager.syncNow();
+        else openSyncModal();
+    });
+    updateSyncUI();
+    // Initial background sync shortly after app start
+    if (SyncManager.isPaired()) setTimeout(() => SyncManager.syncNow(), 4000);
+    // Re-sync when returning to the app after a while
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && SyncManager.isPaired()
+            && Date.now() - SyncManager.lastSync > 10 * 60 * 1000) {
+            SyncManager.syncNow();
+        }
     });
 }
 
@@ -687,12 +1192,17 @@ function setupAnnotationListeners() {
                 AnnotationManager.clearAll();
                 renderAnnotationSidebar();
                 applyAnnotationsToCurrentPage();
+                SyncManager.schedulePush();
             }
         });
     }
 
-    // Text-selection annotation (select text → popup → save)
+    // Text-selection annotation (select text → mini toolbar → save)
     setupSelectionAnnotation();
+    // Tap a highlight to edit it
+    setupHighlightTapToEdit();
+    // Cross-device sync UI + background sync
+    setupSyncUI();
 }
 
 // Initialize Application

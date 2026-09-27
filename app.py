@@ -4,6 +4,10 @@ import sqlite3
 import re
 import webbrowser
 import threading
+import secrets
+import hashlib
+import time
+import json
 from functools import lru_cache
 from flask import Flask, jsonify, render_template, request, send_from_directory, g
 
@@ -20,8 +24,8 @@ app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 @app.after_request
 def add_cache_headers(response):
     path = request.path
-    # 1. Mutable user state: bookmarks and recent read state must never be cached
-    if path.startswith("/api/bookmarks") or path.startswith("/api/recent"):
+    # 1. Mutable user state: bookmarks, recent read state and annotation sync must never be cached
+    if path.startswith("/api/bookmarks") or path.startswith("/api/recent") or path.startswith("/api/sync"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -1306,11 +1310,309 @@ def api_recent():
             conn.close()
         return jsonify({"status": "success"})
 
+# ============================================================
+# Annotation Sync — cross-device via pairing code
+# A device creates a sync code (e.g. "X7K2-9PQ4"); entering the
+# code on another device links it to the same sync account.
+# Each device holds its own random secret (stored hashed server-side);
+# the short code is only used once for pairing.
+# Sync protocol: last-write-wins per annotation id + tombstones.
+# ============================================================
+SYNC_DB_PATH = os.path.join(BASE_DIR, "sync.db")
+_SYNC_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L confusables
+_SYNC_COLORS = {"amber", "blue", "green", "red"}
+_SYNC_RATE = {}  # ip -> [attempt timestamps] for /api/sync/claim
+
+
+def _sync_conn():
+    conn = sqlite3.connect(SYNC_DB_PATH, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_sync_db():
+    conn = _sync_conn()
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS sync_accounts (
+        id INTEGER PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sync_devices (
+        id INTEGER PRIMARY KEY,
+        account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
+        secret_hash TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_devices_hash ON sync_devices(secret_hash);
+    CREATE TABLE IF NOT EXISTS sync_annotations (
+        account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
+        ann_id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (account_id, ann_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_ann_updated ON sync_annotations(account_id, updated_at);
+    """)
+    conn.commit()
+    conn.close()
+
+
+def _new_sync_code():
+    return "-".join("".join(secrets.choice(_SYNC_CODE_ALPHABET) for _ in range(4)) for _ in range(2))
+
+
+def _hash_secret(s):
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def _sync_account_by_secret(secret):
+    """Return {id, code, device_id} for a valid device secret, else None."""
+    if not isinstance(secret, str) or not secret or len(secret) > 128:
+        return None
+    conn = _sync_conn()
+    try:
+        row = conn.execute(
+            """SELECT a.id AS id, a.code AS code, d.id AS device_id
+               FROM sync_devices d JOIN sync_accounts a ON a.id = d.account_id
+               WHERE d.secret_hash = ?""",
+            (_hash_secret(secret),)).fetchone()
+        if row:
+            conn.execute("UPDATE sync_devices SET last_seen = ? WHERE id = ?",
+                         (int(time.time()), row["device_id"]))
+            conn.commit()
+            return {"id": row["id"], "code": row["code"], "device_id": row["device_id"]}
+        return None
+    finally:
+        conn.close()
+
+
+def _claim_rate_ok(ip):
+    now = time.time()
+    hits = [t for t in _SYNC_RATE.get(ip, []) if now - t < 300]
+    if len(hits) >= 10:
+        return False
+    hits.append(now)
+    _SYNC_RATE[ip] = hits
+    if len(_SYNC_RATE) > 2000:  # avoid unbounded growth
+        _SYNC_RATE.clear()
+    return True
+
+
+def _clean_annotation(a):
+    """Whitelist + length-cap a client-supplied annotation. Returns dict or None."""
+    if not isinstance(a, dict):
+        return None
+    ann_id = str(a.get("id", ""))[:64]
+    if not ann_id:
+        return None
+    color = str(a.get("color", "amber"))
+    if color not in _SYNC_COLORS:
+        color = "amber"
+    try:
+        page = int(a.get("page", 0))
+    except (TypeError, ValueError):
+        page = 0
+    try:
+        updated_at = int(a.get("updatedAt", 0))
+    except (TypeError, ValueError):
+        updated_at = 0
+    if updated_at <= 0:
+        updated_at = int(time.time() * 1000)
+    try:
+        sel_start = max(0, int(a.get("selStart", 0)))
+    except (TypeError, ValueError):
+        sel_start = 0
+    return {
+        "id": ann_id,
+        "bookId": str(a.get("bookId", ""))[:64],
+        "bookName": str(a.get("bookName", ""))[:120],
+        "page": page,
+        "paraId": str(a.get("paraId", ""))[:32],
+        "paraText": str(a.get("paraText", ""))[:200],
+        "selText": str(a.get("selText", ""))[:500],
+        "selStart": sel_start,
+        "color": color,
+        "note": str(a.get("note", ""))[:500],
+        "updatedAt": updated_at,
+        "deleted": 1 if a.get("deleted") else 0,
+    }
+
+
+@app.route("/api/sync/create", methods=["POST"])
+def api_sync_create():
+    """Create a new sync account; returns pairing code + this device's secret."""
+    data = request.json or {}
+    name = str(data.get("device_name", ""))[:40] or "Device"
+    conn = _sync_conn()
+    try:
+        code = None
+        for _ in range(5):
+            candidate = _new_sync_code()
+            try:
+                cur = conn.execute(
+                    "INSERT INTO sync_accounts (code, created_at) VALUES (?, ?)",
+                    (candidate, int(time.time())))
+                code = candidate
+                break
+            except sqlite3.IntegrityError:
+                continue
+        if code is None:
+            return jsonify({"error": "could not generate code"}), 500
+        account_id = cur.lastrowid
+        secret = secrets.token_urlsafe(32)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO sync_devices (account_id, secret_hash, name, created_at, last_seen)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (account_id, _hash_secret(secret), name, now, now))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"code": code, "secret": secret})
+
+
+@app.route("/api/sync/claim", methods=["POST"])
+def api_sync_claim():
+    """Join an existing sync account with a pairing code; returns this device's secret."""
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    if not _claim_rate_ok(ip):
+        return jsonify({"error": "too many attempts, try again later"}), 429
+    data = request.json or {}
+    code = str(data.get("code", "")).upper().replace(" ", "")
+    name = str(data.get("device_name", ""))[:40] or "Device"
+    if not re.fullmatch(r"[A-Z2-9]{4}-[A-Z2-9]{4}", code):
+        return jsonify({"error": "invalid code format"}), 400
+    conn = _sync_conn()
+    try:
+        row = conn.execute("SELECT id FROM sync_accounts WHERE code = ?", (code,)).fetchone()
+        if not row:
+            return jsonify({"error": "code not found"}), 404
+        secret = secrets.token_urlsafe(32)
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO sync_devices (account_id, secret_hash, name, created_at, last_seen)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (row["id"], _hash_secret(secret), name, now, now))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"secret": secret, "code": code})
+
+
+@app.route("/api/sync/push", methods=["POST"])
+def api_sync_push():
+    """Upload annotations; last-write-wins per annotation id."""
+    data = request.json or {}
+    acc = _sync_account_by_secret(data.get("secret"))
+    if not acc:
+        return jsonify({"error": "unauthorized"}), 401
+    anns = data.get("annotations")
+    if not isinstance(anns, list) or len(anns) > 5000:
+        return jsonify({"error": "invalid annotations"}), 400
+    conn = _sync_conn()
+    try:
+        for a in anns:
+            clean = _clean_annotation(a)
+            if not clean:
+                continue
+            row = conn.execute(
+                "SELECT updated_at FROM sync_annotations WHERE account_id = ? AND ann_id = ?",
+                (acc["id"], clean["id"])).fetchone()
+            if row is None or clean["updatedAt"] >= row["updated_at"]:
+                conn.execute(
+                    """INSERT INTO sync_annotations (account_id, ann_id, data, updated_at, deleted)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(account_id, ann_id) DO UPDATE SET
+                         data = excluded.data, updated_at = excluded.updated_at,
+                         deleted = excluded.deleted""",
+                    (acc["id"], clean["id"], json.dumps(clean, ensure_ascii=False),
+                     clean["updatedAt"], clean["deleted"]))
+        # Prune tombstones older than 90 days
+        cutoff = int(time.time() * 1000) - 90 * 24 * 3600 * 1000
+        conn.execute(
+            "DELETE FROM sync_annotations WHERE account_id = ? AND deleted = 1 AND updated_at < ?",
+            (acc["id"], cutoff))
+        conn.commit()
+        count = conn.execute(
+            "SELECT COUNT(*) AS c FROM sync_annotations WHERE account_id = ? AND deleted = 0",
+            (acc["id"],)).fetchone()["c"]
+    finally:
+        conn.close()
+    return jsonify({"ok": True, "count": count, "server_time": int(time.time() * 1000)})
+
+
+@app.route("/api/sync/pull", methods=["POST"])
+def api_sync_pull():
+    """Download annotations changed since `since` (ms epoch); includes tombstones."""
+    data = request.json or {}
+    acc = _sync_account_by_secret(data.get("secret"))
+    if not acc:
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        since = int(data.get("since", 0))
+    except (TypeError, ValueError):
+        since = 0
+    conn = _sync_conn()
+    try:
+        rows = conn.execute(
+            "SELECT data FROM sync_annotations WHERE account_id = ? AND updated_at > ?",
+            (acc["id"], since)).fetchall()
+    finally:
+        conn.close()
+    return jsonify({
+        "annotations": [json.loads(r["data"]) for r in rows],
+        "server_time": int(time.time() * 1000),
+    })
+
+
+@app.route("/api/sync/status", methods=["POST"])
+def api_sync_status():
+    data = request.json or {}
+    acc = _sync_account_by_secret(data.get("secret"))
+    if not acc:
+        return jsonify({"error": "unauthorized"}), 401
+    conn = _sync_conn()
+    try:
+        devices = conn.execute(
+            "SELECT COUNT(*) AS c FROM sync_devices WHERE account_id = ?",
+            (acc["id"],)).fetchone()["c"]
+        anns = conn.execute(
+            "SELECT COUNT(*) AS c FROM sync_annotations WHERE account_id = ? AND deleted = 0",
+            (acc["id"],)).fetchone()["c"]
+    finally:
+        conn.close()
+    return jsonify({"code": acc["code"], "devices": devices, "annotations": anns})
+
+
+@app.route("/api/sync/leave", methods=["POST"])
+def api_sync_leave():
+    """Unlink this device from the sync account (account + data stay for other devices)."""
+    data = request.json or {}
+    acc = _sync_account_by_secret(data.get("secret"))
+    if not acc:
+        return jsonify({"error": "unauthorized"}), 401
+    conn = _sync_conn()
+    try:
+        conn.execute("DELETE FROM sync_devices WHERE id = ?", (acc["device_id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    init_sync_db()
     if os.environ.get("NO_BROWSER") != "1":
         threading.Timer(1.2, open_browser).start()
     print(f"==================================================")

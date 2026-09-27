@@ -1,7 +1,15 @@
 const body = document.querySelector('body');
     
-body.addEventListener('click', function() {
-    
+body.addEventListener('click', function(e) {
+    // Don't hijack taps on interactive UI: buttons, inputs, popups,
+    // annotation highlights/toolbars, sync modal, links.
+    var t = e && e.target;
+    if (t && t.closest && t.closest(
+        'button, a, input, textarea, select, .annotation-popup, ' +
+        '#annSelectToolbar, #syncModal, span.ann-sel')) {
+        return;
+    }
+
     var sel = window.getSelection();
     var part_one = "";
     var part_two = "";

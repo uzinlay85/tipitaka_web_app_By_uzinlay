@@ -355,8 +355,12 @@
             <div class="sidebar-tab-panel" id="tab-annotations">
                 <div class="annotation-tab-header">
                     <span class="annotation-tab-title">📌 စာပိုဒ်မှတ်ချက်များ</span>
-                    <button class="icon-btn-sm" id="btnClearAnnotations" title="မှတ်ချက်အားလုံး ဖျက်ရန်" style="font-size:11px; color:var(--text-muted);">🗑️</button>
+                    <div class="annotation-tab-actions">
+                        <button class="icon-btn-sm" id="btnOpenSync" title="ဖုန်း/ကွန်ပျူတာ sync">☁️</button>
+                        <button class="icon-btn-sm" id="btnClearAnnotations" title="မှတ်ချက်အားလုံး ဖျက်ရန်" style="font-size:11px; color:var(--text-muted);">🗑️</button>
+                    </div>
                 </div>
+                <div id="syncStatusLine" class="sync-status" title="နှိပ်ပြီး sync လုပ်ရန်"></div>
                 <div class="annotation-color-legend">
                     <span class="ann-legend-item"><span class="ann-dot" style="background:#f59e0b"></span>ကျက်မှတ်</span>
                     <span class="ann-legend-item"><span class="ann-dot" style="background:#3b82f6"></span>နှိုင်းကြည့်</span>
@@ -364,7 +368,7 @@
                     <span class="ann-legend-item"><span class="ann-dot" style="background:#ef4444"></span>သတိပြု</span>
                 </div>
                 <div class="annotation-list" id="annotationList">
-                    <div class="empty-state">📌 ကျမ်းဖတ်ရင်း paragraph ပေါ် hover ပြု၍ 📌 icon ကို နှိပ်ပါ။</div>
+                    <div class="empty-state">✨ ဖတ်နေရင်း လိုချင်တဲ့ စာသားကို select လုပ်လိုက်ရင် 🖍️/📝 toolbar ပေါ်လာပါမယ်။</div>
                 </div>
             </div>
         </aside>
@@ -1030,14 +1034,25 @@
             <button class="ann-color-btn" data-color="green" style="background:#10b981" title="အရေးကြီး"></button>
             <button class="ann-color-btn" data-color="red" style="background:#ef4444" title="သတိပြုရန်"></button>
         </div>
-        <textarea id="annotationNoteInput" class="ann-note-input" placeholder="မှတ်ချက် ရေးပါ (မဖြစ်မနေမဟုတ်ပါ)..." rows="3"></textarea>
+        <textarea id="annotationNoteInput" class="ann-note-input" placeholder="မှတ်ချက် ရေးပါ (မဖြစ်မနေမဟုတ်ပါ)..." rows="3" maxlength="500"></textarea>
         <div class="ann-popup-actions">
             <button id="btnSaveAnnotation" class="ann-save-btn">💾 သိမ်းမည်</button>
             <button id="btnDeleteAnnotation" class="ann-delete-btn" style="display:none;">🗑️ ဖျက်မည်</button>
         </div>
     </div>
 
+    <!-- Cross-device Sync Modal -->
+    <div id="syncModal" class="sync-modal" style="display:none;">
+        <div class="sync-modal-card">
+            <div class="sync-modal-header">
+                <span class="sync-modal-title">☁️ မှတ်ချက်များ Sync</span>
+                <button id="btnCloseSyncModal" class="ann-popup-close">✕</button>
+            </div>
+            <div id="syncModalBody"></div>
+        </div>
+    </div>
+
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=5.6"></script>
+    <script src="/static/app.js?v=5.7"></script>
 </body>
 </html>

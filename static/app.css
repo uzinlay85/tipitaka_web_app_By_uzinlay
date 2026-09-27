@@ -4099,3 +4099,174 @@ body.ios-fullscreen-fallback .reader-container {
 }
 .annotation-item:hover .ann-item-del { opacity: 1; }
 .ann-item-del:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
+
+/* --- Mini selection toolbar (Medium-style) --- */
+.ann-select-toolbar {
+    position: fixed;
+    z-index: 10000;
+    display: flex;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 6px 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.22);
+    animation: ann-tb-pop 0.12s ease-out;
+}
+@keyframes ann-tb-pop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.ann-tb-btn {
+    border: none;
+    background: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 16px;
+    line-height: 1;
+}
+.ann-tb-btn:hover { background: var(--border); }
+.ann-tb-btn:active { transform: scale(0.92); }
+
+/* --- Annotation tab: actions + sync status --- */
+.annotation-tab-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+.sync-status {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+}
+.sync-status.ok span { color: #10b981; }
+.sync-status.syncing span { color: #3b82f6; }
+.sync-status.error span { color: #ef4444; }
+
+/* --- Sync modal --- */
+.sync-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.sync-modal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    width: 340px;
+    max-width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.sync-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.sync-modal-title { font-size: 0.9rem; font-weight: 700; }
+.sync-desc { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 12px; line-height: 1.6; }
+.sync-primary-btn {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 11px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #3b82f6;
+    color: #fff;
+}
+.sync-primary-btn:disabled { opacity: 0.6; cursor: default; }
+.sync-secondary-btn {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-primary, var(--foreground));
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.sync-danger-btn {
+    border: 1px solid #ef4444;
+    background: none;
+    color: #ef4444;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    flex: 1;
+}
+.sync-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+.sync-divider::before, .sync-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+.sync-label { font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 8px; }
+.sync-join-row { display: flex; gap: 8px; }
+.sync-code-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: var(--background, #fff);
+    color: var(--text-primary, var(--foreground));
+    font-family: monospace;
+    min-width: 0;
+}
+.sync-msg { font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; min-height: 1.2em; }
+.sync-code-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--background, #f5f5f5);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+.sync-code {
+    font-family: monospace;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+}
+.sync-info { font-size: 0.78rem; color: var(--text-muted); margin: 10px 0; }
+.sync-actions { display: flex; gap: 8px; }
+.sync-actions .sync-primary-btn { flex: 2; width: auto; }
+
+/* --- Mobile: annotation popup becomes a bottom sheet --- */
+@media (max-width: 640px) {
+    .annotation-popup {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: 12px !important;
+        top: auto !important;
+        width: auto !important;
+        max-height: 46vh;
+        overflow-y: auto;
+    }
+}
