@@ -4554,7 +4554,9 @@ function setupEventListeners() {
         btnCloseSidebarMobile.addEventListener("click", () => toggleSidebar(false));
     }
 
-    // Mobile drawer quick-controls: collapsible (state persisted)
+    // Mobile drawer quick-controls: collapsible (state persisted).
+    // Default to collapsed on phones so the ကျမ်းစာများ/မာတိကာ tabs and their
+    // lists get the full drawer space immediately; an explicit saved choice wins.
     const DRAWER_CONTROLS_KEY = "tipitaka_mobile_drawer_controls_collapsed";
     const setDrawerControlsCollapsed = (collapsed) => {
         const wrap = document.getElementById("mobileDrawerControls");
@@ -4562,7 +4564,13 @@ function setupEventListeners() {
         try { localStorage.setItem(DRAWER_CONTROLS_KEY, collapsed ? "1" : "0"); } catch (e) {}
     };
     let _drawerControlsCollapsed = false;
-    try { _drawerControlsCollapsed = localStorage.getItem(DRAWER_CONTROLS_KEY) === "1"; } catch (e) {}
+    try {
+        const _savedDrawerControls = localStorage.getItem(DRAWER_CONTROLS_KEY);
+        _drawerControlsCollapsed = _savedDrawerControls === "1" ||
+            (_savedDrawerControls === null && window.innerWidth <= 768);
+    } catch (e) {
+        _drawerControlsCollapsed = window.innerWidth <= 768;
+    }
     setDrawerControlsCollapsed(_drawerControlsCollapsed);
     const btnToggleDrawerControls = document.getElementById("btnToggleDrawerControls");
     if (btnToggleDrawerControls) {

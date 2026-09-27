@@ -2711,6 +2711,12 @@ body.hide-notes .note {
         white-space: nowrap;
         padding: 8px 2px;
         gap: 3px;
+        min-width: 0;
+    }
+    .tab-btn span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     .tab-btn svg {
         width: 14px;
@@ -4414,5 +4420,26 @@ body.ios-fullscreen-fallback .reader-container {
         width: auto !important;
         max-height: 46vh;
         overflow-y: auto;
+    }
+}
+
+/* --- Small phones (<= 480px): header cannot fit every tool, and
+   .app-header uses overflow-x: hidden, so the rightmost buttons would be
+   silently clipped. These three tools also live in the mobile drawer /
+   bottom nav, so hide their header copies instead of clipping. --- */
+@media (max-width: 480px) {
+    #btnToggleNotes,
+    #relatedDropdownWrapper,
+    #btnOpenHistory {
+        display: none !important;
+    }
+    .page-indicator input {
+        width: 38px;
+    }
+    .header-left, .header-center, .header-right {
+        gap: 2px;
+    }
+    .app-header {
+        gap: 4px;
     }
 }
