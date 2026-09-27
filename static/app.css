@@ -3247,6 +3247,11 @@ body.view-reader .home-page-container {
     flex-shrink: 0;
 }
 
+/* Short title shown only on small screens (long title hidden there) */
+.history-title-short {
+    display: none;
+}
+
 .history-header-actions {
     display: flex;
     align-items: center;
@@ -3593,6 +3598,99 @@ body.view-reader .home-page-container {
     }
     .history-time-tag {
         font-size: 0.75rem;
+    }
+}
+
+/* Compact history modal on phones: the header + toolbar chrome took too much
+   vertical space, leaving little room for the actual history list. */
+@media (max-width: 640px) {
+    .history-modal-dialog {
+        width: 97% !important;
+        max-height: 94dvh !important;
+    }
+    .history-modal-header {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+    .history-modal-title {
+        font-size: 0.95rem;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .history-modal-title svg {
+        width: 18px;
+        height: 18px;
+    }
+    .history-title-long {
+        display: none;
+    }
+    .history-title-short {
+        display: inline;
+    }
+    .history-header-actions {
+        gap: 4px;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+    }
+    /* Icon-only action buttons on phones */
+    .history-action-btn,
+    .history-clear-btn {
+        padding: 7px 8px;
+        font-size: 0.8rem;
+    }
+    .history-action-btn span,
+    .history-clear-btn span {
+        display: none;
+    }
+    #btnCloseHistory {
+        padding: 6px;
+    }
+    .history-toolbar {
+        padding: 8px 10px 6px 10px;
+        gap: 6px;
+    }
+    .history-search-wrapper input {
+        padding: 8px 10px 8px 34px;
+        font-size: 0.85rem;
+    }
+    .history-nav-tabs {
+        gap: 4px;
+        padding-bottom: 4px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .history-nav-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .history-tab-btn {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+        gap: 5px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .history-badge-count {
+        font-size: 0.7rem;
+    }
+    .history-filter-pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        margin-top: 0;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+    .history-filter-pills::-webkit-scrollbar {
+        display: none;
+    }
+    .history-pill {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 0.76rem;
+        padding: 4px 10px;
+    }
+    .history-modal-body {
+        padding: 8px 10px 14px 10px;
     }
 }
 
