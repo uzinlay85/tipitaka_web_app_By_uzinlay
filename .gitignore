@@ -32,3 +32,8 @@ env/
 Tipitak_MM/
 scratch/
 
+
+# local-only runtime/font assets
+server.log
+static/Zawgyi-One.ttf
+static/*zawgyi*.css
