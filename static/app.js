@@ -4554,6 +4554,24 @@ function setupEventListeners() {
         btnCloseSidebarMobile.addEventListener("click", () => toggleSidebar(false));
     }
 
+    // Mobile drawer quick-controls: collapsible (state persisted)
+    const DRAWER_CONTROLS_KEY = "tipitaka_mobile_drawer_controls_collapsed";
+    const setDrawerControlsCollapsed = (collapsed) => {
+        const wrap = document.getElementById("mobileDrawerControls");
+        if (wrap) wrap.classList.toggle("controls-collapsed", !!collapsed);
+        try { localStorage.setItem(DRAWER_CONTROLS_KEY, collapsed ? "1" : "0"); } catch (e) {}
+    };
+    let _drawerControlsCollapsed = false;
+    try { _drawerControlsCollapsed = localStorage.getItem(DRAWER_CONTROLS_KEY) === "1"; } catch (e) {}
+    setDrawerControlsCollapsed(_drawerControlsCollapsed);
+    const btnToggleDrawerControls = document.getElementById("btnToggleDrawerControls");
+    if (btnToggleDrawerControls) {
+        btnToggleDrawerControls.addEventListener("click", () => {
+            const wrap = document.getElementById("mobileDrawerControls");
+            setDrawerControlsCollapsed(!(wrap && wrap.classList.contains("controls-collapsed")));
+        });
+    }
+
     // Mobile Mode Buttons inside Drawer
     document.querySelectorAll(".mobile-mode-btn").forEach(btn => {
         btn.addEventListener("click", () => {

@@ -2630,6 +2630,37 @@ body.hide-notes .note {
     justify-content: space-between;
     margin-bottom: 8px;
 }
+/* Tappable header row: collapses/expands the quick-controls body */
+.mobile-drawer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 6px 4px;
+    margin: -6px -4px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    flex: 1;
+    text-align: left;
+    min-height: 40px;
+}
+.drawer-chevron {
+    font-size: 0.9rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+.mobile-drawer-controls.controls-collapsed .drawer-chevron {
+    transform: rotate(180deg);
+}
+.mobile-drawer-controls.controls-collapsed .mobile-drawer-body {
+    display: none;
+}
+.mobile-drawer-controls.controls-collapsed .mobile-drawer-header {
+    margin-bottom: 0;
+}
 .mobile-drawer-title {
     font-size: 0.8rem;
     font-weight: bold;

@@ -7,7 +7,7 @@
     
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
-    <link rel="stylesheet" href="/static/app.css?v=5.9">
+    <link rel="stylesheet" href="/static/app.css?v=6.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -213,9 +213,13 @@
             <!-- Mobile Drawer Quick Controls (Visible only on mobile/tablet) -->
             <div class="mobile-drawer-controls" id="mobileDrawerControls">
                 <div class="mobile-drawer-header">
-                    <span class="mobile-drawer-title">စာဖတ် ပုံစံ ရွေးချယ်ရန်</span>
+                    <button class="mobile-drawer-toggle" id="btnToggleDrawerControls" title="စာဖတ်ပုံစံ ရွေးချယ်မှုများ အဖွင့်/အပိတ်">
+                        <span class="mobile-drawer-title">စာဖတ် ပုံစံ ရွေးချယ်ရန်</span>
+                        <span class="drawer-chevron">⌃</span>
+                    </button>
                     <button class="icon-btn-sm" id="btnCloseSidebarMobile" title="ပိတ်ရန်">&times;</button>
                 </div>
+                <div class="mobile-drawer-body" id="mobileDrawerBody">
                 <div class="mobile-edition-switcher">
                     <button class="edition-btn mobile-mode-btn active" data-mode="pali">☸️ ပါဠိတော်</button>
                     <button class="edition-btn mobile-mode-btn" data-mode="mm">🇲🇲 မြန်မာပြန်</button>
@@ -269,6 +273,7 @@
                         <span>⛶</span>
                         <span id="fullscreenMobileLabel">မျက်နှာပြင်ပြည့် ဖတ်ရှုရန် (Focus Mode)</span>
                     </button>
+                </div>
                 </div>
             </div>
 
@@ -1054,6 +1059,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=6.1"></script>
+    <script src="/static/app.js?v=6.2"></script>
 </body>
 </html>
