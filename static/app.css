@@ -26,7 +26,7 @@ body.theme-paper, [data-theme="paper"] {
     --bg-app: #f5f2eb;
     --bg-header: #ebe6dc;
     --bg-sidebar: #f0ebe0;
-    --bg-paper: #fcfbf7;
+    --bg-paper: #f8f1df;
     --bg-surface: #f3eee3;
     --bg-hover: #e5ded2;
     --border-color: #ded6c8;
@@ -40,7 +40,7 @@ body.theme-paper, [data-theme="paper"] {
     --shadow-color: rgba(60, 40, 20, 0.08);
     --dict-bg: #f9f7f2;
     --highlight-bg: #fff0a6;
-    --card: #fcfbf7;
+    --card: #f8f1df;
     --border: #ded6c8;
 }
 
