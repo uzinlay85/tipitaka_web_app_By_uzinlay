@@ -1324,43 +1324,55 @@ _SYNC_COLORS = {"amber", "blue", "green", "red"}
 _SYNC_RATE = {}  # ip -> [attempt timestamps] for /api/sync/claim
 
 
+_SYNC_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sync_accounts (
+    id INTEGER PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sync_devices (
+    id INTEGER PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
+    secret_hash TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_sync_devices_hash ON sync_devices(secret_hash);
+CREATE TABLE IF NOT EXISTS sync_annotations (
+    account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
+    ann_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, ann_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sync_ann_updated ON sync_annotations(account_id, updated_at);
+"""
+_SYNC_DB_READY = False
+
+
 def _sync_conn():
+    global _SYNC_DB_READY
     conn = sqlite3.connect(SYNC_DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    # Lazy init: ensures tables exist even when the app is run via
+    # gunicorn/systemd (where __main__ never executes). Idempotent.
+    if not _SYNC_DB_READY:
+        try:
+            conn.executescript(_SYNC_SCHEMA)
+            conn.commit()
+            _SYNC_DB_READY = True
+        except Exception:
+            pass
     return conn
 
 
 def init_sync_db():
     conn = _sync_conn()
-    conn.executescript("""
-    CREATE TABLE IF NOT EXISTS sync_accounts (
-        id INTEGER PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,
-        created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS sync_devices (
-        id INTEGER PRIMARY KEY,
-        account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
-        secret_hash TEXT NOT NULL,
-        name TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL,
-        last_seen INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS idx_sync_devices_hash ON sync_devices(secret_hash);
-    CREATE TABLE IF NOT EXISTS sync_annotations (
-        account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
-        ann_id TEXT NOT NULL,
-        data TEXT NOT NULL,
-        updated_at INTEGER NOT NULL,
-        deleted INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (account_id, ann_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_sync_ann_updated ON sync_annotations(account_id, updated_at);
-    """)
-    conn.commit()
     conn.close()
 
 
