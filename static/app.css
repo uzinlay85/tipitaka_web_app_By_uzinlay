@@ -40,6 +40,8 @@ body.theme-paper, [data-theme="paper"] {
     --shadow-color: rgba(60, 40, 20, 0.08);
     --dict-bg: #f9f7f2;
     --highlight-bg: #fff0a6;
+    --card: #fcfbf7;
+    --border: #ded6c8;
 }
 
 /* Crisp Light Theme */
@@ -61,6 +63,8 @@ body.theme-light, [data-theme="light"] {
     --shadow-color: rgba(0, 0, 0, 0.05);
     --dict-bg: #f8fafc;
     --highlight-bg: #fef08a;
+    --card: #ffffff;
+    --border: #e2e8f0;
 }
 
 /* Night Theme (Dark Mode) */
@@ -82,6 +86,8 @@ body.theme-night, [data-theme="night"] {
     --shadow-color: rgba(0, 0, 0, 0.4);
     --dict-bg: #161a20;
     --highlight-bg: #4a3b10;
+    --card: #222730;
+    --border: #2e3540;
 }
 
 /* Reset & Basics */
@@ -4281,7 +4287,7 @@ body.ios-fullscreen-fallback .reader-container {
     position: fixed;
     inset: 0;
     z-index: 10001;
-    background: rgba(0,0,0,0.45);
+    background: rgba(0,0,0,0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4294,7 +4300,7 @@ body.ios-fullscreen-fallback .reader-container {
     padding: 18px;
     width: 340px;
     max-width: 100%;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
 }
 .sync-modal-header {
     display: flex;
