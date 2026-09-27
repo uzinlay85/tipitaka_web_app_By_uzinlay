@@ -4884,12 +4884,16 @@ function setupEventListeners() {
         if (state.scrollMode !== "feed") return;
 
         // Auto load next page when scrolled near bottom (within 250px)
+        // Auto load previous page when scrolled near top (within 250px)
         if (!feedScrollThrottleTimer) {
             feedScrollThrottleTimer = setTimeout(() => {
                 feedScrollThrottleTimer = null;
                 const c = el.readerContainer;
-                if (c && (c.scrollHeight - c.scrollTop - c.clientHeight <= 250)) {
+                if (!c) return;
+                if (c.scrollHeight - c.scrollTop - c.clientHeight <= 250) {
                     loadNextFeedPage();
+                } else if (c.scrollTop <= 250) {
+                    handleLoadPrevPage();
                 }
             }, 120);
         }
