@@ -4572,6 +4572,33 @@ function setupEventListeners() {
         });
     }
 
+    // Swipe-to-close for mobile drawers (standard touch pattern):
+    // swipe left on the left drawer, swipe right on the right dict panel.
+    const _swipeState = { x: null, target: null };
+    const _drawerSwipeStart = (which) => (e) => {
+        if (window.innerWidth > 992 || e.touches.length !== 1) { _swipeState.x = null; return; }
+        _swipeState.x = e.touches[0].clientX;
+        _swipeState.target = which;
+    };
+    const _drawerSwipeEnd = (isOpen, closeFn, dir) => (e) => {
+        if (_swipeState.x === null) return;
+        const dx = e.changedTouches[0].clientX - _swipeState.x;
+        _swipeState.x = null;
+        if (window.innerWidth <= 992 && isOpen() && ((dir < 0 && dx < -60) || (dir > 0 && dx > 60))) {
+            closeFn();
+        }
+    };
+    if (el.appSidebar) {
+        el.appSidebar.addEventListener("touchstart", _drawerSwipeStart("sidebar"), { passive: true });
+        el.appSidebar.addEventListener("touchend",
+            _drawerSwipeEnd(() => state.isSidebarOpen, () => toggleSidebar(false), -1), { passive: true });
+    }
+    if (el.dictSidebar) {
+        el.dictSidebar.addEventListener("touchstart", _drawerSwipeStart("dict"), { passive: true });
+        el.dictSidebar.addEventListener("touchend",
+            _drawerSwipeEnd(() => state.isDictOpen, () => toggleDictSidebar(false), 1), { passive: true });
+    }
+
     // Mobile Mode Buttons inside Drawer
     document.querySelectorAll(".mobile-mode-btn").forEach(btn => {
         btn.addEventListener("click", () => {

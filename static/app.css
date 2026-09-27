@@ -2705,6 +2705,17 @@ body.hide-notes .note {
     .mobile-drawer-controls {
         display: block;
     }
+    /* Keep the five drawer tabs on one line in the narrow drawer */
+    .tab-btn {
+        font-size: 0.68rem;
+        white-space: nowrap;
+        padding: 8px 2px;
+        gap: 3px;
+    }
+    .tab-btn svg {
+        width: 14px;
+        height: 14px;
+    }
     .app-sidebar {
         position: fixed;
         top: 0;
