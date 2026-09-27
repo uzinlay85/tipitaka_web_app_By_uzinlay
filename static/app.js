@@ -259,6 +259,304 @@ const el = {
     historyItemsContainer: document.getElementById("historyItemsContainer")
 };
 
+
+// ============================================================
+// Paragraph Annotation System (📌 Highlight + Note)
+// ============================================================
+
+const AnnotationManager = {
+    KEY: "tipitaka_annotations_v1",
+
+    getAll() {
+        try {
+            const raw = localStorage.getItem(this.KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
+    },
+
+    save(list) {
+        try {
+            localStorage.setItem(this.KEY, JSON.stringify(list));
+        } catch (e) { console.error("Annotation save failed:", e); }
+    },
+
+    add(entry) {
+        // entry: { bookId, bookName, page, paraId, paraText, color, note, timestamp }
+        const list = this.getAll();
+        // Remove existing for same para to avoid duplicates
+        const filtered = list.filter(a => !(a.bookId === entry.bookId && a.page === entry.page && a.paraId === entry.paraId));
+        filtered.unshift({ ...entry, id: "ann_" + Date.now(), timestamp: Date.now() });
+        this.save(filtered);
+    },
+
+    remove(id) {
+        const list = this.getAll().filter(a => a.id !== id);
+        this.save(list);
+    },
+
+    removeByPara(bookId, page, paraId) {
+        const list = this.getAll().filter(a => !(a.bookId === bookId && a.page === page && a.paraId === paraId));
+        this.save(list);
+    },
+
+    getForPara(bookId, page, paraId) {
+        return this.getAll().find(a => a.bookId === bookId && a.page === page && a.paraId === paraId) || null;
+    },
+
+    clearAll() {
+        localStorage.removeItem(this.KEY);
+    }
+};
+
+// Annotation popup state
+let _annPopupTarget = null; // { el, bookId, page, paraId, paraText }
+let _annSelectedColor = "amber";
+
+function openAnnotationPopup(paraEl, bookId, page, paraId, paraText, anchorEl) {
+    const popup = document.getElementById("annotationPopup");
+    if (!popup) return;
+
+    _annPopupTarget = { el: paraEl, bookId, page, paraId, paraText };
+    _annSelectedColor = "amber";
+
+    // Load existing annotation if any
+    const existing = AnnotationManager.getForPara(bookId, page, paraId);
+    const noteInput = document.getElementById("annotationNoteInput");
+    const deleteBtn = document.getElementById("btnDeleteAnnotation");
+
+    if (noteInput) noteInput.value = existing ? (existing.note || "") : "";
+    if (deleteBtn) deleteBtn.style.display = existing ? "inline-flex" : "none";
+
+    // Set selected color
+    if (existing) _annSelectedColor = existing.color || "amber";
+    popup.querySelectorAll(".ann-color-btn").forEach(btn => {
+        btn.classList.toggle("selected", btn.getAttribute("data-color") === _annSelectedColor);
+    });
+
+    // Position popup near the anchor element
+    const rect = anchorEl.getBoundingClientRect();
+    popup.style.display = "block";
+    let top = rect.bottom + 8;
+    let left = rect.left;
+    const popW = 280;
+    if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
+    if (left < 8) left = 8;
+    if (top + 200 > window.innerHeight) top = rect.top - 210;
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
+}
+
+function closeAnnotationPopup() {
+    const popup = document.getElementById("annotationPopup");
+    if (popup) popup.style.display = "none";
+    _annPopupTarget = null;
+}
+
+function saveAnnotation() {
+    if (!_annPopupTarget) return;
+    const { el: paraEl, bookId, page, paraId, paraText } = _annPopupTarget;
+    const note = (document.getElementById("annotationNoteInput")?.value || "").trim();
+    const color = _annSelectedColor;
+
+    AnnotationManager.add({
+        bookId,
+        bookName: state.paliBookName || state.mmBookName || bookId,
+        page,
+        paraId,
+        paraText: paraText.substring(0, 120),
+        color,
+        note
+    });
+
+    // Apply visual highlight to the paragraph element
+    applyAnnotationStyleToPara(paraEl, color);
+    closeAnnotationPopup();
+    renderAnnotationSidebar();
+}
+
+function deleteAnnotationFromPopup() {
+    if (!_annPopupTarget) return;
+    const { el: paraEl, bookId, page, paraId } = _annPopupTarget;
+    AnnotationManager.removeByPara(bookId, page, paraId);
+    removeAnnotationStyleFromPara(paraEl);
+    closeAnnotationPopup();
+    renderAnnotationSidebar();
+}
+
+function applyAnnotationStyleToPara(paraEl, color) {
+    paraEl.classList.remove("ann-amber", "ann-blue", "ann-green", "ann-red");
+    paraEl.classList.add("has-annotation", `ann-${color}`);
+}
+
+function removeAnnotationStyleFromPara(paraEl) {
+    paraEl.classList.remove("has-annotation", "ann-amber", "ann-blue", "ann-green", "ann-red");
+}
+
+// Inject pin buttons + annotation highlights into rendered paragraphs
+function injectAnnotationPins(containerEl, bookId, page) {
+    if (!containerEl) return;
+
+    // Find all block-level para elements: <p>, and .paranum containers
+    const paras = containerEl.querySelectorAll("p");
+    paras.forEach((p, idx) => {
+        if (p.closest(".para-pin-btn")) return; // skip nested
+        if (p.classList.contains("annotatable-para")) return; // already processed
+
+        p.classList.add("annotatable-para");
+        const paraId = `p${page}_${idx}`;
+        p.setAttribute("data-para-id", paraId);
+
+        // Check if existing annotation
+        const existing = AnnotationManager.getForPara(bookId, page, paraId);
+        if (existing) applyAnnotationStyleToPara(p, existing.color);
+
+        // Create pin button
+        const btn = document.createElement("button");
+        btn.className = "para-pin-btn";
+        btn.title = "📌 မှတ်ချက် ထည့်ရန်";
+        btn.innerHTML = "📌";
+        btn.setAttribute("data-para-id", paraId);
+
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const paraText = p.textContent.trim();
+            openAnnotationPopup(p, bookId, page, paraId, paraText, btn);
+        });
+
+        p.appendChild(btn);
+    });
+}
+
+// Re-apply annotations after page content loads (called after loadPaliPage / loadMMPage)
+function applyAnnotationsToCurrentPage() {
+    const bookId = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
+    const page = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+
+    // Main reader
+    if (el.paliContent) injectAnnotationPins(el.paliContent, bookId, page);
+    if (el.splitPaliContent) injectAnnotationPins(el.splitPaliContent, state.paliBookId, state.paliPage);
+}
+
+// Render sidebar annotation list
+function renderAnnotationSidebar() {
+    const listEl = document.getElementById("annotationList");
+    if (!listEl) return;
+
+    const all = AnnotationManager.getAll();
+    if (all.length === 0) {
+        listEl.innerHTML = `<div class="empty-state">📌 ကျမ်းဖတ်ရင်း paragraph ပေါ် hover ပြု၍ 📌 icon ကို နှိပ်ပါ။</div>`;
+        return;
+    }
+
+    const colorMap = { amber: "#f59e0b", blue: "#3b82f6", green: "#10b981", red: "#ef4444" };
+
+    let html = "";
+    all.forEach(a => {
+        const col = colorMap[a.color] || colorMap.amber;
+        const noteHtml = a.note ? `<div class="ann-item-note">${escapeHtml(a.note)}</div>` : "";
+        html += `
+            <div class="annotation-item" data-book="${escapeHtml(a.bookId)}" data-page="${a.page}" data-para="${escapeHtml(a.paraId)}">
+                <div class="ann-item-color" style="background:${col};"></div>
+                <div class="ann-item-body">
+                    <div class="ann-item-meta">${escapeHtml(a.bookName || a.bookId)} • စာ-${toMyanmarNum(a.page)}</div>
+                    <div class="ann-item-preview">${escapeHtml(a.paraText || "")}</div>
+                    ${noteHtml}
+                </div>
+                <button class="ann-item-del" data-id="${escapeHtml(a.id)}" title="ဖျက်ရန်">✕</button>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+
+    // Click annotation item → navigate to that page
+    listEl.querySelectorAll(".annotation-item").forEach(item => {
+        item.addEventListener("click", async (e) => {
+            if (e.target.closest(".ann-item-del")) return;
+            const bookId = item.getAttribute("data-book");
+            const page = parseInt(item.getAttribute("data-page"), 10);
+            if (!bookId || isNaN(page)) return;
+
+            // Determine mode by bookId prefix
+            const isMMBook = state.mmCategories && state.mmCategories.some(cat =>
+                (cat.books || []).some(b => b.id === bookId)
+            );
+            if (isMMBook) {
+                setReaderMode("mm");
+                await loadMMBook(bookId, page);
+            } else {
+                setReaderMode("pali");
+                await loadPaliBook(bookId, page);
+            }
+            setAppView("reader");
+            // Close sidebar on mobile
+            if (window.innerWidth <= 992) closeSidebarMobile();
+        });
+    });
+
+    // Delete individual annotation
+    listEl.querySelectorAll(".ann-item-del").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute("data-id");
+            AnnotationManager.remove(id);
+            renderAnnotationSidebar();
+            // Also remove highlight from currently visible paragraphs
+            applyAnnotationsToCurrentPage();
+        });
+    });
+}
+
+// Setup annotation popup event listeners (called once in setupEventListeners)
+function setupAnnotationListeners() {
+    const popup = document.getElementById("annotationPopup");
+    if (!popup) return;
+
+    // Color selection
+    popup.querySelectorAll(".ann-color-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            _annSelectedColor = btn.getAttribute("data-color");
+            popup.querySelectorAll(".ann-color-btn").forEach(b => b.classList.remove("selected"));
+            btn.classList.add("selected");
+        });
+    });
+
+    // Save
+    const saveBtn = document.getElementById("btnSaveAnnotation");
+    if (saveBtn) saveBtn.addEventListener("click", saveAnnotation);
+
+    // Delete
+    const delBtn = document.getElementById("btnDeleteAnnotation");
+    if (delBtn) delBtn.addEventListener("click", deleteAnnotationFromPopup);
+
+    // Close button
+    const closeBtn = document.getElementById("btnCloseAnnotationPopup");
+    if (closeBtn) closeBtn.addEventListener("click", closeAnnotationPopup);
+
+    // Click outside to close
+    document.addEventListener("click", (e) => {
+        if (popup.style.display !== "none" && !popup.contains(e.target) && !e.target.classList.contains("para-pin-btn")) {
+            closeAnnotationPopup();
+        }
+    });
+
+    // Escape key
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && popup.style.display !== "none") closeAnnotationPopup();
+    });
+
+    // Clear all annotations button in sidebar
+    const clearBtn = document.getElementById("btnClearAnnotations");
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            if (confirm("မှတ်ချက်အားလုံးကို ဖျက်ပစ်ရန် သေချာပါသလား?")) {
+                AnnotationManager.clearAll();
+                renderAnnotationSidebar();
+                applyAnnotationsToCurrentPage();
+            }
+        });
+    }
+}
+
 // Initialize Application
 async function initApp() {
     setupTheme(state.theme);
@@ -266,6 +564,7 @@ async function initApp() {
     setNotesVisibility(state.showNotes);
     setScrollMode(state.scrollMode);
     setupEventListeners();
+    setupAnnotationListeners();
     
     // Always start on Home page when entering the web app
     localStorage.removeItem("tipitaka_app_view");
@@ -722,6 +1021,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     debounceRecent(bookId, actualPage);
                     updateBookmarkIconStatus();
                     highlightActiveToc(actualPage);
+                    injectAnnotationPins(el.paliContent, bookId, actualPage);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -759,6 +1059,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
                     el.paliContent.appendChild(div);
                     el.paliContent.appendChild(sec);
+                    injectAnnotationPins(sec, bookId, actualPage);
 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
@@ -806,6 +1107,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
                     el.paliContent.insertBefore(div, el.paliContent.firstChild);
                     el.paliContent.insertBefore(sec, div);
+                    injectAnnotationPins(sec, bookId, actualPage);
 
                     const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
                     el.readerContainer.scrollTop = oldScrollTop + heightAdded;
@@ -850,6 +1152,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 debounceRecent(bookId, actualPage);
                 updateBookmarkIconStatus();
                 highlightActiveToc(actualPage);
+                injectAnnotationPins(el.paliContent, bookId, actualPage);
             }
         }
 
@@ -1007,6 +1310,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     setupPageVisibilityObserver();
                     highlightActiveToc(actualPage);
                     debounceRecent(bookId, actualPage);
+                    injectAnnotationPins(el.paliContent, bookId, actualPage);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -1044,6 +1348,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 
                     el.paliContent.appendChild(div);
                     el.paliContent.appendChild(sec);
+                    injectAnnotationPins(sec, bookId, actualPage);
 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
@@ -1134,6 +1439,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 
                 highlightActiveToc(actualPage);
                 debounceRecent(bookId, actualPage);
+                injectAnnotationPins(el.paliContent, bookId, actualPage);
             }
         }
 
@@ -2983,6 +3289,7 @@ async function exportProfileBackup() {
             readingHistory: HistoryManager.getReadingHistory(),
             searchHistory: HistoryManager.getSearchHistory(),
             bookmarks: currentBookmarks,
+            annotations: AnnotationManager.getAll(),
             settings: {
                 theme: state.theme || localStorage.getItem("tipitaka_theme") || "paper",
                 fontSize: state.fontSize || localStorage.getItem("tipitaka_font_size") || "100",
@@ -3071,7 +3378,19 @@ async function importProfileBackup(file) {
                     await loadBookmarks();
                 }
 
-                // 4. Settings restore
+                // 4. Annotations restore (merge)
+                if (Array.isArray(data.annotations) && data.annotations.length > 0) {
+                    const existingAnns = AnnotationManager.getAll();
+                    const merged = [...data.annotations];
+                    existingAnns.forEach(ex => {
+                        const dup = merged.some(m => m.id === ex.id || (m.bookId === ex.bookId && m.page === ex.page && m.paraId === ex.paraId));
+                        if (!dup) merged.push(ex);
+                    });
+                    merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    AnnotationManager.save(merged);
+                }
+
+                // 5. Settings restore
                 if (data.settings && typeof data.settings === "object") {
                     if (data.settings.theme) setupTheme(data.settings.theme);
                     if (data.settings.fontSize) setupFontSize(data.settings.fontSize);
@@ -3974,6 +4293,8 @@ function setupEventListeners() {
                 highlightActiveSutta(curPg);
                 const activeSuttaBtn = el.suttaList ? el.suttaList.querySelector(".sutta-item-btn.active") : null;
                 if (activeSuttaBtn) activeSuttaBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            } else if (tabId === "tab-annotations") {
+                renderAnnotationSidebar();
             }
         });
     });
