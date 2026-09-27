@@ -662,12 +662,19 @@ function setupSelectionAnnotation() {
             }
         }, 400);
     }, { passive: true });
-    // Hide the toolbar when the page scrolls or the selection is cleared
-    document.addEventListener("scroll", () => hideSelectionToolbar(), { passive: true, capture: true });
+    // Hide the toolbar when the page scrolls or the selection is cleared.
+    // Ignore scrolls right after the toolbar appears: on touch devices the
+    // browser often fires a small adjusting scroll just as the toolbar shows,
+    // which would otherwise dismiss it instantly.
+    document.addEventListener("scroll", () => {
+        if (_selToolbar && Date.now() - _selToolbarShownAt < 800) return;
+        hideSelectionToolbar();
+    }, { passive: true, capture: true });
 }
 
 // --- Mini floating toolbar on text selection (Medium-style) ---
 let _selToolbar = null;
+let _selToolbarShownAt = 0;
 
 function showSelectionToolbar(info) {
     hideSelectionToolbar();
@@ -689,6 +696,7 @@ function showSelectionToolbar(info) {
     bar.style.left = `${left}px`;
     bar.style.top = `${top}px`;
     _selToolbar = bar;
+    _selToolbarShownAt = Date.now();
 
     bar.querySelector('[data-act="quick"]').addEventListener("click", (e) => {
         e.stopPropagation();
@@ -5089,11 +5097,14 @@ function setupEventListeners() {
         const t = e && e.target;
         if (t && t.closest && t.closest("span.ann-sel")) return;
         const sel = window.getSelection();
+        // A non-collapsed selection means the user is selecting text for
+        // annotation — the 🖍️/📝 toolbar owns that gesture. Don't also fire a
+        // dictionary lookup for the selected text (desktop drag-select and
+        // mobile handle-select both land here).
+        if (sel && !sel.isCollapsed && sel.toString().trim()) return;
         let clickedWord = "";
 
-        if (sel && sel.toString().trim()) {
-            clickedWord = sel.toString().trim();
-        } else {
+        {
             const wordEl = e.target.closest(".pali-word, .no-split");
             if (wordEl) {
                 clickedWord = wordEl.textContent.trim();
