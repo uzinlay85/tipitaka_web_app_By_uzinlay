@@ -793,7 +793,7 @@ function renderAnnotationSidebar() {
 
     const all = AnnotationManager.getAll();
     if (all.length === 0) {
-        listEl.innerHTML = `<div class="empty-state">✨ ဖတ်နေရင်း လိုချင်တဲ့ စာသားကို select လုပ်လိုက်ရင် မှတ်ချက် ထည့်တဲ့ popup ပေါ်လာပါမယ်။</div>`;
+        listEl.innerHTML = `<div class="empty-state">✨ ဖတ်နေရင်း လိုချင်တဲ့ စာသားကို select လုပ်လိုက်ရင် မှတ်ချက် ထည့်တဲ့ 🖍️/📝 toolbar ပေါ်လာပါမယ်။</div>`;
         return;
     }
 
@@ -5071,6 +5071,9 @@ function setupEventListeners() {
 
     // Word Click in Reader Content -> Trigger Dictionary (for both Single and Split View)
     function handleWordClick(e) {
+        // Don't hijack taps on annotation highlights (they open the edit popup)
+        const t = e && e.target;
+        if (t && t.closest && t.closest("span.ann-sel")) return;
         const sel = window.getSelection();
         let clickedWord = "";
 

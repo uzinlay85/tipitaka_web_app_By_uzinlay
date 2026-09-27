@@ -24,6 +24,10 @@ app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 @app.after_request
 def add_cache_headers(response):
     path = request.path
+    # HTML shell: always revalidate so new ?v= asset URLs are picked up
+    if path == "/":
+        response.headers["Cache-Control"] = "no-cache"
+        return response
     # 1. Mutable user state: bookmarks, recent read state and annotation sync must never be cached
     if path.startswith("/api/bookmarks") or path.startswith("/api/recent") or path.startswith("/api/sync"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
