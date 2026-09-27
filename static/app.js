@@ -2654,16 +2654,6 @@ function closeSearchModal() {
 
 // ----------------- Comprehensive History System (LocalStorage) -----------------
 
-function escapeHtml(str) {
-    if (!str) return "";
-    return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
 function getCurrentChapterName(mode, pageNum) {
     const tocs = (mode === "mm") ? state.mmTocs : state.paliTocs;
     if (tocs && tocs.length > 0) {
@@ -3786,7 +3776,7 @@ function setupEventListeners() {
             el.scrollModeDropdownWrapper.classList.toggle("open");
         });
         document.addEventListener("click", (e) => {
-            if (!e.target.closest("#headerMoreDropdownWrapper")) {
+            if (!e.target.closest("#scrollModeDropdownWrapper")) {
                 el.scrollModeDropdownWrapper.classList.remove("open");
             }
         });
@@ -3961,7 +3951,7 @@ function setupEventListeners() {
         el.relatedDropdownWrapper.classList.toggle("open");
     });
     document.addEventListener("click", (e) => {
-        if (!e.target.closest("#headerMoreDropdownWrapper")) {
+        if (!e.target.closest("#relatedDropdownWrapper")) {
             el.relatedDropdownWrapper.classList.remove("open");
         }
     });
