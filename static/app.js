@@ -650,7 +650,7 @@ function setupSelectionAnnotation() {
             }
         }, 80);
     });
-    // Touch: same idea with a longer delay (mobile selection handles)
+    // Touch: same idea, slightly longer delay so mobile selection handles settle
     document.addEventListener("touchend", (e) => {
         if (isUiTarget(e)) return;
         stashSelection();
@@ -660,7 +660,7 @@ function setupSelectionAnnotation() {
                 _pendingSelection = null;
                 showSelectionToolbar(p);
             }
-        }, 400);
+        }, 200);
     }, { passive: true });
     // Hide the toolbar when the page scrolls or the selection is cleared.
     // Ignore scrolls right after the toolbar appears: on touch devices the
@@ -685,10 +685,11 @@ function showSelectionToolbar(info) {
     bar.className = "ann-select-toolbar";
     bar.innerHTML =
         `<button class="ann-tb-btn" data-act="quick" title="အရောင်မှတ် (note မပါ)">🖍️</button>` +
-        `<button class="ann-tb-btn" data-act="note" title="မှတ်ချက် + အရောင်">📝</button>`;
+        `<button class="ann-tb-btn" data-act="note" title="မှတ်ချက် + အရောင်">📝</button>` +
+        `<button class="ann-tb-btn" data-act="copy" title="စာသား ကူးယူရန်">📋</button>`;
     document.body.appendChild(bar);
 
-    const bw = 104, bh = 44;
+    const bw = 156, bh = 44;
     let left = rect ? rect.left + rect.width / 2 - bw / 2 : window.innerWidth / 2 - bw / 2;
     let top = rect ? rect.top - bh - 10 : 120;
     left = Math.max(8, Math.min(window.innerWidth - bw - 8, left));
@@ -706,6 +707,35 @@ function showSelectionToolbar(info) {
         e.stopPropagation();
         hideSelectionToolbar();
         openSelectionPopup(info.paraEl, info.bookId, info.page, info.paraId, info.selectedText, info.range);
+    });
+    bar.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const text = info.selectedText || "";
+        let done = false;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                done = true;
+            }
+        } catch (err) {}
+        if (!done) {
+            try {
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                done = document.execCommand("copy");
+                ta.remove();
+            } catch (err) {}
+        }
+        btn.textContent = done ? "✅" : "❌";
+        setTimeout(() => {
+            try { window.getSelection().removeAllRanges(); } catch (err) {}
+            hideSelectionToolbar();
+        }, done ? 450 : 900);
     });
 }
 
@@ -5097,6 +5127,12 @@ function setupEventListeners() {
     }, { passive: true });
 
     el.readerContainer.addEventListener("touchend", (e) => {
+        // A drag that selects text is for annotation, not page-turning:
+        // skip swipe navigation while a text selection is active.
+        try {
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) return;
+        } catch (err) {}
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
         const absX = Math.abs(diffX);

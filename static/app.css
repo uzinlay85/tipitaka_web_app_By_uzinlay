@@ -4141,6 +4141,9 @@ body.ios-fullscreen-fallback .reader-container {
     border-radius: 4px;
     transition: background 0.15s;
     padding-left: 4px;
+    /* Suppress the native iOS long-press callout on annotatable text so our
+       selection toolbar (which includes Copy) owns the interaction */
+    -webkit-touch-callout: none;
 }
 .annotatable-para:hover {
     background: rgba(128,128,128,0.05);
@@ -4420,6 +4423,11 @@ body.ios-fullscreen-fallback .reader-container {
         width: auto !important;
         max-height: 46vh;
         overflow-y: auto;
+    }
+    /* Bigger tap targets for the selection toolbar on touch screens */
+    .ann-tb-btn {
+        font-size: 24px;
+        padding: 10px 14px;
     }
 }
 
