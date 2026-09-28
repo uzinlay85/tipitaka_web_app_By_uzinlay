@@ -494,6 +494,16 @@ function injectAnnotationPins(containerEl, bookId, page) {
     containerEl.querySelectorAll(".para-pin-btn").forEach(b => b.remove());
 
     const paras = containerEl.querySelectorAll("p");
+    // Hoist the annotation read out of the per-paragraph loop: getAll() does a
+    // localStorage read + full JSON.parse, and this loop runs per paragraph
+    // (50-150x per page). Index once by paraId instead of O(P x A) filtering.
+    const byPara = new Map();
+    for (const a of AnnotationManager.getAll()) {
+        if (a.bookId === bookId && String(a.page) === String(page) && a.paraId) {
+            if (!byPara.has(a.paraId)) byPara.set(a.paraId, []);
+            byPara.get(a.paraId).push(a);
+        }
+    }
     paras.forEach((p, idx) => {
         if (!p.classList.contains("annotatable-para") || !p.getAttribute("data-para-id")) {
             p.classList.add("annotatable-para");
@@ -505,8 +515,7 @@ function injectAnnotationPins(containerEl, bookId, page) {
 
         // Re-apply saved annotations for this paragraph
         const paraId = p.getAttribute("data-para-id");
-        const entries = AnnotationManager.getAll().filter(a =>
-            a.bookId === bookId && String(a.page) === String(page) && a.paraId === paraId);
+        const entries = byPara.get(paraId) || [];
         entries.forEach(a => {
             if (a.selText) {
                 highlightTextInPara(p, a.selText, a.color, a.selStart || 0, a.id);
@@ -982,16 +991,27 @@ const SyncManager = {
         if (!this.isPaired()) return null;
         const anns = AnnotationManager.changedSince(this.lastSync);
         const hist = (typeof HistoryManager !== "undefined") ? HistoryManager.changedSince(this.lastSync) : [];
-        return this._post("/api/sync/push", { secret: this.secret, annotations: anns, history: hist });
+        // Bookmarks ride the history channel with kind="bookmark"
+        const bmHist = (typeof BookmarkManager !== "undefined") ? BookmarkManager.changedSince(this.lastSync) : [];
+        return this._post("/api/sync/push", { secret: this.secret, annotations: anns, history: hist.concat(bmHist) });
     },
 
     async pull(watermark) {
         if (!this.isPaired()) return null;
         const data = await this._post("/api/sync/pull", { secret: this.secret, since: this.lastSync });
         const changed = AnnotationManager.mergeRemote(data.annotations || []);
+        // Route bookmark rows to BookmarkManager; HistoryManager only handles
+        // reading/search (it would otherwise misfile bookmarks as reading).
+        const allHist = data.history || [];
+        const bmRows = allHist.filter(r => r && r.kind === "bookmark");
+        const otherRows = allHist.filter(r => !r || r.kind !== "bookmark");
+        let bmChanged = false;
+        if (typeof BookmarkManager !== "undefined") {
+            bmChanged = BookmarkManager.mergeRemote(bmRows);
+        }
         let histChanged = false;
         if (typeof HistoryManager !== "undefined") {
-            histChanged = HistoryManager.mergeRemote(data.history || []);
+            histChanged = HistoryManager.mergeRemote(otherRows);
         }
         if (changed) {
             renderAnnotationSidebar();
@@ -1004,6 +1024,9 @@ const SyncManager = {
             if (modal && modal.classList.contains("open") && typeof renderHistoryModalContent === "function") {
                 renderHistoryModalContent();
             }
+        }
+        if (bmChanged && typeof loadBookmarks === "function") {
+            loadBookmarks();
         }
         // Watermark = client time at sync start (not server_time): entries are
         // stamped with the client clock, so the watermark must be too — and it
@@ -1293,26 +1316,21 @@ async function initApp() {
     if (!state.isDictOpen || state.appView === "home") el.dictSidebar.classList.add("collapsed");
     el.btnToggleDict.classList.toggle("active", state.isDictOpen && state.appView !== "home");
     
-    await loadCategories();
-    await loadBookmarks();
+    // loadCategories and loadBookmarks are independent — run concurrently.
+    await Promise.all([loadCategories(), loadBookmarks()]);
     HistoryManager.updateBadgeCounts();
 
-    // Preload recent book info in background without altering view or display styles
+    // Preload recent book info in background without altering view or display styles.
+    // Uses only the device-local reading history. (The old global /api/recent
+    // endpoint was shared across all visitors, so it is no longer consulted.)
     try {
         const hist = HistoryManager.getReadingHistory();
         if (hist && hist.length > 0) {
             state.paliBookId = hist[0].bookId;
             state.paliPage = hist[0].page || 1;
         } else {
-            const res = await fetch("/api/recent");
-            const recent = await res.json();
-            if (recent && recent.book_id) {
-                state.paliBookId = recent.book_id;
-                state.paliPage = recent.page_number || 1;
-            } else {
-                state.paliBookId = "mula_vi_01";
-                state.paliPage = 1;
-            }
+            state.paliBookId = "mula_vi_01";
+            state.paliPage = 1;
         }
     } catch (e) {
         state.paliBookId = "mula_vi_01";
@@ -1323,22 +1341,20 @@ async function initApp() {
 // ----------------- Categories & Initialization -----------------
 
 async function loadCategories() {
-    try {
-        const resPali = await fetch("/api/categories");
-        if (resPali.ok) {
-            state.paliCategories = await resPali.json();
-        }
-    } catch (err) {
-        console.error("Failed to load Pali categories:", err);
+    // Fetch both category lists concurrently — they are independent.
+    const [resPali, resMM] = await Promise.allSettled([
+        fetch("/api/categories"),
+        fetch("/api/mm/categories")
+    ]);
+    if (resPali.status === "fulfilled" && resPali.value.ok) {
+        state.paliCategories = await resPali.value.json();
+    } else if (resPali.status === "rejected") {
+        console.error("Failed to load Pali categories:", resPali.reason);
     }
-
-    try {
-        const resMM = await fetch("/api/mm/categories");
-        if (resMM.ok) {
-            state.mmCategories = await resMM.json();
-        }
-    } catch (err) {
-        console.error("Failed to load MM categories:", err);
+    if (resMM.status === "fulfilled" && resMM.value.ok) {
+        state.mmCategories = await resMM.value.json();
+    } else if (resMM.status === "rejected") {
+        console.error("Failed to load MM categories:", resMM.reason);
     }
 
     renderBooksTree();
@@ -1363,17 +1379,9 @@ async function loadRecentOrFirst() {
         return;
     }
 
-    try {
-        const res = await fetch("/api/recent");
-        const recent = await res.json();
-        if (recent && recent.book_id) {
-            await loadPaliBook(recent.book_id, recent.page_number || null);
-        } else {
-            await loadPaliBook("mula_vi_01", null);
-        }
-    } catch (err) {
-        await loadPaliBook("mula_vi_01", null);
-    }
+    // No local history: start at the default book. (The legacy global
+    // /api/recent endpoint is retired — it was shared across all visitors.)
+    await loadPaliBook("mula_vi_01", null);
     setReaderMode(state.readerMode);
 }
 
@@ -1475,6 +1483,52 @@ function getLoadedFeedPages() {
     return pages.sort((a, b) => a - b);
 }
 
+// Feed-mode DOM windowing: keep only pages within ±FEED_WINDOW_RADIUS of the
+// current page. Without this, scrolling a long book end-to-end leaves hundreds
+// of sections in the DOM (memory + slow layout on mobile). Pruned pages reload
+// on demand through the existing infinite-scroll machinery (handleLoadPrevPage
+// / loadNextFeedPage detect the missing section by id and fetch it).
+const FEED_WINDOW_RADIUS = 8;
+function pruneFeedDOM() {
+    if (state.scrollMode !== "feed" || !el.paliContent || !el.readerContainer) return;
+    const isMM = (state.readerMode === "mm");
+    const prefix = isMM ? "mm-page-" : "pali-page-";
+    const cur = isMM ? state.mmPage : state.paliPage;
+    const minKeep = cur - FEED_WINDOW_RADIUS;
+    const maxKeep = cur + FEED_WINDOW_RADIUS;
+
+    let removedAboveHeight = 0;
+    el.paliContent.querySelectorAll(`.feed-page-item[id^="${prefix}"]`).forEach(sec => {
+        const p = parseInt(sec.getAttribute("data-page"), 10);
+        if (isNaN(p) || (p >= minKeep && p <= maxKeep)) return;
+
+        // Remove the section's divider too: append-mode puts the divider right
+        // before the section (same data-page); prepend-mode puts it right after.
+        const prev = sec.previousElementSibling;
+        let divH = 0;
+        if (prev && prev.classList.contains("page-divider") &&
+            prev.getAttribute("data-page") === sec.getAttribute("data-page")) {
+            divH = prev.offsetHeight || 0;
+            prev.remove();
+        } else {
+            const next = sec.nextElementSibling;
+            if (next && next.classList.contains("page-divider")) {
+                divH = next.offsetHeight || 0;
+                next.remove();
+            }
+        }
+        // Feed DOM is in ascending page order top-to-bottom, so pruned pages
+        // with a lower number sat above the viewport: compensate scrollTop to
+        // avoid a visible jump.
+        if (p < cur) removedAboveHeight += (sec.offsetHeight || 0) + divH;
+        if (pageVisibilityObserver) pageVisibilityObserver.unobserve(sec);
+        sec.remove();
+    });
+    if (removedAboveHeight > 0) {
+        el.readerContainer.scrollTop = Math.max(0, el.readerContainer.scrollTop - removedAboveHeight);
+    }
+}
+
 // ----------------- Pali Reader -----------------
 
 async function loadPaliBook(bookId, targetPage = null) {
@@ -1486,6 +1540,7 @@ async function loadPaliBook(bookId, targetPage = null) {
         try {
             const res = await fetch(`/api/book/${bookId}`);
             if (thisSession !== state.feedSessionId) return;
+            if (!res.ok) throw new Error(`Book load failed (HTTP ${res.status})`);
             const data = await res.json();
             state.paliBookName = data.book.name;
             state.paliFirstPage = data.book.firstpage;
@@ -1681,6 +1736,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
     try {
         const res = await fetch(`/api/page/${bookId}/${targetNum}`);
         if (thisSession !== state.feedSessionId) return;
+        if (!res.ok) throw new Error(`Page load failed (HTTP ${res.status})`);
         const data = await res.json();
         
         state.paliFirstPage = data.first_page;
@@ -1916,6 +1972,7 @@ async function loadMMBook(bookId, targetPage = null) {
         try {
             const res = await fetch(`/api/mm/book/${bookId}`);
             if (thisSession !== state.feedSessionId) return;
+            if (!res.ok) throw new Error(`Book load failed (HTTP ${res.status})`);
             const data = await res.json();
             state.mmBookName = data.book.name;
             state.mmFirstPage = data.book.first_page;
@@ -1976,6 +2033,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
     try {
         const res = await fetch(`/api/mm/page/${bookId}/${targetNum}`);
         if (thisSession !== state.feedSessionId) return;
+        if (!res.ok) throw new Error(`Page load failed (HTTP ${res.status})`);
         const data = await res.json();
         if (data && data.content) data.content = cleanMMContent(data.content);
 
@@ -3004,6 +3062,12 @@ function highlightActiveBookInSidebar() {
     });
 }
 
+// Cached button lists for O(1) highlight updates (rebuilt on every render).
+let _tocBtnCache = [];
+let _lastTocActiveBtn = null;
+let _suttaBtnCache = [];
+let _lastSuttaActiveBtn = null;
+
 function renderTOC() {
     const filter = (el.tocFilterInput.value || "").trim().toLowerCase();
     const tocs = (state.readerMode === "mm") ? state.mmTocs : state.paliTocs;
@@ -3011,6 +3075,8 @@ function renderTOC() {
 
     if (filtered.length === 0) {
         el.tocList.innerHTML = `<div class="empty-state">မာတိကာ အချက်အလက် မရှိပါ။</div>`;
+        _tocBtnCache = [];
+        _lastTocActiveBtn = null;
         return;
     }
 
@@ -3027,6 +3093,14 @@ function renderTOC() {
         `;
     });
     el.tocList.innerHTML = html;
+
+    // Cache buttons + pages for O(1) highlight updates (see highlightActiveToc).
+    // Rebuilt on every render since filter/book changes rewrite the DOM.
+    _tocBtnCache = [...el.tocList.querySelectorAll(".toc-item-btn")].map(btn => ({
+        btn,
+        page: parseInt(btn.getAttribute("data-page"), 10)
+    }));
+    _lastTocActiveBtn = null;
 
     el.tocList.querySelectorAll(".toc-item-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -3107,27 +3181,30 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
         if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
     }
 
-    // 3. Highlight the active button in the TOC list
+    // 3. Highlight the active button in the TOC list.
+    // O(1) DOM writes: only the previously-active and newly-active buttons are
+    // touched. (Old code swept every button and rewrote every badge per page
+    // change.) The lookup itself is a cheap scan over the cached JS array —
+    // no querySelectorAll, no per-button DOM reads.
     let activeBtn = null;
-    const allBtns = el.tocList.querySelectorAll(".toc-item-btn");
-    allBtns.forEach(btn => {
-        const p = parseInt(btn.getAttribute("data-page"), 10);
-        btn.classList.remove("active");
-        const badge = btn.querySelector(".item-page-badge");
-        if (badge) {
-            badge.textContent = `စာ-${p}`;
+    for (const entry of _tocBtnCache) {
+        if (entry.page <= currentPg) activeBtn = entry.btn;
+    }
+
+    if (activeBtn !== _lastTocActiveBtn) {
+        if (_lastTocActiveBtn) {
+            _lastTocActiveBtn.classList.remove("active");
+            const oldBadge = _lastTocActiveBtn.querySelector(".item-page-badge");
+            if (oldBadge) oldBadge.textContent = `စာ-${_lastTocActiveBtn.getAttribute("data-page")}`;
         }
-        if (p <= currentPg) {
-            activeBtn = btn;
-        }
-    });
+        if (activeBtn) activeBtn.classList.add("active");
+        _lastTocActiveBtn = activeBtn;
+    }
 
     if (activeBtn) {
-        activeBtn.classList.add("active");
         const badge = activeBtn.querySelector(".item-page-badge");
         if (badge) {
-            const orgPage = activeBtn.getAttribute("data-page");
-            badge.textContent = `စာ-${orgPage} (လက်ရှိ စာ-${toMyanmarNum(currentPg)})`;
+            badge.textContent = `စာ-${activeBtn.getAttribute("data-page")} (လက်ရှိ စာ-${toMyanmarNum(currentPg)})`;
         }
         if (shouldScroll) {
             activeBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -3145,16 +3222,15 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
 
 function highlightActiveSutta(currentPg) {
     if (!el.suttaList) return;
+    // O(1) DOM writes: only old + new buttons touched (cached scan, no DOM query).
     let activeSuttaBtn = null;
-    el.suttaList.querySelectorAll(".sutta-item-btn").forEach(btn => {
-        const p = parseInt(btn.getAttribute("data-page"), 10);
-        btn.classList.remove("active");
-        if (p <= currentPg) {
-            activeSuttaBtn = btn;
-        }
-    });
-    if (activeSuttaBtn) {
-        activeSuttaBtn.classList.add("active");
+    for (const entry of _suttaBtnCache) {
+        if (entry.page <= currentPg) activeSuttaBtn = entry.btn;
+    }
+    if (activeSuttaBtn !== _lastSuttaActiveBtn) {
+        if (_lastSuttaActiveBtn) _lastSuttaActiveBtn.classList.remove("active");
+        if (activeSuttaBtn) activeSuttaBtn.classList.add("active");
+        _lastSuttaActiveBtn = activeSuttaBtn;
     }
 }
 
@@ -3165,6 +3241,8 @@ function renderSuttas() {
 
     if (filtered.length === 0) {
         el.suttaList.innerHTML = `<div class="empty-state">ဤကျမ်းတွင် သုတ္တန်ခွဲများ မရှိပါ။</div>`;
+        _suttaBtnCache = [];
+        _lastSuttaActiveBtn = null;
         return;
     }
 
@@ -3181,6 +3259,13 @@ function renderSuttas() {
         `;
     });
     el.suttaList.innerHTML = html;
+
+    // Cache buttons for O(1) highlight updates (see highlightActiveSutta).
+    _suttaBtnCache = [...el.suttaList.querySelectorAll(".sutta-item-btn")].map(btn => ({
+        btn,
+        page: parseInt(btn.getAttribute("data-page"), 10)
+    }));
+    _lastSuttaActiveBtn = null;
 
     el.suttaList.querySelectorAll(".sutta-item-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -3394,12 +3479,123 @@ function renderRelatedDropdown() {
     });
 }
 
+// ----------------- BookmarkManager -----------------
+// Bookmarks live in localStorage (private per browser) and sync across the
+// user's paired devices through the existing /api/sync history channel with
+// kind="bookmark". This replaces the old global server-side bookmark table,
+// where every visitor shared (and could delete) everyone else's bookmarks.
+const BookmarkManager = {
+    KEY: "tipitaka_bookmarks_v1",
+
+    _readRaw() {
+        try {
+            const raw = localStorage.getItem(this.KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch (e) { return []; }
+    },
+
+    save(list) {
+        try { localStorage.setItem(this.KEY, JSON.stringify(list)); }
+        catch (e) { console.error("Bookmark save failed:", e); }
+    },
+
+    _id(bookId, page) { return "bm_" + String(bookId) + "_" + String(page); },
+
+    getAll() {
+        return this._readRaw().filter(b => !b.deleted);
+    },
+
+    isBookmarked(bookId, page) {
+        return this._readRaw().some(b => !b.deleted && b.bookId === bookId && Number(b.page) === Number(page));
+    },
+
+    add({ bookId, bookName, page, note, mode }) {
+        const list = this._readRaw();
+        const id = this._id(bookId, page);
+        const now = Date.now();
+        let item = list.find(b => b.id === id);
+        if (item) {
+            if (item.deleted) item.deleted = 0;
+            if (bookName) item.bookName = String(bookName).substring(0, 120);
+            item.note = String(note !== undefined ? note : (item.note || "")).substring(0, 500);
+            item.mode = String(mode || item.mode || "pali").substring(0, 16);
+            item.updatedAt = now;
+        } else {
+            item = {
+                id, kind: "bookmark",
+                bookId: String(bookId || ""), bookName: String(bookName || "").substring(0, 120),
+                page: Number(page) || 0, note: String(note || "").substring(0, 500),
+                mode: String(mode || "pali").substring(0, 16),
+                timestamp: now, updatedAt: now, deleted: 0
+            };
+            list.unshift(item);
+        }
+        this.save(list);
+        return item;
+    },
+
+    // Tombstone delete — the deletion propagates to paired devices via sync
+    remove(bookId, page) {
+        const list = this._readRaw();
+        const it = list.find(b => b.id === this._id(bookId, page));
+        if (it && !it.deleted) {
+            it.deleted = 1;
+            it.updatedAt = Date.now();
+            this.save(list);
+        }
+    },
+
+    toggle({ bookId, bookName, page, mode }) {
+        if (this.isBookmarked(bookId, page)) { this.remove(bookId, page); return false; }
+        this.add({ bookId, bookName, page, mode });
+        return true;
+    },
+
+    // Rows (incl. tombstones) changed since ts — merged into the history payload
+    changedSince(ts) {
+        return this._readRaw().filter(b => (Number(b.updatedAt) || 0) > (ts || 0));
+    },
+
+    // Merge remote bookmark rows, last-write-wins per id. Returns true if changed.
+    mergeRemote(remoteList) {
+        if (!Array.isArray(remoteList) || remoteList.length === 0) return false;
+        const list = this._readRaw();
+        const byId = new Map(list.map(b => [b.id, b]));
+        let changed = false;
+        for (const r of remoteList) {
+            if (!r || typeof r.id !== "string" || !r.id) continue;
+            const rUpd = Number(r.updatedAt) || 0;
+            const local = byId.get(r.id);
+            if (!local) {
+                byId.set(r.id, { ...r, kind: "bookmark", updatedAt: rUpd });
+                changed = true;
+            } else if (rUpd > (Number(local.updatedAt) || 0)) {
+                byId.set(r.id, { ...local, ...r, kind: "bookmark", updatedAt: rUpd });
+                changed = true;
+            }
+        }
+        if (changed) {
+            // Prune ancient tombstones locally (server prunes them too)
+            const now = Date.now(), PRUNE_MS = 90 * 24 * 3600 * 1000;
+            this.save([...byId.values()].filter(b =>
+                !(b.deleted && (now - (Number(b.updatedAt) || 0)) > PRUNE_MS)));
+        }
+        return changed;
+    },
+
+    // NOTE: the legacy global /api/bookmarks table is intentionally NOT imported.
+    // It was shared across all visitors (no per-user separation), so auto-import
+    // would copy strangers' bookmarks into every browser. Rows are preserved
+    // server-side for manual recovery; the per-device BookmarkManager + sync
+    // channel is the source of truth going forward.
+};
+
 // ----------------- Bookmarks -----------------
 
 async function loadBookmarks() {
     try {
-        const res = await fetch("/api/bookmarks");
-        state.bookmarks = await res.json();
+        state.bookmarks = BookmarkManager.getAll();
         renderBookmarksList();
         updateBookmarkIconStatus();
     } catch (err) {
@@ -3414,14 +3610,17 @@ function renderBookmarksList() {
     }
     let html = "";
     state.bookmarks.forEach(bm => {
+        // Escape everything user-controlled (names/notes sync across devices —
+        // unescaped HTML here would be a stored-XSS vector).
+        const bid = escapeHtml(bm.bookId), bname = escapeHtml(bm.bookName || bm.bookId);
         html += `
-            <div class="bookmark-item-btn" data-id="${bm.book_id}" data-page="${bm.page_number}">
+            <div class="bookmark-item-btn" data-id="${bid}" data-page="${bm.page}">
                 <div style="flex:1;">
-                    <strong>${bm.book_name || bm.book_id}</strong>
-                    <div style="font-size:0.8rem;color:var(--text-secondary);">စာမျက်နှာ - ${bm.page_number}</div>
-                    ${bm.note ? `<div style="font-size:0.75rem;color:var(--text-muted);">${bm.note}</div>` : ''}
+                    <strong>${bname}</strong>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);">စာမျက်နှာ - ${bm.page}</div>
+                    ${bm.note ? `<div style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(bm.note)}</div>` : ''}
                 </div>
-                <button class="icon-btn-sm btn-delete-bm" data-id="${bm.book_id}" data-page="${bm.page_number}" title="ဖျက်ရန်">&times;</button>
+                <button class="icon-btn-sm btn-delete-bm" data-id="${bid}" data-page="${bm.page}" title="ဖျက်ရန်">&times;</button>
             </div>
         `;
     });
@@ -3444,22 +3643,17 @@ function renderBookmarksList() {
     });
 
     el.bookmarksList.querySelectorAll(".btn-delete-bm").forEach(delBtn => {
-        delBtn.addEventListener("click", async (e) => {
+        delBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            const bid = delBtn.getAttribute("data-id");
-            const page = parseInt(delBtn.getAttribute("data-page"), 10);
-            await fetch("/api/bookmarks", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ book_id: bid, page_number: page })
-            });
-            await loadBookmarks();
+            BookmarkManager.remove(delBtn.getAttribute("data-id"), parseInt(delBtn.getAttribute("data-page"), 10));
+            if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
+            loadBookmarks();
         });
     });
 }
 
 function updateBookmarkIconStatus() {
-    const isBookmarked = state.bookmarks.some(b => b.book_id === state.paliBookId && b.page_number === state.paliPage);
+    const isBookmarked = BookmarkManager.isBookmarked(state.paliBookId, state.paliPage);
     if (isBookmarked) {
         el.bookmarkIcon.setAttribute("fill", "currentColor");
         el.btnBookmarkToggle.style.color = "var(--accent)";
@@ -3469,22 +3663,15 @@ function updateBookmarkIconStatus() {
     }
 }
 
-async function toggleCurrentBookmark() {
-    const isBookmarked = state.bookmarks.some(b => b.book_id === state.paliBookId && b.page_number === state.paliPage);
-    if (isBookmarked) {
-        await fetch("/api/bookmarks", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ book_id: state.paliBookId, page_number: state.paliPage })
-        });
-    } else {
-        await fetch("/api/bookmarks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ book_id: state.paliBookId, page_number: state.paliPage, note: "" })
-        });
-    }
-    await loadBookmarks();
+function toggleCurrentBookmark() {
+    BookmarkManager.toggle({
+        bookId: state.paliBookId,
+        bookName: state.paliBookName || state.paliBookId,
+        page: state.paliPage,
+        mode: "pali"
+    });
+    if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
+    loadBookmarks();
 }
 
 // ----------------- Security Utility: HTML Escaping -----------------
@@ -3500,8 +3687,14 @@ function escapeHtml(str) {
 
 // ----------------- Interactive Dictionary -----------------
 
+// Monotonic tokens guard against stale async responses overwriting newer ones
+// (e.g. a slow dict lookup for word A arriving after a fast lookup for word B).
+let _dictLookupSeq = 0;
+let _searchSeq = 0;
+
 async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY = 0) {
     if (!word) return;
+    const seq = ++_dictLookupSeq;
     if (!state.isDictOpen && !triggerPopover) toggleDictSidebar(true);
 
     el.dictContent.innerHTML = `
@@ -3514,6 +3707,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
     try {
         const res = await fetch(`/api/dictionary/lookup?word=${encodeURIComponent(word)}`);
         const data = await res.json();
+        if (seq !== _dictLookupSeq) return; // stale response — a newer lookup is in flight
 
         if (!triggerPopover && (data.clean_word || word)) {
             HistoryManager.recordSearch(data.clean_word || word, "dict", data.results ? data.results.length : 0);
@@ -3555,6 +3749,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
 
     } catch (err) {
         console.error("Dict lookup error:", err);
+        if (seq !== _dictLookupSeq) return; // stale — don't overwrite newer result with an error
         el.dictContent.innerHTML = `<div class="empty-state">အဘိဓာန် ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်- ${escapeHtml(err.message)}</div>`;
     }
 }
@@ -3591,6 +3786,7 @@ async function performSearch() {
         el.searchSummary.style.display = "none";
         return;
     }
+    const seq = ++_searchSeq;
 
     el.searchResultsList.innerHTML = `<div class="loading-state">ရှာဖွေနေပါသည်...</div>`;
     el.searchSummary.style.display = "none";
@@ -3598,6 +3794,7 @@ async function performSearch() {
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=${state.searchMode}&limit=30`);
         const data = await res.json();
+        if (seq !== _searchSeq) return; // stale response — a newer search is in flight
 
         if (data.total === 0 || !data.results || data.results.length === 0) {
             el.searchResultsList.innerHTML = `<div class="empty-state">ရှာဖွေမှုရလဒ် မတွေ့ရှိပါ။</div>`;
@@ -3669,6 +3866,7 @@ async function performSearch() {
 
     } catch (err) {
         console.error("Search error:", err);
+        if (seq !== _searchSeq) return; // stale — don't overwrite newer results with an error
         el.searchResultsList.innerHTML = `<div class="empty-state">ရှာဖွေရာတွင် အမှားဖြစ်ပေါ်ပါသည်: ${escapeHtml(err.message)}</div>`;
     }
 }
@@ -3980,7 +4178,10 @@ const HistoryManager = {
         let changedR = false, changedS = false;
         for (const r of remoteList) {
             if (!r || typeof r.id !== "string" || !r.id) continue;
-            const kind = r.kind === "search" ? "search" : "reading";
+            // Ignore unknown kinds (e.g. "bookmark" rows are routed to
+            // BookmarkManager by SyncManager; never misfile them as reading).
+            const kind = r.kind === "search" ? "search" : (r.kind === "reading" || !r.kind ? "reading" : null);
+            if (!kind) continue;
             const byId = kind === "search" ? byIdS : byIdR;
             const rUpd = Number(r.updatedAt) || 0;
             const local = byId.get(r.id);
@@ -4158,15 +4359,7 @@ function computeDhammaInsights() {
 
 async function exportProfileBackup() {
     try {
-        let currentBookmarks = state.bookmarks || [];
-        try {
-            const bRes = await fetch("/api/bookmarks");
-            if (bRes.ok) {
-                currentBookmarks = await bRes.json();
-            }
-        } catch (e) {
-            console.warn("Could not fetch latest bookmarks from API:", e);
-        }
+        const currentBookmarks = (typeof BookmarkManager !== "undefined") ? BookmarkManager.getAll() : (state.bookmarks || []);
 
         const backupData = {
             version: "1.0",
@@ -4242,26 +4435,25 @@ async function importProfileBackup(file) {
                     HistoryManager.saveSearchHistory(mergedS);
                 }
 
-                // 3. Bookmarks restore
-                if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0) {
+                // 3. Bookmarks restore (merge into BookmarkManager; accepts both
+                //    the new {bookId, page} shape and legacy {book_id, page_number})
+                if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0 && typeof BookmarkManager !== "undefined") {
                     for (const bm of data.bookmarks) {
-                        if (bm.book_id && bm.page_number) {
-                            try {
-                                await fetch("/api/bookmarks", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        book_id: bm.book_id,
-                                        page_number: bm.page_number,
-                                        note: bm.note || ""
-                                    })
-                                });
-                            } catch (bmErr) {
-                                console.warn("Failed to restore single bookmark:", bmErr);
-                            }
+                        if (!bm) continue;
+                        const bookId = bm.bookId || bm.book_id;
+                        const page = bm.page || bm.page_number;
+                        if (bookId && page) {
+                            BookmarkManager.add({
+                                bookId: bookId,
+                                bookName: bm.bookName || bm.book_name || bookId,
+                                page: Number(page) || 0,
+                                note: bm.note || "",
+                                mode: bm.mode || "pali"
+                            });
                         }
                     }
-                    await loadBookmarks();
+                    if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
+                    loadBookmarks();
                 }
 
                 // 4. Annotations restore (merge)
@@ -5195,8 +5387,11 @@ function setupEventListeners() {
             }, 120);
         }
 
-        // Auto track and update reading page number
-        checkVisiblePageOnScroll();
+        // NOTE: visible-page tracking is done by the IntersectionObserver in
+        // setupPageVisibilityObserver() (it observes every appended feed
+        // section). The old scroll-based checkVisiblePageOnScroll() was removed
+        // 2026-09-28: it ran querySelectorAll + getBoundingClientRect() on
+        // every loaded page on each scroll tick — O(N) forced layouts.
     }, { passive: true });
     
     // Page Number Input Jump
@@ -5851,32 +6046,6 @@ function setupSentinelObserver() {
     infiniteSentinelObserver.observe(sentinel);
 }
 
-let scrollPageCheckTimer = null;
-function checkVisiblePageOnScroll() {
-    if (scrollPageCheckTimer) return;
-    scrollPageCheckTimer = setTimeout(() => {
-        scrollPageCheckTimer = null;
-        const pageItems = document.querySelectorAll(".feed-page-item");
-        if (!pageItems.length) return;
-
-        const containerRect = el.readerContainer.getBoundingClientRect();
-        const triggerLine = containerRect.top + 220;
-
-        let activePage = null;
-        pageItems.forEach(item => {
-            const rect = item.getBoundingClientRect();
-            if (rect.top <= triggerLine && rect.bottom >= triggerLine) {
-                const p = parseInt(item.getAttribute("data-page"), 10);
-                if (!isNaN(p)) activePage = p;
-            }
-        });
-
-        if (activePage) {
-            updateCurrentViewPage(activePage);
-        }
-    }, 50);
-}
-
 async function loadNextFeedPage() {
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
@@ -5902,6 +6071,7 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
+            pruneFeedDOM();
         }
     } else if (state.readerMode === "mm") {
         if (nextPage > state.mmLastPage) {
@@ -5950,6 +6120,7 @@ async function handleLoadPrevPage() {
     } finally {
         state.isLoadingMore = false;
         if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = false;
+        pruneFeedDOM();
     }
 }
 
@@ -6048,13 +6219,9 @@ function debounceRecent(bookId, pageNum) {
             splitMMBookName: splitMMBookName,
             splitMMPage: splitMMPage
         });
-
-        // Also ping backend /api/recent for backward compatibility
-        fetch("/api/recent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ book_id: bookId, page_number: pageNum })
-        }).catch(() => {});
+        // NOTE: the legacy global POST /api/recent was removed 2026-09-28.
+        // It stored one shared row for ALL visitors (privacy leak); per-device
+        // history now lives in HistoryManager and syncs via /api/sync.
     }, 600);
 }
 

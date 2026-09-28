@@ -9,7 +9,7 @@ import hashlib
 import time
 import json
 from functools import lru_cache
-from flask import Flask, jsonify, render_template, request, send_from_directory, g
+from flask import Flask, jsonify, render_template, request, g
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PALI_PATH = os.path.join(BASE_DIR, "tipitaka_pali.db")
@@ -20,6 +20,8 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
+
+_STATS_CACHE = None  # (timestamp, dict) — /api/stats changes only on DB rebuild
 
 @app.after_request
 def add_cache_headers(response):
@@ -301,16 +303,19 @@ def _cached_format_mm(html):
 def index():
     return render_template("index.html")
 
-@app.route("/download-vps-zip")
-def download_vps_zip():
-    return send_from_directory(BASE_DIR, "tipitaka_vps.zip", as_attachment=True)
-
-@app.route("/download-code-update")
-def download_code_update():
-    return send_from_directory(BASE_DIR, "code_update.zip", as_attachment=True)
+# NOTE: /download-vps-zip and /download-code-update were removed (2026-09-28).
+# They publicly exposed a ~157MB archive of the full source + databases and
+# let anyone saturate the server by re-downloading it. Transfer deploy files
+# with scp/SFTP instead.
 
 @app.route("/api/stats")
 def api_stats():
+    # Counts only change when the databases are rebuilt, so cache for an hour
+    # instead of running 7 COUNT(*) queries on every home-page visit.
+    global _STATS_CACHE
+    now = time.time()
+    if _STATS_CACHE and now - _STATS_CACHE[0] < 3600:
+        return jsonify(_STATS_CACHE[1])
     conn_p = get_pali_db()
     cur_p = conn_p.cursor()
     books_count = cur_p.execute("SELECT count(*) FROM books").fetchone()[0]
@@ -327,7 +332,7 @@ def api_stats():
         mm_books_count = cur_m.execute("SELECT count(*) FROM book").fetchone()[0]
         mm_pages_count = cur_m.execute("SELECT count(*) FROM mm_pages").fetchone()[0]
 
-    return jsonify({
+    result = {
         "books": books_count,
         "pages": pages_count,
         "suttas": suttas_count,
@@ -335,7 +340,9 @@ def api_stats():
         "indexed_words": words_count,
         "mm_books": mm_books_count,
         "mm_pages": mm_pages_count
-    })
+    }
+    _STATS_CACHE = (now, result)
+    return jsonify(result)
 
 # ----------------- Pali APIs -----------------
 
@@ -599,13 +606,14 @@ def api_page(book_id, page_num):
 
                 if nums:
                     # Count frequency of target MM pages across all paragraph numbers on this page
-                    # Pick the page that contains the majority of the paragraphs
+                    # Pick the page that contains the majority of the paragraphs.
+                    # Single batched query (was one query per paragraph number).
+                    placeholders = ",".join("?" * len(nums))
                     page_counts = {}
-                    for num in nums:
-                        mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, num)).fetchone()
-                        if mp:
-                            pg = mp[0]
-                            page_counts[pg] = page_counts.get(pg, 0) + 1
+                    for (pg,) in m_cur.execute(
+                            f"SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number IN ({placeholders})",
+                            (mm_bid, *nums)):
+                        page_counts[pg] = page_counts.get(pg, 0) + 1
                     
                     if page_counts:
                         best_pg = max(page_counts.items(), key=lambda x: (x[1], x[0]))[0]
@@ -781,16 +789,29 @@ def api_mm_page(book_id, page_num):
             p_conn = get_pali_db()
             p_cur = p_conn.cursor()
             if nums:
+                # Single batched query for all paragraph numbers (was one LIKE
+                # query per paragraph, with the pattern interpolated into SQL).
+                # Majority vote: each paragraph number votes once, for the
+                # first (lowest) page whose paranum contains it.
+                like_clauses = " OR ".join(["paranum LIKE ?"] * len(nums))
+                like_params = [f"%-{n}-%" for n in nums]
+                rows = p_cur.execute(
+                    f"SELECT page, paranum FROM pages WHERE book_id = ? AND ({like_clauses}) ORDER BY page",
+                    (p_bid, *like_params)).fetchall()
+                row_segs = [(pg, set(str(pn).split("-"))) for pg, pn in rows]
                 pali_page_counts = {}
                 for num in nums:
-                    p_page_row = p_cur.execute(f"SELECT page FROM pages WHERE book_id = ? AND paranum LIKE '%-{num}-%' LIMIT 1", (p_bid,)).fetchone()
-                    if p_page_row:
-                        pg = p_page_row[0]
-                        pali_page_counts[pg] = pali_page_counts.get(pg, 0) + 1
+                    ns = str(num)
+                    for pg, segs in row_segs:
+                        if ns in segs:
+                            pali_page_counts[pg] = pali_page_counts.get(pg, 0) + 1
+                            break
                 if pali_page_counts:
                     target_pali_page = max(pali_page_counts.items(), key=lambda x: (x[1], x[0]))[0]
                 else:
-                    p_page_row = p_cur.execute(f"SELECT page FROM pages WHERE book_id = ? AND paranum LIKE '%-{nums[0]}-%' LIMIT 1", (p_bid,)).fetchone()
+                    p_page_row = p_cur.execute(
+                        "SELECT page FROM pages WHERE book_id = ? AND paranum LIKE ? ORDER BY page LIMIT 1",
+                        (p_bid, f"%-{nums[0]}-%")).fetchone()
                     if p_page_row:
                         target_pali_page = p_page_row[0]
             pb = p_cur.execute("SELECT name FROM books WHERE id = ?", (p_bid,)).fetchone()
@@ -1058,8 +1079,17 @@ def api_dict_lookup():
 def api_search():
     query = request.args.get("q", "").strip()
     stype = request.args.get("type", "word")
-    page = int(request.args.get("p", 1))
-    limit = int(request.args.get("limit", 20))
+    try:
+        page = int(request.args.get("p", 1))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    # Clamp: garbage/negative page and huge limits used to 500 or dump the DB
+    page = max(1, page)
+    limit = min(max(1, limit), 100)
     offset = (page - 1) * limit
 
     if not query:
@@ -1245,74 +1275,22 @@ def api_search():
 
 # ----------------- Bookmarks & Recent -----------------
 
+# ---------------------------------------------------------------------------
+# Retired legacy endpoints (2026-09-28)
+# /api/bookmarks and /api/recent were GLOBAL shared state: every public visitor
+# read/wrote the same rows (anyone could see or delete anyone else's bookmarks
+# and reading position). They are replaced by the per-device BookmarkManager /
+# HistoryManager with cross-device sync via /api/sync. The underlying tables
+# ("bookmark", "recent") are left intact in the DB for manual owner recovery,
+# but the HTTP endpoints now refuse all access.
+# ---------------------------------------------------------------------------
 @app.route("/api/bookmarks", methods=["GET", "POST", "DELETE"])
-def api_bookmarks():
-    if request.method == "GET":
-        conn = get_pali_db()
-        cur = conn.cursor()
-        rows = cur.execute("""
-            SELECT bm.book_id, b.name as book_name, bm.page_number, bm.note 
-            FROM bookmark bm
-            LEFT JOIN books b ON bm.book_id = b.id
-            ORDER BY bm.rowid DESC
-        """).fetchall()
-        return jsonify([dict(r) for r in rows])
-
-    elif request.method == "POST":
-        data = request.json or {}
-        book_id = data.get("book_id")
-        page_num = data.get("page_number")
-        note = data.get("note", "")
-        if not book_id or not page_num:
-            return jsonify({"error": "Missing book_id or page_number"}), 400
-        conn = get_pali_db(readonly=False)
-        cur = conn.cursor()
-        existing = cur.execute("SELECT 1 FROM bookmark WHERE book_id = ? AND page_number = ?", (book_id, page_num)).fetchone()
-        if not existing:
-            cur.execute("INSERT INTO bookmark (book_id, page_number, note) VALUES (?, ?, ?)", (book_id, page_num, note))
-            conn.commit()
-        conn.close()
-        return jsonify({"status": "success", "action": "added"})
-
-    elif request.method == "DELETE":
-        data = request.json or {}
-        book_id = data.get("book_id")
-        page_num = data.get("page_number")
-        if book_id and page_num:
-            conn = get_pali_db(readonly=False)
-            cur = conn.cursor()
-            cur.execute("DELETE FROM bookmark WHERE book_id = ? AND page_number = ?", (book_id, page_num))
-            conn.commit()
-            conn.close()
-        return jsonify({"status": "success", "action": "deleted"})
-
 @app.route("/api/recent", methods=["GET", "POST"])
-def api_recent():
-    if request.method == "GET":
-        conn = get_pali_db()
-        cur = conn.cursor()
-        row = cur.execute("""
-            SELECT r.book_id, b.name as book_name, r.page_number 
-            FROM recent r
-            JOIN books b ON r.book_id = b.id
-            LIMIT 1
-        """).fetchone()
-        if row:
-            return jsonify(dict(row))
-        return jsonify({"book_id": "mula_vi_01", "book_name": "ပါရာဇိကပါဠိ", "page_number": 1})
-
-    elif request.method == "POST":
-        data = request.json or {}
-        book_id = data.get("book_id")
-        page_num = data.get("page_number")
-        if book_id and page_num:
-            conn = get_pali_db(readonly=False)
-            cur = conn.cursor()
-            cur.execute("DELETE FROM recent")
-            cur.execute("INSERT INTO recent (book_id, page_number) VALUES (?, ?)", (book_id, page_num))
-            conn.commit()
-            conn.close()
-        return jsonify({"status": "success"})
+def api_legacy_retired():
+    return jsonify({
+        "error": "gone",
+        "message": "This endpoint was retired: bookmarks and reading history are now stored per-device and synced via /api/sync.",
+    }), 410
 
 # ============================================================
 # Annotation Sync — cross-device via pairing code
@@ -1405,30 +1383,45 @@ def _sync_account_by_secret(secret):
     conn = _sync_conn()
     try:
         row = conn.execute(
-            """SELECT a.id AS id, a.code AS code, d.id AS device_id
+            """SELECT a.id AS id, a.code AS code, d.id AS device_id,
+                      d.last_seen AS last_seen
                FROM sync_devices d JOIN sync_accounts a ON a.id = d.account_id
                WHERE d.secret_hash = ?""",
             (_hash_secret(secret),)).fetchone()
         if row:
-            conn.execute("UPDATE sync_devices SET last_seen = ? WHERE id = ?",
-                         (int(time.time()), row["device_id"]))
-            conn.commit()
+            now = int(time.time())
+            # Throttle the write: pulls happen often, last_seen is approximate
+            if now - (row["last_seen"] or 0) > 3600:
+                conn.execute("UPDATE sync_devices SET last_seen = ? WHERE id = ?",
+                             (now, row["device_id"]))
+                conn.commit()
             return {"id": row["id"], "code": row["code"], "device_id": row["device_id"]}
         return None
     finally:
         conn.close()
 
 
-def _claim_rate_ok(ip):
+def _rate_ok(ip, limit=10, window=300):
+    """In-memory per-IP rate limiter (best-effort; each worker has its own)."""
     now = time.time()
-    hits = [t for t in _SYNC_RATE.get(ip, []) if now - t < 300]
-    if len(hits) >= 10:
+    hits = [t for t in _SYNC_RATE.get(ip, []) if now - t < window]
+    if len(hits) >= limit:
         return False
     hits.append(now)
     _SYNC_RATE[ip] = hits
-    if len(_SYNC_RATE) > 2000:  # avoid unbounded growth
-        _SYNC_RATE.clear()
+    if len(_SYNC_RATE) > 2000:
+        # Evict the 500 least-recently-seen IPs. Never wipe the whole table:
+        # wiping would let an attacker reset everyone's limit by flooding
+        # the table with fresh IPs.
+        victims = sorted(_SYNC_RATE,
+                         key=lambda k: _SYNC_RATE[k][-1] if _SYNC_RATE[k] else 0)[:500]
+        for v in victims:
+            _SYNC_RATE.pop(v, None)
     return True
+
+
+def _claim_rate_ok(ip):
+    return _rate_ok(ip, limit=10, window=300)
 
 
 def _clean_annotation(a):
@@ -1479,7 +1472,7 @@ def _clean_history(h):
     if not hist_id:
         return None
     kind = str(h.get("kind", "reading"))
-    if kind not in ("reading", "search"):
+    if kind not in ("reading", "search", "bookmark"):
         kind = "reading"
     try:
         updated_at = int(h.get("updatedAt", 0))
@@ -1519,6 +1512,14 @@ def _clean_history(h):
             "splitMMBookName": str(h.get("splitMMBookName") or "")[:120] or None,
             "splitMMPage": split_page or None,
         })
+    elif kind == "bookmark":
+        clean.update({
+            "mode": str(h.get("mode", "pali"))[:16],
+            "bookId": str(h.get("bookId", ""))[:64],
+            "bookName": str(h.get("bookName", ""))[:120],
+            "page": page,
+            "note": str(h.get("note", ""))[:500],
+        })
     else:
         try:
             rc = h.get("resultCount")
@@ -1536,6 +1537,9 @@ def _clean_history(h):
 @app.route("/api/sync/create", methods=["POST"])
 def api_sync_create():
     """Create a new sync account; returns pairing code + this device's secret."""
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    if not _rate_ok(ip, limit=20, window=3600):
+        return jsonify({"error": "too many accounts created, try again later"}), 429
     data = request.json or {}
     name = str(data.get("device_name", ""))[:40] or "Device"
     conn = _sync_conn()
@@ -1611,39 +1615,42 @@ def api_sync_push():
         return jsonify({"error": "invalid history"}), 400
     conn = _sync_conn()
     try:
+        # Conditional upserts: one statement per row, no SELECT round-trip.
+        # WHERE excluded.updated_at >= ... keeps last-write-wins semantics.
+        ann_rows = []
         for a in anns:
             clean = _clean_annotation(a)
             if not clean:
                 continue
-            row = conn.execute(
-                "SELECT updated_at FROM sync_annotations WHERE account_id = ? AND ann_id = ?",
-                (acc["id"], clean["id"])).fetchone()
-            if row is None or clean["updatedAt"] >= row["updated_at"]:
-                conn.execute(
-                    """INSERT INTO sync_annotations (account_id, ann_id, data, updated_at, deleted)
-                       VALUES (?, ?, ?, ?, ?)
-                       ON CONFLICT(account_id, ann_id) DO UPDATE SET
-                         data = excluded.data, updated_at = excluded.updated_at,
-                         deleted = excluded.deleted""",
-                    (acc["id"], clean["id"], json.dumps(clean, ensure_ascii=False),
-                     clean["updatedAt"], clean["deleted"]))
+            ann_rows.append((acc["id"], clean["id"],
+                            json.dumps(clean, ensure_ascii=False),
+                            clean["updatedAt"], clean["deleted"]))
+        if ann_rows:
+            conn.executemany(
+                """INSERT INTO sync_annotations (account_id, ann_id, data, updated_at, deleted)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(account_id, ann_id) DO UPDATE SET
+                     data = excluded.data, updated_at = excluded.updated_at,
+                     deleted = excluded.deleted
+                   WHERE excluded.updated_at >= sync_annotations.updated_at""",
+                ann_rows)
+        hist_rows = []
         for h in hist:
             clean = _clean_history(h)
             if not clean:
                 continue
-            row = conn.execute(
-                "SELECT updated_at FROM sync_history WHERE account_id = ? AND hist_id = ?",
-                (acc["id"], clean["id"])).fetchone()
-            if row is None or clean["updatedAt"] >= row["updated_at"]:
-                conn.execute(
-                    """INSERT INTO sync_history (account_id, hist_id, kind, data, updated_at, deleted)
-                       VALUES (?, ?, ?, ?, ?, ?)
-                       ON CONFLICT(account_id, hist_id) DO UPDATE SET
-                         kind = excluded.kind, data = excluded.data,
-                         updated_at = excluded.updated_at, deleted = excluded.deleted""",
-                    (acc["id"], clean["id"], clean["kind"],
-                     json.dumps(clean, ensure_ascii=False),
-                     clean["updatedAt"], clean["deleted"]))
+            hist_rows.append((acc["id"], clean["id"], clean["kind"],
+                             json.dumps(clean, ensure_ascii=False),
+                             clean["updatedAt"], clean["deleted"]))
+        if hist_rows:
+            conn.executemany(
+                """INSERT INTO sync_history (account_id, hist_id, kind, data, updated_at, deleted)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(account_id, hist_id) DO UPDATE SET
+                     kind = excluded.kind, data = excluded.data,
+                     updated_at = excluded.updated_at, deleted = excluded.deleted
+                   WHERE excluded.updated_at >= sync_history.updated_at""",
+                hist_rows)
         # Prune tombstones older than 90 days
         cutoff = int(time.time() * 1000) - 90 * 24 * 3600 * 1000
         conn.execute(
