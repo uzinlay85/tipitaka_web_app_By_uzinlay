@@ -951,27 +951,46 @@ const SyncManager = {
     async push() {
         if (!this.isPaired()) return null;
         const anns = AnnotationManager.changedSince(this.lastSync);
-        return this._post("/api/sync/push", { secret: this.secret, annotations: anns });
+        const hist = (typeof HistoryManager !== "undefined") ? HistoryManager.changedSince(this.lastSync) : [];
+        return this._post("/api/sync/push", { secret: this.secret, annotations: anns, history: hist });
     },
 
-    async pull() {
+    async pull(watermark) {
         if (!this.isPaired()) return null;
         const data = await this._post("/api/sync/pull", { secret: this.secret, since: this.lastSync });
         const changed = AnnotationManager.mergeRemote(data.annotations || []);
+        let histChanged = false;
+        if (typeof HistoryManager !== "undefined") {
+            histChanged = HistoryManager.mergeRemote(data.history || []);
+        }
         if (changed) {
             renderAnnotationSidebar();
             applyAnnotationsToCurrentPage();
         }
-        this.lastSync = data.server_time || Date.now();
+        if (histChanged) {
+            HistoryManager.updateBadgeCounts();
+            // Re-render the history modal if it is currently open
+            const modal = document.getElementById("historyModal");
+            if (modal && modal.classList.contains("open") && typeof renderHistoryModalContent === "function") {
+                renderHistoryModalContent();
+            }
+        }
+        // Watermark = client time at sync start (not server_time): entries are
+        // stamped with the client clock, so the watermark must be too — and it
+        // must not advance past entries created while this sync was in flight,
+        // or they would never be pushed.
+        this.lastSync = (typeof watermark === "number" && watermark > 0)
+            ? watermark : (data.server_time || Date.now());
         return data;
     },
 
     async syncNow() {
         if (!this.isPaired()) return;
         setSyncStatus("syncing");
+        const t0 = Date.now();
         try {
             await this.push();
-            await this.pull();
+            await this.pull(t0);
             setSyncStatus("ok");
         } catch (e) {
             console.warn("Sync failed:", e);
@@ -1049,7 +1068,7 @@ function renderSyncModal() {
     if (!body) return;
     if (!SyncManager.isPaired()) {
         body.innerHTML = `
-            <p class="sync-desc">ဖုန်း / ကွန်ပျူတာ အားလုံးမှာ မှတ်ချက်တွေ တူညီအောင် sync ကုဒ်နဲ့ ချိတ်ပါ။</p>
+            <p class="sync-desc">ဖုန်း / ကွန်ပျူတာ အားလုံးမှာ မှတ်ချက်တွေနဲ့ ဖတ်ရှု/ရှာဖွေ မှတ်တမ်းတွေ တူညီအောင် sync ကုဒ်နဲ့ ချိတ်ပါ။</p>
             <button id="btnSyncCreate" class="sync-primary-btn">🔑 ကုဒ်အသစ် ထုတ်ရန်</button>
             <div class="sync-divider"><span>သို့မဟုတ်</span></div>
             <label class="sync-label">ရှိပြီးသား ကုဒ်နဲ့ ချိတ်ရန်</label>
@@ -1107,7 +1126,7 @@ function renderSyncModal() {
         });
         document.getElementById("btnSyncNow").addEventListener("click", () => SyncManager.syncNow());
         document.getElementById("btnSyncLeave").addEventListener("click", async () => {
-            if (confirm("ဒီ device ကို sync ကနေ ဖြုတ်မှာလား? (မှတ်ချက်တွေက ဒီ device မှာ ကျန်မယ်)")) {
+            if (confirm("ဒီ device ကို sync ကနေ ဖြုတ်မှာလား? (မှတ်ချက်နဲ့ မှတ်တမ်းတွေက ဒီ device မှာ ကျန်မယ်)")) {
                 await SyncManager.leave();
                 renderSyncModal();
             }
@@ -1115,7 +1134,7 @@ function renderSyncModal() {
         SyncManager._post("/api/sync/status", { secret: SyncManager.secret })
             .then(s => {
                 const line = document.getElementById("syncInfoLine");
-                if (line) line.textContent = `📱 devices: ${s.devices} • 📝 မှတ်ချက်များ: ${s.annotations}`;
+                if (line) line.textContent = `📱 devices: ${s.devices} • 📝 မှတ်ချက်များ: ${s.annotations} • 🕘 မှတ်တမ်း: ${s.history || 0}`;
             })
             .catch(() => {});
     }
@@ -1139,6 +1158,15 @@ function setupSyncUI() {
         else openSyncModal();
     });
     updateSyncUI();
+    // One-time migration: backfill updatedAt on old history entries and do a
+    // full sync once so pre-existing history converges across devices.
+    try {
+        if (!localStorage.getItem("tipitaka_sync_history_migrated_v1")) {
+            if (typeof HistoryManager !== "undefined") HistoryManager.backfillUpdatedAt();
+            if (SyncManager.isPaired()) SyncManager.lastSync = 0;
+            localStorage.setItem("tipitaka_sync_history_migrated_v1", "1");
+        }
+    } catch (e) {}
     // Initial background sync shortly after app start
     if (SyncManager.isPaired()) setTimeout(() => SyncManager.syncNow(), 4000);
     // Re-sync when returning to the app after a while
@@ -3709,20 +3737,49 @@ const HistoryManager = {
     SEARCH_KEY: "tipitaka_search_history_v1",
     MAX_READING: 200,
     MAX_SEARCH: 50,
+    TOMBSTONE_PRUNE_MS: 90 * 24 * 3600 * 1000, // 90 days, mirrors server
 
-    getReadingHistory() {
+    // Raw storage readers (include sync tombstones)
+    _readRawReading() {
         try {
             const raw = localStorage.getItem(this.READING_KEY);
-            return raw ? JSON.parse(raw) : [];
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
         } catch (e) {
             console.error("Failed to parse reading history:", e);
             return [];
         }
     },
+    _readRawSearch() {
+        try {
+            const raw = localStorage.getItem(this.SEARCH_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    getReadingHistory() {
+        return this._readRawReading().filter(i => !i.deleted);
+    },
+
+    getSearchHistory() {
+        return this._readRawSearch().filter(i => !i.deleted);
+    },
+
+    _pruneTombstones(list) {
+        const now = Date.now();
+        return list.filter(i => !i.deleted ||
+            (now - (Number(i.updatedAt) || Number(i.timestamp) || 0)) <= this.TOMBSTONE_PRUNE_MS);
+    },
 
     saveReadingHistory(list) {
         try {
-            localStorage.setItem(this.READING_KEY, JSON.stringify(list.slice(0, this.MAX_READING)));
+            const pruned = this._pruneTombstones(list);
+            const active = pruned.filter(i => !i.deleted).slice(0, this.MAX_READING);
+            const tombs = pruned.filter(i => i.deleted);
+            localStorage.setItem(this.READING_KEY, JSON.stringify(active.concat(tombs)));
             this.updateBadgeCounts();
         } catch (e) {
             console.error("Failed to save reading history:", e);
@@ -3731,7 +3788,8 @@ const HistoryManager = {
 
     recordReading(entry) {
         if (!entry || !entry.bookId) return;
-        const list = this.getReadingHistory();
+        const raw = this._readRawReading();
+        const list = raw.filter(i => !i.deleted);
         const now = Date.now();
 
         // If top item is identical book and mode, update page, chapter and timestamp
@@ -3749,7 +3807,9 @@ const HistoryManager = {
                     if (entry.splitMMPage) first.splitMMPage = entry.splitMMPage;
                 }
                 first.timestamp = now;
-                this.saveReadingHistory(list);
+                first.updatedAt = now;
+                this.saveReadingHistory(raw);
+                if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
                 return;
             }
         }
@@ -3764,37 +3824,50 @@ const HistoryManager = {
             splitMMBookId: entry.splitMMBookId || null,
             splitMMBookName: entry.splitMMBookName || null,
             splitMMPage: entry.splitMMPage || null,
-            timestamp: now
+            timestamp: now,
+            updatedAt: now
         };
 
-        // Remove any identical prior entry for same book & page
-        const filtered = list.filter(item => !(item.mode === newItem.mode && item.bookId === newItem.bookId && item.page === newItem.page));
+        // Tombstone any identical prior entry for same book & page, so the
+        // replacement propagates to other devices instead of duplicating there
+        for (const item of list) {
+            if (item.mode === newItem.mode && item.bookId === newItem.bookId && item.page === newItem.page) {
+                item.deleted = 1;
+                item.updatedAt = now;
+            }
+        }
+        const filtered = list.filter(item => !item.deleted);
         filtered.unshift(newItem);
-        this.saveReadingHistory(filtered);
+        this.saveReadingHistory(filtered.concat(raw.filter(i => i.deleted)));
+        if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
     },
 
+    // Tombstone delete (sync-friendly: deletions propagate to other devices)
     deleteReadingItem(id) {
-        const list = this.getReadingHistory().filter(item => item.id !== id);
-        this.saveReadingHistory(list);
+        const raw = this._readRawReading();
+        const it = raw.find(item => item.id === id);
+        if (it) {
+            it.deleted = 1;
+            it.updatedAt = Date.now();
+            this.saveReadingHistory(raw);
+            if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
+        }
     },
 
     clearReadingHistory() {
-        localStorage.removeItem(this.READING_KEY);
-        this.updateBadgeCounts();
-    },
-
-    getSearchHistory() {
-        try {
-            const raw = localStorage.getItem(this.SEARCH_KEY);
-            return raw ? JSON.parse(raw) : [];
-        } catch (e) {
-            return [];
-        }
+        const raw = this._readRawReading();
+        const now = Date.now();
+        raw.forEach(item => { item.deleted = 1; item.updatedAt = now; });
+        this.saveReadingHistory(raw);
+        if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
     },
 
     saveSearchHistory(list) {
         try {
-            localStorage.setItem(this.SEARCH_KEY, JSON.stringify(list.slice(0, this.MAX_SEARCH)));
+            const pruned = this._pruneTombstones(list);
+            const active = pruned.filter(i => !i.deleted).slice(0, this.MAX_SEARCH);
+            const tombs = pruned.filter(i => i.deleted);
+            localStorage.setItem(this.SEARCH_KEY, JSON.stringify(active.concat(tombs)));
             this.updateBadgeCounts();
         } catch (e) {}
     },
@@ -3802,32 +3875,149 @@ const HistoryManager = {
     recordSearch(query, type, resultCount = null) {
         const q = (query || "").trim();
         if (!q || q.length < 2) return;
-        let list = this.getSearchHistory();
+        const raw = this._readRawSearch();
         const now = Date.now();
-        list = list.filter(item => item.query.toLowerCase() !== q.toLowerCase());
+        // Tombstone prior entries with the same query so the replacement
+        // propagates to other devices instead of duplicating there
+        for (const item of raw) {
+            if (!item.deleted && item.query.toLowerCase() === q.toLowerCase()) {
+                item.deleted = 1;
+                item.updatedAt = now;
+            }
+        }
+        const list = raw.filter(i => !i.deleted);
         list.unshift({
             id: "sh_" + now,
             query: q,
             type: type || "word",
             resultCount: (resultCount !== null && resultCount !== undefined) ? resultCount : null,
-            timestamp: now
+            timestamp: now,
+            updatedAt: now
         });
-        this.saveSearchHistory(list);
+        this.saveSearchHistory(list.concat(raw.filter(i => i.deleted)));
+        if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
     },
 
+    // Tombstone delete (sync-friendly: deletions propagate to other devices)
     deleteSearchItem(id) {
-        const list = this.getSearchHistory().filter(item => item.id !== id);
-        this.saveSearchHistory(list);
+        const raw = this._readRawSearch();
+        const it = raw.find(item => item.id === id);
+        if (it) {
+            it.deleted = 1;
+            it.updatedAt = Date.now();
+            this.saveSearchHistory(raw);
+            if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
+        }
     },
 
     clearSearchHistory() {
-        localStorage.removeItem(this.SEARCH_KEY);
-        this.updateBadgeCounts();
+        const raw = this._readRawSearch();
+        const now = Date.now();
+        raw.forEach(item => { item.deleted = 1; item.updatedAt = now; });
+        this.saveSearchHistory(raw);
+        if (typeof SyncManager !== "undefined") SyncManager.schedulePush();
     },
 
     updateBadgeCounts() {
         if (el.historyReadingBadge) el.historyReadingBadge.textContent = this.getReadingHistory().length;
         if (el.historySearchBadge) el.historySearchBadge.textContent = this.getSearchHistory().length;
+    },
+
+    // Normalize one entry for the sync payload
+    _syncEntry(item, kind) {
+        const updatedAt = Number(item.updatedAt) || Number(item.timestamp) || Date.now();
+        return Object.assign({}, item, { kind: kind, updatedAt: updatedAt });
+    },
+
+    // History entries (incl. tombstones) changed since ts — the push payload
+    changedSince(ts) {
+        const t = ts || 0;
+        const out = [];
+        for (const i of this._readRawReading()) {
+            if ((Number(i.updatedAt) || Number(i.timestamp) || 0) > t) out.push(this._syncEntry(i, "reading"));
+        }
+        for (const i of this._readRawSearch()) {
+            if ((Number(i.updatedAt) || Number(i.timestamp) || 0) > t) out.push(this._syncEntry(i, "search"));
+        }
+        return out;
+    },
+
+    // Merge remote history entries, last-write-wins per id. Returns true if local data changed.
+    mergeRemote(remoteList) {
+        if (!Array.isArray(remoteList) || remoteList.length === 0) return false;
+        const byIdR = new Map(this._readRawReading().map(i => [i.id, i]));
+        const byIdS = new Map(this._readRawSearch().map(i => [i.id, i]));
+        let changedR = false, changedS = false;
+        for (const r of remoteList) {
+            if (!r || typeof r.id !== "string" || !r.id) continue;
+            const kind = r.kind === "search" ? "search" : "reading";
+            const byId = kind === "search" ? byIdS : byIdR;
+            const rUpd = Number(r.updatedAt) || 0;
+            const local = byId.get(r.id);
+            if (!local) {
+                byId.set(r.id, Object.assign({}, r, { updatedAt: rUpd }));
+                if (kind === "search") changedS = true; else changedR = true;
+            } else if (rUpd > (Number(local.updatedAt) || Number(local.timestamp) || 0)) {
+                byId.set(r.id, Object.assign({}, local, r, { updatedAt: rUpd }));
+                if (kind === "search") changedS = true; else changedR = true;
+            }
+        }
+        // Semantic dedup: the same page read (or same query searched) on two
+        // devices yields two ids; keep only the newest live entry per semantic
+        // key and tombstone the losers so the dedup propagates to all devices.
+        const dedupNow = Date.now();
+        const dedup = (byId, keyFn) => {
+            const seen = new Map();
+            let tombstoned = false;
+            for (const item of byId.values()) {
+                if (item.deleted) continue;
+                const k = keyFn(item);
+                const prev = seen.get(k);
+                if (!prev) { seen.set(k, item); continue; }
+                const prevT = Number(prev.timestamp) || 0;
+                const curT = Number(item.timestamp) || 0;
+                const loser = curT >= prevT ? prev : item;
+                const winner = loser === prev ? item : prev;
+                loser.deleted = 1;
+                loser.updatedAt = dedupNow;
+                seen.set(k, winner);
+                tombstoned = true;
+            }
+            return tombstoned;
+        };
+        if (dedup(byIdR, i => (i.mode || "") + "|" + (i.bookId || "") + "|" + (i.page || 0))) changedR = true;
+        if (dedup(byIdS, i => String(i.query || "").toLowerCase())) changedS = true;
+        if (changedR) {
+            const merged = [...byIdR.values()];
+            merged.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+            this.saveReadingHistory(merged);
+        }
+        if (changedS) {
+            const merged = [...byIdS.values()];
+            merged.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+            this.saveSearchHistory(merged);
+        }
+        if ((changedR || changedS) && typeof SyncManager !== "undefined") {
+            // Push tombstones created by the dedup so other devices converge
+            SyncManager.schedulePush();
+        }
+        return changedR || changedS;
+    },
+
+    // One-time backfill: old entries predate updatedAt; treat timestamp as updatedAt
+    backfillUpdatedAt() {
+        let touched = false;
+        for (const [key, raw] of [[this.READING_KEY, this._readRawReading()], [this.SEARCH_KEY, this._readRawSearch()]]) {
+            let localTouched = false;
+            for (const i of raw) {
+                if (!i.updatedAt && i.timestamp) { i.updatedAt = i.timestamp; localTouched = true; }
+            }
+            if (localTouched) {
+                try { localStorage.setItem(key, JSON.stringify(raw)); } catch (e) {}
+                touched = true;
+            }
+        }
+        if (touched) this.updateBadgeCounts();
     }
 };
 

@@ -1352,6 +1352,16 @@ CREATE TABLE IF NOT EXISTS sync_annotations (
     PRIMARY KEY (account_id, ann_id)
 );
 CREATE INDEX IF NOT EXISTS idx_sync_ann_updated ON sync_annotations(account_id, updated_at);
+CREATE TABLE IF NOT EXISTS sync_history (
+    account_id INTEGER NOT NULL REFERENCES sync_accounts(id) ON DELETE CASCADE,
+    hist_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'reading',
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, hist_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sync_hist_updated ON sync_history(account_id, updated_at);
 """
 _SYNC_DB_READY = False
 
@@ -1461,6 +1471,68 @@ def _clean_annotation(a):
     }
 
 
+def _clean_history(h):
+    """Whitelist + length-cap a client-supplied history entry. Returns dict or None."""
+    if not isinstance(h, dict):
+        return None
+    hist_id = str(h.get("id", ""))[:64]
+    if not hist_id:
+        return None
+    kind = str(h.get("kind", "reading"))
+    if kind not in ("reading", "search"):
+        kind = "reading"
+    try:
+        updated_at = int(h.get("updatedAt", 0))
+    except (TypeError, ValueError):
+        updated_at = 0
+    if updated_at <= 0:
+        updated_at = int(time.time() * 1000)
+    try:
+        timestamp = int(h.get("timestamp", 0))
+    except (TypeError, ValueError):
+        timestamp = 0
+    if timestamp <= 0:
+        timestamp = updated_at
+    try:
+        page = int(h.get("page", 0))
+    except (TypeError, ValueError):
+        page = 0
+    clean = {
+        "id": hist_id,
+        "kind": kind,
+        "updatedAt": updated_at,
+        "timestamp": timestamp,
+        "deleted": 1 if h.get("deleted") else 0,
+    }
+    if kind == "reading":
+        try:
+            split_page = int(h.get("splitMMPage", 0))
+        except (TypeError, ValueError):
+            split_page = 0
+        clean.update({
+            "mode": str(h.get("mode", "pali"))[:16],
+            "bookId": str(h.get("bookId", ""))[:64],
+            "bookName": str(h.get("bookName", ""))[:120],
+            "page": page,
+            "chapterName": str(h.get("chapterName", ""))[:200],
+            "splitMMBookId": str(h.get("splitMMBookId") or "")[:64] or None,
+            "splitMMBookName": str(h.get("splitMMBookName") or "")[:120] or None,
+            "splitMMPage": split_page or None,
+        })
+    else:
+        try:
+            rc = h.get("resultCount")
+            rc = int(rc) if rc is not None else None
+        except (TypeError, ValueError):
+            rc = None
+        clean.update({
+            "query": str(h.get("query", ""))[:200],
+            "type": str(h.get("type", "word"))[:16],
+            "resultCount": rc,
+        })
+    return clean
+
+
 @app.route("/api/sync/create", methods=["POST"])
 def api_sync_create():
     """Create a new sync account; returns pairing code + this device's secret."""
@@ -1524,7 +1596,7 @@ def api_sync_claim():
 
 @app.route("/api/sync/push", methods=["POST"])
 def api_sync_push():
-    """Upload annotations; last-write-wins per annotation id."""
+    """Upload annotations + history entries; last-write-wins per id."""
     data = request.json or {}
     acc = _sync_account_by_secret(data.get("secret"))
     if not acc:
@@ -1532,6 +1604,11 @@ def api_sync_push():
     anns = data.get("annotations")
     if not isinstance(anns, list) or len(anns) > 5000:
         return jsonify({"error": "invalid annotations"}), 400
+    hist = data.get("history")
+    if hist is None:
+        hist = []
+    if not isinstance(hist, list) or len(hist) > 2000:
+        return jsonify({"error": "invalid history"}), 400
     conn = _sync_conn()
     try:
         for a in anns:
@@ -1550,23 +1627,47 @@ def api_sync_push():
                          deleted = excluded.deleted""",
                     (acc["id"], clean["id"], json.dumps(clean, ensure_ascii=False),
                      clean["updatedAt"], clean["deleted"]))
+        for h in hist:
+            clean = _clean_history(h)
+            if not clean:
+                continue
+            row = conn.execute(
+                "SELECT updated_at FROM sync_history WHERE account_id = ? AND hist_id = ?",
+                (acc["id"], clean["id"])).fetchone()
+            if row is None or clean["updatedAt"] >= row["updated_at"]:
+                conn.execute(
+                    """INSERT INTO sync_history (account_id, hist_id, kind, data, updated_at, deleted)
+                       VALUES (?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(account_id, hist_id) DO UPDATE SET
+                         kind = excluded.kind, data = excluded.data,
+                         updated_at = excluded.updated_at, deleted = excluded.deleted""",
+                    (acc["id"], clean["id"], clean["kind"],
+                     json.dumps(clean, ensure_ascii=False),
+                     clean["updatedAt"], clean["deleted"]))
         # Prune tombstones older than 90 days
         cutoff = int(time.time() * 1000) - 90 * 24 * 3600 * 1000
         conn.execute(
             "DELETE FROM sync_annotations WHERE account_id = ? AND deleted = 1 AND updated_at < ?",
             (acc["id"], cutoff))
+        conn.execute(
+            "DELETE FROM sync_history WHERE account_id = ? AND deleted = 1 AND updated_at < ?",
+            (acc["id"], cutoff))
         conn.commit()
         count = conn.execute(
             "SELECT COUNT(*) AS c FROM sync_annotations WHERE account_id = ? AND deleted = 0",
             (acc["id"],)).fetchone()["c"]
+        hist_count = conn.execute(
+            "SELECT COUNT(*) AS c FROM sync_history WHERE account_id = ? AND deleted = 0",
+            (acc["id"],)).fetchone()["c"]
     finally:
         conn.close()
-    return jsonify({"ok": True, "count": count, "server_time": int(time.time() * 1000)})
+    return jsonify({"ok": True, "count": count, "history_count": hist_count,
+                    "server_time": int(time.time() * 1000)})
 
 
 @app.route("/api/sync/pull", methods=["POST"])
 def api_sync_pull():
-    """Download annotations changed since `since` (ms epoch); includes tombstones."""
+    """Download annotations + history changed since `since` (ms epoch); includes tombstones."""
     data = request.json or {}
     acc = _sync_account_by_secret(data.get("secret"))
     if not acc:
@@ -1580,10 +1681,14 @@ def api_sync_pull():
         rows = conn.execute(
             "SELECT data FROM sync_annotations WHERE account_id = ? AND updated_at > ?",
             (acc["id"], since)).fetchall()
+        hist_rows = conn.execute(
+            "SELECT data FROM sync_history WHERE account_id = ? AND updated_at > ?",
+            (acc["id"], since)).fetchall()
     finally:
         conn.close()
     return jsonify({
         "annotations": [json.loads(r["data"]) for r in rows],
+        "history": [json.loads(r["data"]) for r in hist_rows],
         "server_time": int(time.time() * 1000),
     })
 
@@ -1602,9 +1707,12 @@ def api_sync_status():
         anns = conn.execute(
             "SELECT COUNT(*) AS c FROM sync_annotations WHERE account_id = ? AND deleted = 0",
             (acc["id"],)).fetchone()["c"]
+        hist = conn.execute(
+            "SELECT COUNT(*) AS c FROM sync_history WHERE account_id = ? AND deleted = 0",
+            (acc["id"],)).fetchone()["c"]
     finally:
         conn.close()
-    return jsonify({"code": acc["code"], "devices": devices, "annotations": anns})
+    return jsonify({"code": acc["code"], "devices": devices, "annotations": anns, "history": hist})
 
 
 @app.route("/api/sync/leave", methods=["POST"])
