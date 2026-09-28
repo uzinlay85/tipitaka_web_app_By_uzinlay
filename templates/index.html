@@ -51,7 +51,7 @@
                     <span>ရှေ့</span>
                 </button>
                 <div class="page-indicator">
-                    <input type="number" id="pageNumberInput" min="1" max="1000" value="1">
+                    <input type="text" id="pageNumberInput" inputmode="numeric" pattern="[0-9၀-၉]*" value="၁" aria-label="စာမျက်နှာနံပါတ်">
                     <span class="page-total">/ <span id="totalPageDisplay">381</span></span>
                 </div>
                 <button id="btnNextPage" class="nav-btn" title="နောက်စာမျက်နှာ (Right Arrow / ])">
@@ -1059,6 +1059,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=6.4"></script>
+    <script src="/static/app.js?v=6.5"></script>
 </body>
 </html>

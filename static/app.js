@@ -1614,7 +1614,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
         if (state.readerMode !== "split") {
             el.paliContent.innerHTML = `<div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
-            el.pageNumberInput.value = targetNum;
+            el.pageNumberInput.value = toMyanmarNum(targetNum);
             if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
             if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
         }
@@ -1652,7 +1652,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     el.metaPageNum.textContent = toMyanmarNum(actualPage);
                     el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                     el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                    el.pageNumberInput.value = actualPage;
+                    el.pageNumberInput.value = toMyanmarNum(actualPage);
                     el.pageNumberInput.min = data.first_page;
                     el.pageNumberInput.max = data.last_page;
 
@@ -1799,7 +1799,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 el.metaPageNum.textContent = toMyanmarNum(actualPage);
                 el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                 el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                el.pageNumberInput.value = actualPage;
+                el.pageNumberInput.value = toMyanmarNum(actualPage);
                 el.pageNumberInput.min = data.first_page;
                 el.pageNumberInput.max = data.last_page;
                 
@@ -1910,7 +1910,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
         state.feedLastLoadedPage = targetNum;
 
         el.paliContent.innerHTML = `<div class="loading-state">မြန်မာပြန် စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
-        el.pageNumberInput.value = targetNum;
+        el.pageNumberInput.value = toMyanmarNum(targetNum);
         if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
         if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
     }
@@ -1942,7 +1942,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     el.metaPageNum.textContent = toMyanmarNum(actualPage);
                     el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                     el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                    el.pageNumberInput.value = actualPage;
+                    el.pageNumberInput.value = toMyanmarNum(actualPage);
                     el.pageNumberInput.min = data.first_page;
                     el.pageNumberInput.max = data.last_page;
 
@@ -2087,7 +2087,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 el.metaPageNum.textContent = toMyanmarNum(actualPage);
                 el.footerCurrentPage.textContent = toMyanmarNum(actualPage);
                 el.footerTotalPage.textContent = toMyanmarNum(data.last_page);
-                el.pageNumberInput.value = actualPage;
+                el.pageNumberInput.value = toMyanmarNum(actualPage);
                 el.pageNumberInput.min = data.first_page;
                 el.pageNumberInput.max = data.last_page;
 
@@ -2144,7 +2144,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 async function renderSplitView() {
     el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ တွဲဖက်ကျမ်း`;
     el.chapterTitleDisplay.textContent = "ကျမ်းစာ ယှဉ်တွဲဖတ်ရှုခြင်း (Split View)";
-    el.pageNumberInput.value = state.paliPage;
+    el.pageNumberInput.value = toMyanmarNum(state.paliPage);
     el.totalPageDisplay.textContent = toMyanmarNum(state.paliLastPage || 1);
 
     // 1. Ensure companion metadata is loaded for current book
@@ -4976,8 +4976,9 @@ function setupEventListeners() {
     // Page Number Input Jump
     el.pageNumberInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-            const p = parseInt(el.pageNumberInput.value, 10);
-            if (!isNaN(p)) {
+            // Accept both Myanmar and Arabic digits typed by the user
+            const p = fromMyanmarNum(el.pageNumberInput.value);
+            if (p > 0) {
                 if (state.readerMode === "mm") loadMMPage(state.mmBookId, p);
                 else loadPaliPage(state.paliBookId, p);
             }
@@ -5765,7 +5766,7 @@ function updateCurrentViewPage(pageNum) {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;
         el.metaPageNum.textContent = toMyanmarNum(pageNum);
-        el.pageNumberInput.value = pageNum;
+        el.pageNumberInput.value = toMyanmarNum(pageNum);
         el.footerCurrentPage.textContent = toMyanmarNum(pageNum);
         el.btnPrevPage.disabled = (pageNum <= state.paliFirstPage);
         el.btnNextPage.disabled = (pageNum >= state.paliLastPage);
@@ -5776,7 +5777,7 @@ function updateCurrentViewPage(pageNum) {
         if (state.mmPage === pageNum) return;
         state.mmPage = pageNum;
         el.metaPageNum.textContent = toMyanmarNum(pageNum);
-        el.pageNumberInput.value = pageNum;
+        el.pageNumberInput.value = toMyanmarNum(pageNum);
         el.footerCurrentPage.textContent = toMyanmarNum(pageNum);
         el.btnPrevPage.disabled = (pageNum <= state.mmFirstPage);
         el.btnNextPage.disabled = (pageNum >= state.mmLastPage);
