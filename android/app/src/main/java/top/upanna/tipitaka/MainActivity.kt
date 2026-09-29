@@ -58,6 +58,13 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.status_text)
         progressBar = findViewById(R.id.progress_bar)
 
+        // Splash shows the real APK version (from versionName), so the
+        // number on screen always matches the installed build.
+        try {
+            val ver = packageManager.getPackageInfo(packageName, 0).versionName
+            findViewById<TextView>(R.id.splash_version).text = "v$ver"
+        } catch (_: Exception) { }
+
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true

@@ -23,6 +23,15 @@ DB_MM_RO_URI = f"file:{os.path.abspath(DB_MM_PATH).replace(os.sep, '/')}?mode=ro
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
+# ---------------------------------------------------------------------------
+# App identity: shown in the User Guide (credits section) on web + Android.
+# Bump APP_VERSION on every user-facing release (keep Android versionName in
+# android/app/build.gradle in sync). APP_CREATED_DATE is the day this app was
+# first created and never changes.
+# ---------------------------------------------------------------------------
+APP_VERSION = "1.0.0"
+APP_CREATED_DATE = "2026-09-24"
+
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 
 # ---------------------------------------------------------------------------
@@ -353,7 +362,9 @@ def _cached_format_mm(html):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html",
+                           app_version=APP_VERSION,
+                           app_created_date=APP_CREATED_DATE)
 
 # NOTE: /download-vps-zip and /download-code-update were removed (2026-09-28).
 # They publicly exposed a ~157MB archive of the full source + databases and
