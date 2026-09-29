@@ -1400,12 +1400,16 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
     _jumpAnchor = triggerEl || null;
-    // Panel stays at end of body (no DOM move): avoids layout thrash.
+    // Place the panel right after the trigger so it appears in context.
+    // (The v7.1 DOM-move suspicion was wrong: the hang was in the
+    // document-level handlers, now fixed. Moving the panel is safe.)
+    if (triggerEl && triggerEl.parentNode) {
+        triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
+    }
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
-    // Scroll the panel into view INSTANTLY (behavior:"auto", no smooth
-    // animation: smooth scrolling caused hangs in v6.16). block:"nearest"
-    // only scrolls if the panel is off-screen.
+    // The panel is now adjacent to the trigger, so this only scrolls
+    // minimally if needed. Instant (no smooth animation).
     try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "auto" }); } catch (_) {}
 }
 
