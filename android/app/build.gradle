@@ -78,5 +78,11 @@ def syncTipitakaPy = tasks.register("syncTipitakaPy", Sync) {
     into(layout.buildDirectory.dir("generated/tipitaka_py"))
 }
 
-// Run before every build: Chaquopy's Python tasks all run after preBuild.
-tasks.named("preBuild").configure { dependsOn(syncTipitakaPy) }
+// Chaquopy's merge*PythonSources tasks consume build/generated/tipitaka_py
+// (registered as a Python source dir above). Declare the producer explicitly:
+// without this, Gradle 8 fails with an implicit-dependency validation error.
+afterEvaluate {
+    tasks.matching { it.name ==~ /merge.+PythonSources/ }.configureEach {
+        dependsOn(syncTipitakaPy)
+    }
+}
