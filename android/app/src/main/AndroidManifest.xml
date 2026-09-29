@@ -14,7 +14,8 @@
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Tipitaka"
         android:allowBackup="false"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

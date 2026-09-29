@@ -22,6 +22,7 @@ import com.chaquo.python.Python
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
+import java.net.Proxy
 import java.net.URL
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
@@ -134,6 +135,7 @@ class MainActivity : AppCompatActivity() {
     private fun waitForServer(dbDir: File) {
         val deadline = System.currentTimeMillis() + 180_000
         var lastStage = ""
+        var lastNetLog = 0L
         while (System.currentTimeMillis() < deadline) {
             // Fail fast with the REAL cause instead of a blind wait.
             serverError.get()?.let { throw IllegalStateException("ဆာဗာ error: $it", it) }
@@ -146,12 +148,27 @@ class MainActivity : AppCompatActivity() {
                 setStatus("ဆာဗာ စတင်နေသည်…\n($label)")
             }
             try {
+                // NO_PROXY: system HTTP proxies (set by VPN/proxy apps) must
+                // never intercept loopback traffic to our local server --
+                // the in-Python self-test proved the server itself is fine.
                 val c = URL("http://127.0.0.1:$PORT/api/health")
-                    .openConnection() as HttpURLConnection
+                    .openConnection(Proxy.NO_PROXY) as HttpURLConnection
                 c.connectTimeout = 1500; c.readTimeout = 1500
                 if (c.responseCode == 200) { c.disconnect(); return }
                 c.disconnect()
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                // Surface the client-side failure mode on the splash
+                // (throttled) instead of swallowing it.
+                val now = System.currentTimeMillis()
+                if (now - lastNetLog > 10000) {
+                    lastNetLog = now
+                    try {
+                        val msg = (e.message ?: "").replace("\n", " ").take(60)
+                        File(dbDir, "server_stages.log").appendText(
+                            "${now / 1000} KOTLIN_NET_FAIL_${e.javaClass.simpleName}_$msg\n")
+                    } catch (_: Exception) { }
+                }
+            }
             Thread.sleep(500)
         }
         serverError.get()?.let { throw IllegalStateException("ဆာဗာ မတက်လာပါ: $it", it) }
