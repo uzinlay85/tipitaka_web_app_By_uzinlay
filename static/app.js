@@ -1470,20 +1470,21 @@ function _csliderSet(val) {
     _jumpUpdateBubble(val);
     console.log("[jump] _csliderSet done");
 }
-function _csliderValFromClientX(clientX) {
-    const r = el.jumpCSlider.getBoundingClientRect();
-    // Track has 14px side insets (thumb radius); map within the track.
-    const left = r.left + 14, width = Math.max(1, r.width - 28);
-    const pct = Math.max(0, Math.min(1, (clientX - left) / width));
-    return _jumpFirst + pct * (_jumpLast - _jumpFirst);
-}
 function _bindCSlider() {
     if (!el.jumpCSlider) return;
     el.jumpCSlider.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         try { el.jumpCSlider.setPointerCapture(e.pointerId); } catch (_) {}
-        _csliderSet(_csliderValFromClientX(e.clientX));
-        const move = (ev) => _csliderSet(_csliderValFromClientX(ev.clientX));
+        // Cache rect ONCE per drag: getBoundingClientRect() forces a sync
+        // layout, and calling it on every pointermove = layout thrashing.
+        const rect = el.jumpCSlider.getBoundingClientRect();
+        const valFromX = (clientX) => {
+            const left = rect.left + 14, width = Math.max(1, rect.width - 28);
+            const pct = Math.max(0, Math.min(1, (clientX - left) / width));
+            return _jumpFirst + pct * (_jumpLast - _jumpFirst);
+        };
+        _csliderSet(valFromX(e.clientX));
+        const move = (ev) => _csliderSet(valFromX(ev.clientX));
         const up = () => {
             el.jumpCSlider.removeEventListener("pointermove", move);
             el.jumpCSlider.removeEventListener("pointerup", up);
