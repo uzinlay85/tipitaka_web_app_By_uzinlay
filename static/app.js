@@ -1381,6 +1381,7 @@ let _jumpAnchor = null; // element the panel is currently anchored after
 
 function openJumpSheet(triggerEl) {
     console.log("[jump] open start");
+    _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
     console.log("[jump] toggle check, hidden=", el.jumpSheet.hidden);
@@ -1391,6 +1392,7 @@ function openJumpSheet(triggerEl) {
         return;
     }
     console.log("[jump] computing range");
+    _trackAction("jump:computing-range");
     // v7.18: custom div slider. _csliderSet writes only div styles
     // (fill width, thumb left) — the native range-input hang is gone.
     const isMM = _jumpIsMM();
@@ -1400,17 +1402,21 @@ function openJumpSheet(triggerEl) {
     console.log("[jump] range:", _jumpFirst, _jumpLast, "cur:", cur);
 
     console.log("[jump] csliderSet");
+    _trackAction("jump:csliderSet");
     _csliderSet(cur); // sets fill/thumb/bubble; safe div writes only
     console.log("[jump] labels");
+    _trackAction("jump:labels");
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
     console.log("[jump] input");
+    _trackAction("jump:input");
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     // (bubble already updated inside _csliderSet)
 
     console.log("[jump] anchor+position");
+    _trackAction("jump:anchor-position");
     _jumpAnchor = triggerEl || null;
     // F1: position the panel adjacent to the trigger via style.top.
     // A style change is a recalc, NOT a DOM reparent (safe). Body never
@@ -1428,8 +1434,10 @@ function openJumpSheet(triggerEl) {
         }
     } catch (_) {}
     console.log("[jump] ticks");
+    _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     console.log("[jump] unhide");
+    _trackAction("jump:unhide");
     el.jumpSheet.hidden = false;
     console.log("[jump] open done");
 }
@@ -1445,6 +1453,7 @@ function closeJumpSheet() {
 let _csliderVal = 1;
 function _csliderSet(val) {
     console.log("[jump] _csliderSet in, val=", val);
+    _trackAction("jump:cslider-in");
     val = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(val) || _jumpFirst));
     _csliderVal = val;
     const pct = _jumpLast === _jumpFirst ? 0
@@ -1457,6 +1466,7 @@ function _csliderSet(val) {
         el.jumpCSlider.setAttribute("aria-valuenow", val);
     }
     console.log("[jump] _csliderSet bubble");
+    _trackAction("jump:cslider-bubble");
     _jumpUpdateBubble(val);
     console.log("[jump] _csliderSet done");
 }
@@ -1512,6 +1522,7 @@ function _jumpUpdateBubble(page) {
 
 function _jumpRenderTicks(tocs) {
     console.log("[jump] _jumpRenderTicks in, tocs len=", tocs ? tocs.length : tocs);
+    _trackAction("jump:ticks-in");
     if (!el.jumpTicks) return;
     const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
     if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
