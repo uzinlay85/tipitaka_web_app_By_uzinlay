@@ -43,6 +43,21 @@ texts = [p.text for p in doc.paragraphs if p.text.strip()]
 check("docx contains book title", any("ပါရာဇိကပါဠိ" in t for t in texts))
 check("docx contains page label", any("စာမျက်နှာ 1" in t for t in texts))
 
+# --- purification parity with web reader ---
+# page 41 of mula_vi_01 contains gatha with raw english commas in DB
+r = c.get("/api/export/pali/mula_vi_01?from=41&to=41&format=docx")
+check("purified export 200", r.status_code == 200)
+doc = Document(io.BytesIO(r.data))
+ptexts = [p.text for p in doc.paragraphs if p.text.strip()]
+check("export has pada-thi/pada-ma (၊/။)", any("၊" in t or "။" in t for t in ptexts))
+gatha_like = [t for t in ptexts if "၊" in t]
+check("export gatha padas use ၊ not raw comma",
+      len(gatha_like) > 0 and not any("," in t for t in gatha_like))
+check("export peyyala -> ။ ပ ။", any("။ ပ ။" in t for t in ptexts))
+# raw DB content still has english commas -> proves purification ran
+raw = pconn.execute("SELECT content FROM pages WHERE book_id='mula_vi_01' AND page=41").fetchone()[0]
+check("raw DB differs (purification applied)", "," in raw)
+
 # --- pdf removed: only docx supported ---
 r = c.get("/api/export/pali/mula_vi_01?from=1&to=2&format=pdf")
 check("pdf -> 400 not supported", r.status_code == 400)

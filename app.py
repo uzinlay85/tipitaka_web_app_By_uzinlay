@@ -715,7 +715,11 @@ def api_export(mode, book_id):
         % table, (book_id, p_from, p_to)).fetchall()
 
     from export_doc import parse_page, build_docx
-    pages = [(r["page"], parse_page(r["content"])) for r in rows]
+    # Apply the same Chatthasangayana purification the reader uses
+    # (gatha pada-thi/pada-ma, peyyala, quote cleanup, conjunct protection),
+    # so the Word file matches what the web shows.
+    fmt = _cached_format_pali if mode == "pali" else _cached_format_mm
+    pages = [(r["page"], parse_page(fmt(r["content"]))) for r in rows]
 
     data = build_docx(book_name, pages, edition)
     mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

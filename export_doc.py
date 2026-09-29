@@ -54,7 +54,12 @@ class _BlockParser(HTMLParser):
         if text:
             # normalize internal newlines from <br>
             text = re.sub(r"\n{3,}", "\n\n", text)
-            segs = [(t, b) for t, b in self._segs if t.strip()]
+            segs = [(t, b) for t, b in self._segs if t.strip() or t in (" ", "\n")]
+            # strip leading/trailing word-space segs
+            while segs and segs[0][0] == " ":
+                segs.pop(0)
+            while segs and segs[-1][0] == " ":
+                segs.pop()
             if segs:
                 self.blocks.append((self._kind, segs))
         self._kind = None
@@ -97,6 +102,13 @@ class _BlockParser(HTMLParser):
 
     def handle_data(self, data):
         if self._skip_depth or self._kind is None:
+            return
+        if not data.strip():
+            # Whitespace between inline spans (e.g. </span> <span> from the
+            # web reader's pali-word/no-split/gatha-pada wrappers) is a real
+            # word space - keep one, avoid leading/dupes.
+            if self._segs and not self._segs[-1][0].endswith((" ", "\n")):
+                self._segs.append((" ", False))
             return
         self._segs.append((data, self._bold))
 
