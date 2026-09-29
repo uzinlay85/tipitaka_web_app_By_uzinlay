@@ -1385,6 +1385,11 @@ function openJumpSheet(triggerEl) {
         closeJumpSheet();
         return;
     }
+    // DIAG v7.11 BLANK PANEL TEST: skip ALL content population.
+    // If 2nd open no longer hangs -> contents (ticks/slider/bubble) implicated.
+    // If still hangs -> positioning/unhide/toggle logic is the cause.
+    // (Re-enable by deleting this block comment.)
+    /*
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
@@ -1399,6 +1404,7 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
+    */
     _jumpAnchor = triggerEl || null;
     // F1: position the panel adjacent to the trigger via style.top.
     // A style change is a recalc, NOT a DOM reparent (safe). Body never
@@ -1415,7 +1421,7 @@ function openJumpSheet(triggerEl) {
             el.jumpSheet.style.top = Math.max(0, top) + "px";
         }
     } catch (_) {}
-    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
+    _jumpRenderTicks([]); // DIAG v7.11: blank — skip real ticks.
     el.jumpSheet.hidden = false;
 }
 
