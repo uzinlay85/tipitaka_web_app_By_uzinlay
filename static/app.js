@@ -6560,6 +6560,9 @@ function setupPageVisibilityObserver() {
 }
 
 function updateCurrentViewPage(pageNum) {
+    // Skip while the jump sheet is open: the sheet's fixed overlay can shift
+    // layout, causing the IntersectionObserver to fire in a loop.
+    if (el.jumpSheet && el.jumpSheet.style.display !== "none") return;
     if (state.readerMode === "pali") {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;
