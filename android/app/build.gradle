@@ -1,0 +1,82 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.chaquo.python")
+}
+
+def verName = System.getenv("ANDROID_VERSION_NAME")
+    ?: (project.findProperty("ANDROID_VERSION_NAME") ?: "1.0.0")
+def verCode = (System.getenv("ANDROID_VERSION_CODE")
+    ?: (project.findProperty("ANDROID_VERSION_CODE") ?: "1")).toInteger()
+
+android {
+    namespace = "top.upanna.tipitaka"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "top.upanna.tipitaka"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = verCode
+        versionName = verName
+        // Only 64-bit ABIs: every Android phone shipped in the last ~8 years.
+        // (x86_64 kept so the app also runs on emulators.)
+        // NOTE: Python 3.12+ supports 64-bit ABIs only.
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
+    }
+
+    buildTypes {
+        debug {
+            // Debug-signed APK: fine for GitHub Releases sideloading.
+            // Play Store later needs a real release keystore (see README).
+            // No applicationIdSuffix: keep "top.upanna.tipitaka" stable so a
+            // future release-signed APK is the same app identity.
+        }
+        release {
+            // Same debug signing for now; swap in a keystore before Play.
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+}
+
+chaquopy {
+    defaultConfig {
+        version = "3.12"
+        pip {
+            // Same server deps as requirements.txt (minus weasyprint).
+            install("flask>=3.0.0")
+            install("python-docx>=1.1.0")
+        }
+    }
+    sourceSets {
+        // build/generated/tipitaka_py <- synced from repo root by syncTipitakaPy
+        getByName("main").srcDir(layout.buildDirectory.dir("generated/tipitaka_py"))
+    }
+}
+
+// ---- Single source of truth: copy the web app's Python + assets ----
+// app.py, export_doc.py, static/ and templates/ live in the repo root and are
+// synced into the Chaquopy source dir before every Python-related task.
+def syncTipitakaPy = tasks.register("syncTipitakaPy", Sync) {
+    from("${rootProject.projectDir}/../app.py")
+    from("${rootProject.projectDir}/../export_doc.py")
+    from("${rootProject.projectDir}/../static") { into("static") }
+    from("${rootProject.projectDir}/../templates") { into("templates") }
+    into(layout.buildDirectory.dir("generated/tipitaka_py"))
+}
+
+// Run before every build: Chaquopy's Python tasks all run after preBuild.
+tasks.named("preBuild").configure { dependsOn(syncTipitakaPy) }

@@ -10,17 +10,63 @@ import hashlib
 import time
 import json
 from functools import lru_cache
-from flask import Flask, jsonify, render_template, request, g
+from flask import Flask, Response, jsonify, render_template, request, g
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PALI_PATH = os.path.join(BASE_DIR, "tipitaka_pali.db")
-DB_MM_PATH = os.path.join(BASE_DIR, "tipitaka_mm.db")
+# Android wrapper sets TIPITAKA_DATA_DIR to the app's private storage where the
+# downloaded databases live. Web/VPS deployments leave it unset -> BASE_DIR.
+DATA_DIR = os.environ.get("TIPITAKA_DATA_DIR", BASE_DIR)
+DB_PALI_PATH = os.path.join(DATA_DIR, "tipitaka_pali.db")
+DB_MM_PATH = os.path.join(DATA_DIR, "tipitaka_mm.db")
 DB_PALI_RO_URI = f"file:{os.path.abspath(DB_PALI_PATH).replace(os.sep, '/')}?mode=ro"
 DB_MM_RO_URI = f"file:{os.path.abspath(DB_MM_PATH).replace(os.sep, '/')}?mode=ro"
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
+
+# ---------------------------------------------------------------------------
+# Android wrapper support (all env-gated; zero behaviour change on web/VPS)
+# ---------------------------------------------------------------------------
+# TIPITAKA_SYNC_UPSTREAM: when set (Android app), /api/sync/* requests are
+# proxied to this upstream (the VPS) instead of using a local sync.db, so
+# phones keep cross-device sync while everything else runs on-device.
+SYNC_UPSTREAM = os.environ.get("TIPITAKA_SYNC_UPSTREAM", "").rstrip("/")
+
+
+@app.before_request
+def _maybe_proxy_sync():
+    if SYNC_UPSTREAM and request.path.startswith("/api/sync/"):
+        return _proxy_to_upstream(request)
+
+
+def _proxy_to_upstream(req):
+    import urllib.request
+    import urllib.error
+    url = SYNC_UPSTREAM + req.path
+    if req.query_string:
+        url += "?" + req.query_string.decode("latin-1")
+    proxy_req = urllib.request.Request(url, data=req.get_data() or None,
+                                       method=req.method)
+    ctype = req.headers.get("Content-Type")
+    if ctype:
+        proxy_req.add_header("Content-Type", ctype)
+    try:
+        with urllib.request.urlopen(proxy_req, timeout=25) as resp:
+            return Response(resp.read(), status=resp.status,
+                            content_type=resp.headers.get("Content-Type",
+                                                          "application/json"))
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code, content_type="application/json")
+    except Exception:
+        # Offline / unreachable: let the client treat it as a sync failure.
+        return jsonify({"error": "sync server unreachable (offline?)"}), 502
+
+
+@app.route("/api/health")
+def health():
+    """Tiny endpoint used by the Android wrapper to know the server is up."""
+    return jsonify({"ok": True})
 
 _STATS_CACHE = None  # (timestamp, dict) — /api/stats changes only on DB rebuild
 
