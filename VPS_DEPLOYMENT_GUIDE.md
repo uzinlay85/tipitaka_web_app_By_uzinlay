@@ -218,3 +218,13 @@ sudo systemctl restart nginx
 ```bash
 sudo certbot --nginx -d tipi.your-domain.com
 ```
+
+---
+
+## 📥 အပိုင်း (၅) - စာအုပ် Word Download (Export) စနစ် လည်ပတ်ပုံ မှတ်ချက်
+
+`/api/export/<pali|mm>/<book_id>` endpoint သည် ကျမ်းစာတစ်အုပ်လုံး / စာမျက်နှာအပိုင်းအခြားကို Word (.docx) ဖိုင်အဖြစ် ထုတ်ပေးပါသည်:
+
+- **အပို setup မလို:** `requirements.txt` တွင် `python-docx` ပါဝင်ပြီးဖြစ်၍ `setup_vps.sh` (သို့မဟုတ် `pip install -r requirements.txt`) ဖြင့် အလိုအလျောက် ပါဝင်ပြီးသား ဖြစ်ပါသည်။ System library (apt package) အပို လုံးဝ မလိုပါ။
+- **ကန့်သတ်ချက်များ (server ကာကွယ်မှု):** တစ်ခါထုတ် စာမျက်နှာ ၁,၀၀၀ အထိ၊ IP တစ်ခုလျှင် တစ်နာရီ ၁၀ ခါ။
+- **အချိန်:** စာမျက်နှာ ၅၀၀ ပါ စာအုပ်ကြီးတစ်အုပ် ထုတ်ရန် ~၁၅ စက္ကန့်ခန့် ကြာနိုင်ပါသည် — gunicorn timeout (60s) အတွင်း အဆင်ပြေပါသည်။
