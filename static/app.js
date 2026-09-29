@@ -1421,8 +1421,10 @@ function _jumpUpdateBubble(page) {
 }
 
 function _jumpRenderTicks(tocs) {
+    console.log(`[jump] _jumpRenderTicks: tocs=${(tocs||[]).length}`);
     if (!el.jumpTicks) return;
     const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
+    console.log(`[jump] _jumpRenderTicks: filtered=${list.length}`);
     if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
     // Cap rendered ticks: the strip is only a few hundred px wide, so more
     // than ~120 ticks overlap sub-pixel and only cost layout time on mobile.
