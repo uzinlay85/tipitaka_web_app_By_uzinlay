@@ -1422,7 +1422,10 @@ function openJumpSheet(triggerEl) {
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     _trackAction("jump:show");
     // Native dialog: top-layer, no layout impact on the feed.
-    if (!el.jumpSheet.open) el.jumpSheet.showModal();
+    if (!el.jumpSheet.open) {
+        try { el.jumpSheet.showModal(); }
+        catch (err) { console.error("[jump] showModal failed:", err); }
+    }
 }
 
 function closeJumpSheet() {
@@ -1570,7 +1573,7 @@ function setupJumpSheet() {
         const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
         if (!badge) return;
         e.stopPropagation();
-        openJumpSheet(badge);
+        try { openJumpSheet(badge); } catch (err) { console.error("[jump] open failed:", err); }
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     // Native dialog: ESC closes automatically; keep _jumpAnchor in sync.

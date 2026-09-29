@@ -30,5 +30,5 @@ check("jump panel avoids feed layout reads", "triggerEl.getBoundingClientRect()"
 check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
 check("jump panel is native dialog", '<dialog id="jumpSheet"' in HTML)
 check("jump panel has no manual positioning", "el.jumpSheet.style.top" not in JS)
-check("cache-busting version is current", 'app.js?v=7.30' in HTML)
+check("cache-busting version is current", 'app.js?v=7.31' in HTML)
 check("feed loader skips while jump panel open", "if (el.jumpSheet && el.jumpSheet.open) return;" in JS)
