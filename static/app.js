@@ -1389,8 +1389,6 @@ function openJumpSheet(triggerEl) {
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
-    // Prune feed DOM before opening to keep the DOM small across repeated uses.
-    try { pruneFeedDOM(); } catch (e) {}
     // Toggle: if already open anchored at this trigger, close it.
     if (el.jumpSheet.open && _jumpAnchor === triggerEl) {
         closeJumpSheet();
@@ -1960,7 +1958,9 @@ function pruneFeedDOM() {
     const minKeep = cur - FEED_WINDOW_RADIUS;
     const maxKeep = cur + FEED_WINDOW_RADIUS;
 
-    let removedAboveHeight = 0;
+    // Collect first, remove after: avoids forced synchronous layouts
+    // (offsetHeight reads) inside the loop which caused UI hangs.
+    const toRemove = [];
     el.paliContent.querySelectorAll(`.feed-page-item[id^="${prefix}"]`).forEach(sec => {
         const p = parseInt(sec.getAttribute("data-page"), 10);
         if (isNaN(p) || (p >= minKeep && p <= maxKeep)) return;
@@ -1968,28 +1968,22 @@ function pruneFeedDOM() {
         // Remove the section's divider too: append-mode puts the divider right
         // before the section (same data-page); prepend-mode puts it right after.
         const prev = sec.previousElementSibling;
-        let divH = 0;
         if (prev && prev.classList.contains("page-divider") &&
             prev.getAttribute("data-page") === sec.getAttribute("data-page")) {
-            divH = prev.offsetHeight || 0;
-            prev.remove();
+            toRemove.push(prev);
         } else {
             const next = sec.nextElementSibling;
             if (next && next.classList.contains("page-divider")) {
-                divH = next.offsetHeight || 0;
-                next.remove();
+                toRemove.push(next);
             }
         }
-        // Feed DOM is in ascending page order top-to-bottom, so pruned pages
-        // with a lower number sat above the viewport: compensate scrollTop to
-        // avoid a visible jump.
-        if (p < cur) removedAboveHeight += (sec.offsetHeight || 0) + divH;
         if (pageVisibilityObserver) pageVisibilityObserver.unobserve(sec);
-        sec.remove();
+        toRemove.push(sec);
     });
-    if (removedAboveHeight > 0) {
-        el.readerContainer.scrollTop = Math.max(0, el.readerContainer.scrollTop - removedAboveHeight);
-    }
+    // Single batch removal: one layout invalidation instead of N forced ones.
+    // Scroll position may shift slightly; the feed re-stabilizes on next scroll.
+    // This is acceptable vs. the hang caused by offsetHeight reads.
+    for (const elm of toRemove) elm.remove();
 }
 
 // ----------------- Pali Reader -----------------
