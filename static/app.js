@@ -1403,6 +1403,10 @@ function openJumpSheet(triggerEl) {
     // Panel stays at end of body (no DOM move): avoids layout thrash.
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
+    // Scroll the panel into view INSTANTLY (behavior:"auto", no smooth
+    // animation: smooth scrolling caused hangs in v6.16). block:"nearest"
+    // only scrolls if the panel is off-screen.
+    try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "auto" }); } catch (_) {}
 }
 
 function closeJumpSheet() {
