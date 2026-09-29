@@ -811,8 +811,14 @@ function openEditPopup(ann, anchorEl) {
 }
 
 function setupHighlightTapToEdit() {
-    document.addEventListener("click", (e) => {
-        const span = e.target.closest && e.target.closest("span.ann-sel[data-ann-id]");
+    // Highlights only exist inside the reader. Keep this delegated listener
+    // local: document-level closest() runs for every page-pill click and can
+    // force Chromium to walk the whole feed DOM on low-end devices.
+    if (!el.readerContainer) return;
+    el.readerContainer.addEventListener("click", (e) => {
+        const span = e.target instanceof Element
+            ? e.target.closest("span.ann-sel[data-ann-id]")
+            : null;
         if (!span) return;
         const ann = AnnotationManager.get(span.getAttribute("data-ann-id"));
         if (!ann || ann.deleted) return;
@@ -1374,10 +1380,10 @@ let _jumpFirst = 1, _jumpLast = 1;
 
 function _jumpIsMM() { return state.readerMode === "mm"; }
 
-// Jump panel: inline card moved in the DOM to sit right after the tapped
-// pill/badge. No fixed overlay (avoids the Chromium fixed-overlay hang).
+// Jump panel: a permanently mounted card positioned beside the tapped
+// pill/badge. Never reparent it and never use a fixed/sticky overlay here.
 // Tapping the same trigger again toggles it closed.
-let _jumpAnchor = null; // element the panel is currently anchored after
+let _jumpAnchor = null; // element that last opened the panel
 
 function openJumpSheet(triggerEl) {
     console.log("[jump] open start");
@@ -5696,7 +5702,7 @@ function setupEventListeners() {
             el.scrollModeDropdownWrapper.classList.toggle("open");
         });
         document.addEventListener("click", (e) => {
-            if (!e.target.closest("#scrollModeDropdownWrapper")) {
+            if (!el.scrollModeDropdownWrapper.contains(e.target)) {
                 el.scrollModeDropdownWrapper.classList.remove("open");
             }
         });
@@ -5885,7 +5891,7 @@ function setupEventListeners() {
         el.relatedDropdownWrapper.classList.toggle("open");
     });
     document.addEventListener("click", (e) => {
-        if (!e.target.closest("#relatedDropdownWrapper")) {
+        if (!el.relatedDropdownWrapper.contains(e.target)) {
             el.relatedDropdownWrapper.classList.remove("open");
         }
     });
@@ -6878,4 +6884,3 @@ window.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-
