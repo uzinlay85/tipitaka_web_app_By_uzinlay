@@ -1485,19 +1485,20 @@ function setupJumpSheet() {
     // Page-divider badges (at every page boundary in the feed) also open the panel.
     // Delegated: dividers are added/removed dynamically by feed windowing.
     // Tap-vs-drag guard: a text-selection drag across the badge must not open the panel.
-    let _badgeDownPos = null;
-    document.addEventListener("pointerdown", (e) => {
-        _badgeDownPos = e.target.closest(".divider-badge") ? [e.clientX, e.clientY] : null;
-    });
-    document.addEventListener("click", (e) => {
-        const badge = e.target.closest(".divider-badge");
-        if (!badge) return;
-        if (_badgeDownPos) {
-            const dx = e.clientX - _badgeDownPos[0], dy = e.clientY - _badgeDownPos[1];
-            if (dx * dx + dy * dy > 100) return;
-        }
-        openJumpSheet(badge);
-    });
+    // TEMP-DIAG: document-level badge handlers DISABLED to isolate hang
+    // let _badgeDownPos = null;
+    // document.addEventListener("pointerdown", (e) => {
+    //     _badgeDownPos = e.target.closest(".divider-badge") ? [e.clientX, e.clientY] : null;
+    // });
+    // document.addEventListener("click", (e) => {
+    //     const badge = e.target.closest(".divider-badge");
+    //     if (!badge) return;
+    //     if (_badgeDownPos) {
+    //         const dx = e.clientX - _badgeDownPos[0], dy = e.clientY - _badgeDownPos[1];
+    //         if (dx * dx + dy * dy > 100) return;
+    //     }
+    //     openJumpSheet(badge);
+    // });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     // Inline panel: no backdrop to tap, so no backdrop-click handler.
     if (el.jumpSlider) {
