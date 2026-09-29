@@ -17,7 +17,9 @@ online/offline နှစ်မျိုးလုံး သုံးလို့�
 ## Local build
 
 ```bash
-# လိုအပ်ချက်: JDK 17, Android SDK (platform 34, build-tools 34), Gradle 8.7+
+# လိုအပ်ချက်: JDK 17, Android SDK (platform 34, build-tools 34), Gradle 8.7+,
+# Python 3.12 (build machine မှာ Chaquopy က pip requirements သွင်းဖို့;
+# Windows မှာ python.org ကနေ 3.12 သွင်း + "Add python.exe to PATH" ✅)
 export JAVA_HOME=/path/to/jdk17
 export ANDROID_HOME=/path/to/android-sdk
 cd android
