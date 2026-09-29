@@ -1202,11 +1202,6 @@ body.hide-notes .note {
 .feed-page-item {
     margin-bottom: 24px;
     animation: fadeInFeed 0.3s ease-out;
-    /* Skip layout/paint for off-screen pages: even if many sections are in
-       the DOM, the browser only renders the visible ones. This prevents
-       layout thrash hangs when the feed grows. */
-    content-visibility: auto;
-    contain-intrinsic-size: auto 800px;
 }
 
 @keyframes fadeInFeed {

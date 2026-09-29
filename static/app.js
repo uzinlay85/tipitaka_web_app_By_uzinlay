@@ -1540,10 +1540,11 @@ const HangWatchdog = {
         const book = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
         const page = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
         const domNodes = document.getElementsByTagName("*").length;
-        console.warn(`[hang-watchdog] main thread blocked ~${secs}s | action=${lastAction} | book=${book} page=${page} | domNodes=${domNodes}`);
+        const diag = `action=${lastAction} book=${book} page=${page} nodes=${domNodes}`;
+        console.warn(`[hang-watchdog] main thread blocked ~${secs}s | ${diag}`);
         showAppToast(
-            `⚠️ စာမျက်နှာ ${toMyanmarNum(secs)} စက္ကန့်ခန့် ရပ်ဆိုင်းသွားခဲ့သည်`,
-            { actionLabel: "↻ ပြန်ဖွင့်မည်", onAction: () => location.reload(), timeout: 10000 }
+            `⚠️ ${toMyanmarNum(secs)} စက္ကန့်ရပ်ဆိုင်းသွားသည် (${diag})`,
+            { actionLabel: "↻ ပြန်ဖွင့်မည်", onAction: () => location.reload(), timeout: 15000 }
         );
     }
 };
@@ -5412,11 +5413,11 @@ function setupEventListeners() {
             if (target >= first) {
                 const prevEl = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
                 if (prevEl) {
-                    prevEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                    prevEl.scrollIntoView({ behavior: "auto", block: "start" });
                 } else {
                     handleLoadPrevPage().then(() => {
                         const elTarget = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
-                        if (elTarget) elTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+                        if (elTarget) elTarget.scrollIntoView({ behavior: "auto", block: "start" });
                     });
                 }
             }
@@ -5448,11 +5449,11 @@ function setupEventListeners() {
             if (target <= last) {
                 const nextEl = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
                 if (nextEl) {
-                    nextEl.scrollIntoView({ behavior: "smooth", block: "start" });
+                    nextEl.scrollIntoView({ behavior: "auto", block: "start" });
                 } else {
                     loadNextFeedPage().then(() => {
                         const elTarget = document.getElementById(state.readerMode === "mm" ? `mm-page-${target}` : `pali-page-${target}`);
-                        if (elTarget) elTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+                        if (elTarget) elTarget.scrollIntoView({ behavior: "auto", block: "start" });
                     });
                 }
             }
