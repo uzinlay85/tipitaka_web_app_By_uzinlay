@@ -6341,6 +6341,7 @@ async function loadNextFeedPage() {
         } finally {
             state.isLoadingMore = false;
             showSentinelLoading(false);
+            pruneFeedDOM();
         }
     }
 }
