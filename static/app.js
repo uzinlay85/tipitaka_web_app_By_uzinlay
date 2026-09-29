@@ -646,7 +646,7 @@ function stashSelection() {
 
 function setupSelectionAnnotation() {
     const isUiTarget = (e) => e.target.closest &&
-        e.target.closest("#annotationPopup, #annSelectToolbar, #syncModal");
+        e.target.closest("#annotationPopup, #annSelectToolbar, #syncModal, #exportModal");
     // Mouse: stash on mouseup, show mini toolbar shortly after
     document.addEventListener("mouseup", (e) => {
         if (isUiTarget(e)) return; // interacting with popup/toolbar/modal
@@ -1231,6 +1231,128 @@ function setupSyncUI() {
     });
 }
 
+// ---------------- Book export: download as Word (.docx) / PDF ----------------
+function getExportBookInfo() {
+    const mode = state.readerMode === "mm" ? "mm" : "pali";
+    if (mode === "mm") {
+        return { mode: mode, bookId: state.mmBookId, bookName: state.mmBookName || "မြန်မာပြန်",
+                 first: state.mmFirstPage || 1, last: state.mmLastPage || 1, edition: "မြန်မာပြန်" };
+    }
+    return { mode: mode, bookId: state.paliBookId, bookName: state.paliBookName || "ပါဠိတော်",
+             first: state.paliFirstPage || 1, last: state.paliLastPage || 1, edition: "ပါဠိတော်" };
+}
+
+function openExportModal() {
+    const info = getExportBookInfo();
+    const body = document.getElementById("exportModalBody");
+    if (!body) return;
+    body.innerHTML =
+    '<div class="export-form">' +
+        '<div>' +
+            '<div class="export-book-name">' + escapeHtml(info.bookName) + '</div>' +
+            '<div class="export-book-meta">' + escapeHtml(info.edition) + ' • စာမျက်နှာစုစုပေါင်း ' + toMyanmarNum(info.last - info.first + 1) + '</div>' +
+        '</div>' +
+        '<div>' +
+            '<span class="export-group-label">ဒေါင်းလုဒ်ဆွဲမည့်အပိုင်း</span>' +
+            '<label class="export-radio-row"><input type="radio" name="exportScope" value="all" checked> တစ်အုပ်လုံး (စာမျက်နှာ ' + toMyanmarNum(info.first) + '–' + toMyanmarNum(info.last) + ')</label>' +
+            '<label class="export-radio-row"><input type="radio" name="exportScope" value="range"> အပိုင်းအခြား</label>' +
+            '<div class="export-range-inputs" id="exportRangeInputs" style="display:none;">' +
+                '<input type="number" id="exportFrom" value="' + info.first + '" min="' + info.first + '" max="' + info.last + '">' +
+                '<span>မှ</span>' +
+                '<input type="number" id="exportTo" value="' + info.last + '" min="' + info.first + '" max="' + info.last + '">' +
+                '<span>ထိ</span>' +
+            '</div>' +
+        '</div>' +
+        '<div>' +
+            '<span class="export-group-label">ဖိုင်အမျိုးအစား</span>' +
+            '<label class="export-radio-row"><input type="radio" name="exportFormat" value="docx" checked> Word (.docx)</label>' +
+            '<label class="export-radio-row"><input type="radio" name="exportFormat" value="pdf"> PDF</label>' +
+        '</div>' +
+        '<button class="export-dl-btn" id="btnStartExport">⤓ ဒေါင်းလုဒ်ဆွဲမယ်</button>' +
+        '<div class="export-status" id="exportStatus"></div>' +
+    '</div>';
+    body.querySelectorAll('input[name="exportScope"]').forEach(function(r) {
+        r.addEventListener("change", function() {
+            document.getElementById("exportRangeInputs").style.display =
+                body.querySelector('input[name="exportScope"]:checked').value === "range" ? "flex" : "none";
+        });
+    });
+    document.getElementById("btnStartExport").addEventListener("click", startExport);
+    document.getElementById("exportModal").style.display = "flex";
+}
+
+function closeExportModal() {
+    document.getElementById("exportModal").style.display = "none";
+}
+
+async function startExport() {
+    const info = getExportBookInfo();
+    const btn = document.getElementById("btnStartExport");
+    const status = document.getElementById("exportStatus");
+    const scope = document.querySelector('input[name="exportScope"]:checked').value;
+    const format = document.querySelector('input[name="exportFormat"]:checked').value;
+    let pFrom = info.first, pTo = info.last;
+    if (scope === "range") {
+        pFrom = parseInt(document.getElementById("exportFrom").value, 10);
+        pTo = parseInt(document.getElementById("exportTo").value, 10);
+        if (!Number.isFinite(pFrom) || !Number.isFinite(pTo)) {
+            status.textContent = "စာမျက်နှာနံပါတ် မှန်အောင်ဖြည့်ပါ။";
+            status.classList.add("error");
+            return;
+        }
+        pFrom = Math.max(info.first, Math.min(info.last, pFrom));
+        pTo = Math.max(info.first, Math.min(info.last, pTo));
+        if (pFrom > pTo) { const t = pFrom; pFrom = pTo; pTo = t; }
+    }
+    status.classList.remove("error");
+    status.textContent = "ပြင်ဆင်နေပါသည်… (စာမျက်နှာ " + toMyanmarNum(pFrom) + "–" + toMyanmarNum(pTo) + ")";
+    btn.disabled = true;
+    try {
+        const url = "/api/export/" + info.mode + "/" + encodeURIComponent(info.bookId) +
+            "?from=" + pFrom + "&to=" + pTo + "&format=" + format;
+        const res = await fetch(url);
+        if (!res.ok) {
+            let msg = "ဒေါင်းလုဒ်မရပါ။";
+            if (res.status === 429) msg = "ခဏစောင့်ပြီးမှ ပြန်လုပ်ပါ (တစ်နာရီ ၁၀ ခါသာ)။";
+            else if (res.status === 404) msg = "စာအုပ်မတွေ့ပါ။";
+            else { try { const j = await res.json(); if (j.error) msg = j.error; } catch (e) {} }
+            throw new Error(msg);
+        }
+        const blob = await res.blob();
+        let filename = "tipitaka_" + info.bookId + "_p" + pFrom + "-" + pTo + "." + format;
+        const disp = res.headers.get("Content-Disposition") || "";
+        const m = /filename=([^;]+)/.exec(disp);
+        if (m) filename = m[1].trim();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+        status.textContent = "✅ ဒေါင်းလုဒ်ရရှိပါပြီ။";
+        setTimeout(closeExportModal, 1200);
+    } catch (e) {
+        status.textContent = "❌ " + e.message;
+        status.classList.add("error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function setupExportUI() {
+    const openBtn = document.getElementById("btnExportBook");
+    if (openBtn) openBtn.addEventListener("click", openExportModal);
+    const closeBtn = document.getElementById("btnCloseExportModal");
+    if (closeBtn) closeBtn.addEventListener("click", closeExportModal);
+    const modal = document.getElementById("exportModal");
+    if (modal) {
+        modal.addEventListener("click", function(e) {
+            if (e.target === modal) closeExportModal();
+            e.stopPropagation();
+        });
+    }
+}
+
 // Setup annotation popup event listeners (called once in setupEventListeners)
 function setupAnnotationListeners() {
     const popup = document.getElementById("annotationPopup");
@@ -1292,6 +1414,7 @@ function setupAnnotationListeners() {
     setupHighlightTapToEdit();
     // Cross-device sync UI + background sync
     setupSyncUI();
+    setupExportUI();
 }
 
 // Initialize Application

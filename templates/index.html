@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=6.7">
+    <link rel="stylesheet" href="/static/app.css?v=6.8">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -327,6 +327,7 @@
                     <div class="toc-current-header">
                         <span class="toc-current-tag">📖 လက်ရှိ ရောက်ရှိ မာတိကာ</span>
                         <span class="toc-current-page-pill" id="tocCurrentPagePill">စာမျက်နှာ ၁</span>
+                        <button id="btnExportBook" class="export-book-btn" title="စာအုပ်ဒေါင်းလုဒ်ဆွဲရန် (Word / PDF)">⤓</button>
                     </div>
                     <div class="toc-current-title" id="tocCurrentTitle">-</div>
                     <div class="toc-current-range" id="tocCurrentRange">စာမျက်နှာ အချက်အလက် ဆွဲယူနေပါသည်...</div>
@@ -1059,7 +1060,17 @@
         </div>
     </div>
 
+    <div id="exportModal" class="sync-modal" style="display:none;">
+        <div class="sync-modal-card">
+            <div class="sync-modal-header">
+                <span class="sync-modal-title">⤓ စာအုပ်ဒေါင်းလုဒ်ဆွဲရန်</span>
+                <button id="btnCloseExportModal" class="ann-popup-close">✕</button>
+            </div>
+            <div id="exportModalBody"></div>
+        </div>
+    </div>
+
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=6.8"></script>
+    <script src="/static/app.js?v=6.9"></script>
 </body>
 </html>

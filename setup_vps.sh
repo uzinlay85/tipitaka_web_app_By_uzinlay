@@ -26,7 +26,7 @@ cd "$TARGET_DIR"
 
 echo "=== [1/5] စနစ်အတွက် လိုအပ်သော Linux Packages များ ထည့်သွင်းခြင်း ==="
 apt update -y
-apt install -y unzip python3-pip python3-venv git curl
+apt install -y unzip python3-pip python3-venv git curl libpango-1.0-0 libharfbuzz-subset0 libfontconfig1
 
 echo "=== [2/5] တိပိဋက ပါဠိတော် နှင့် မြန်မာပြန် ဒေတာဘေ့စ်များ စစ်ဆေးခြင်း ==="
 if [ -f "$TARGET_DIR/tipitaka_pali.db" ] && [ -f "$TARGET_DIR/tipitaka_mm.db" ]; then

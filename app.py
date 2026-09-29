@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import sqlite3
 import re
@@ -645,6 +646,91 @@ def api_page(book_id, page_num):
         "content": content_html,
         "matching_mm": matching_mm
     })
+
+# ----------------- Book Export (Word / PDF) -----------------
+
+@app.route("/api/export/<mode>/<book_id>")
+def api_export(mode, book_id):
+    """Download a book (or page range) as .docx or .pdf.
+
+    Query params: from=<page>, to=<page>, format=docx|pdf
+    """
+    from flask import send_file
+
+    if mode not in ("pali", "mm"):
+        return jsonify({"error": "mode must be pali or mm"}), 400
+    fmt = (request.args.get("format") or "docx").lower()
+    if fmt not in ("docx", "pdf"):
+        return jsonify({"error": "format must be docx or pdf"}), 400
+
+    # Rate limit: 10 exports / hour / IP (files are expensive to build)
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    if not _rate_ok(ip, limit=10, window=3600):
+        return jsonify({"error": "too many downloads, try again later"}), 429
+
+    if mode == "pali":
+        conn = get_pali_db()
+        cur = conn.cursor()
+        book = cur.execute(
+            "SELECT id, name, firstpage, lastpage, pagecount FROM books WHERE id = ?",
+            (book_id,)).fetchone()
+        if not book:
+            return jsonify({"error": "Book not found"}), 404
+        first, last = book["firstpage"], book["lastpage"]
+        book_name = book["name"]
+        edition = "ပါဠိတော်"
+        table = "pages"
+    else:
+        if not os.path.exists(DB_MM_PATH):
+            return jsonify({"error": "Myanmar DB not available"}), 404
+        conn = get_mm_db()
+        cur = conn.cursor()
+        book = cur.execute(
+            "SELECT id, name, first_page, last_page, number_of_pages FROM book WHERE id = ?",
+            (book_id,)).fetchone()
+        if not book:
+            return jsonify({"error": "Book not found"}), 404
+        first, last = book["first_page"], book["last_page"]
+        book_name = book["name"]
+        edition = "မြန်မာပြန်"
+        table = "mm_pages"
+
+    def _to_int(v, default):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    p_from = _to_int(request.args.get("from"), first)
+    p_to = _to_int(request.args.get("to"), last)
+    p_from = max(first, min(last, p_from))
+    p_to = max(first, min(last, p_to))
+    if p_from > p_to:
+        p_from, p_to = p_to, p_from
+    if p_to - p_from + 1 > 1000:
+        return jsonify({"error": "page range too large (max 1000 pages)"}), 400
+
+    rows = cur.execute(
+        "SELECT page, content FROM %s WHERE book_id = ? AND page BETWEEN ? AND ? ORDER BY page ASC"
+        % table, (book_id, p_from, p_to)).fetchall()
+
+    from export_doc import parse_page, build_docx, build_pdf
+    pages = [(r["page"], parse_page(r["content"])) for r in rows]
+
+    if fmt == "docx":
+        data = build_docx(book_name, pages, edition)
+        mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ext = "docx"
+    else:
+        data = build_pdf(book_name, pages, edition)
+        mimetype = "application/pdf"
+        ext = "pdf"
+
+    filename = "tipitaka_%s_p%d-%d.%s" % (book_id, p_from, p_to, ext)
+    resp = send_file(io.BytesIO(data), mimetype=mimetype, as_attachment=True,
+                     download_name=filename)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 # ----------------- Myanmar Translation APIs -----------------
 
