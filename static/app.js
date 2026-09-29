@@ -1444,6 +1444,22 @@ function _jumpGo(page) {
 
 function setupJumpSheet() {
     if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", openJumpSheet);
+    // Page-divider badges (at every page boundary in the feed) also open the sheet.
+    // Delegated: dividers are added/removed dynamically by feed windowing.
+    // Tap-vs-drag guard: a text-selection drag across the badge must not open the sheet.
+    let _badgeDownPos = null;
+    document.addEventListener("pointerdown", (e) => {
+        _badgeDownPos = e.target.closest(".divider-badge") ? [e.clientX, e.clientY] : null;
+    });
+    document.addEventListener("click", (e) => {
+        const badge = e.target.closest(".divider-badge");
+        if (!badge) return;
+        if (_badgeDownPos) {
+            const dx = e.clientX - _badgeDownPos[0], dy = e.clientY - _badgeDownPos[1];
+            if (dx * dx + dy * dy > 100) return;
+        }
+        openJumpSheet();
+    });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
         if (e.target === el.jumpSheet) closeJumpSheet();

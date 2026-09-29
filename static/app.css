@@ -1237,6 +1237,18 @@ body.hide-notes .note {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--accent);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.page-divider .divider-badge:hover {
+    border-color: var(--accent);
+}
+
+.page-divider .divider-badge .badge-text {
+    border-bottom: 1px dotted var(--text-muted);
+    padding-bottom: 1px;
 }
 
 /* Load Previous Page Box */
