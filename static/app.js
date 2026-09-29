@@ -1400,10 +1400,9 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
     _jumpAnchor = triggerEl || null;
-    // The panel is NEVER moved in the DOM (insertBefore caused a Chromium
-    // hang). It lives at the end of <body> with position:sticky;bottom:0,
-    // so it is always visible at the viewport bottom when unhidden.
-    // No scrollIntoView needed.
+    // The panel is NEVER moved in the DOM (insertBefore reparenting hangs
+    // Chromium). It lives at the end of <body>; positioning is controlled
+    // purely by CSS (.jump-sheet). No scrollIntoView.
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
 }

@@ -4536,20 +4536,14 @@ body.ios-fullscreen-fallback .reader-container {
     border-bottom: 1px dotted var(--text-muted);
     padding-bottom: 2px;
 }
-/* Jump panel: inline card in normal document flow (moved after the tapped
-   pill/badge). No fixed positioning, no fullscreen overlay, no high z-index:
-   this avoids the Chromium fixed-overlay compositing hang. */
+/* Jump panel: DIAG v7.9 — position:static (normal flow, end of <body>).
+   Single-variable test of v7.8: if the hang disappears, position:fixed was
+   the cause. JS is untouched. Never move this element in the DOM
+   (insertBefore reparenting hangs Chromium). */
 .jump-sheet {
     display: block;
-    margin: 0;
-    /* Fixed at viewport bottom WITHOUT a backdrop. The element is never
-       moved in the DOM (insertBefore caused a hang). position:sticky caused
-       a layout loop (unhiding changed body height). Fixed avoids both. */
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 8px;
-    z-index: 50;
+    margin: 8px 12px;
+    position: static;
 }
 .jump-sheet[hidden] {
     display: none;
