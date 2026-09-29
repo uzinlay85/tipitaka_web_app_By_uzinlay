@@ -149,7 +149,9 @@ const el = {
     footerTotalPage: document.getElementById("footerTotalPage"),
     btnOpenJumpSheet: document.getElementById("btnOpenJumpSheet"),
     jumpSheet: document.getElementById("jumpSheet"),
-    jumpSlider: document.getElementById("jumpSlider"),
+    jumpCSlider: document.getElementById("jumpCSlider"),
+    jumpCFill: document.getElementById("jumpCFill"),
+    jumpCThumb: document.getElementById("jumpCThumb"),
     jumpBubble: document.getElementById("jumpBubble"),
     jumpTicks: document.getElementById("jumpTicks"),
     jumpMinLabel: document.getElementById("jumpMinLabel"),
@@ -1385,26 +1387,20 @@ function openJumpSheet(triggerEl) {
         closeJumpSheet();
         return;
     }
-    // v7.17: slider min/max set, .value NEVER touched (hangs).
-    // Bubble + ticks re-enabled.
+    // v7.18: custom div slider. _csliderSet writes only div styles
+    // (fill width, thumb left) — the native range-input hang is gone.
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
 
-    // v7.17: set min/max ONLY (no .value — the value setter hangs).
-    // If this hangs, min/max are also broken and we'll drop all slider writes.
-    // Bubble + ticks re-enabled (never implicated in current code).
-    if (el.jumpSlider) {
-        el.jumpSlider.min = _jumpFirst;
-        el.jumpSlider.max = _jumpLast;
-    }
+    _csliderSet(cur); // sets fill/thumb/bubble; safe div writes only
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
-    _jumpUpdateBubble(cur);
+    // (bubble already updated inside _csliderSet)
 
     _jumpAnchor = triggerEl || null;
     // F1: position the panel adjacent to the trigger via style.top.
@@ -1432,11 +1428,61 @@ function closeJumpSheet() {
 }
 
 // Live bubble follows the thumb while dragging; the page loads on release.
-function _bindJumpSlider() {
-    if (!el.jumpSlider) return;
-    el.jumpSlider.addEventListener("input", () => _jumpUpdateBubble(parseInt(el.jumpSlider.value, 10)));
-    // Jump only on release: the bubble lets the user aim first.
-    el.jumpSlider.addEventListener("change", () => _jumpGo(parseInt(el.jumpSlider.value, 10)));
+// Custom div slider (v7.18): no native <input type=range>, so the Chromium
+// .value-setter hang is impossible. All visuals are plain div style writes.
+let _csliderVal = 1;
+function _csliderSet(val) {
+    val = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(val) || _jumpFirst));
+    _csliderVal = val;
+    const pct = _jumpLast === _jumpFirst ? 0
+        : (val - _jumpFirst) / (_jumpLast - _jumpFirst) * 100;
+    if (el.jumpCFill) el.jumpCFill.style.width = pct + "%";
+    if (el.jumpCThumb) el.jumpCThumb.style.left = pct + "%";
+    if (el.jumpCSlider) {
+        el.jumpCSlider.setAttribute("aria-valuemin", _jumpFirst);
+        el.jumpCSlider.setAttribute("aria-valuemax", _jumpLast);
+        el.jumpCSlider.setAttribute("aria-valuenow", val);
+    }
+    _jumpUpdateBubble(val);
+}
+function _csliderValFromClientX(clientX) {
+    const r = el.jumpCSlider.getBoundingClientRect();
+    // Track has 14px side insets (thumb radius); map within the track.
+    const left = r.left + 14, width = Math.max(1, r.width - 28);
+    const pct = Math.max(0, Math.min(1, (clientX - left) / width));
+    return _jumpFirst + pct * (_jumpLast - _jumpFirst);
+}
+function _bindCSlider() {
+    if (!el.jumpCSlider) return;
+    el.jumpCSlider.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        try { el.jumpCSlider.setPointerCapture(e.pointerId); } catch (_) {}
+        _csliderSet(_csliderValFromClientX(e.clientX));
+        const move = (ev) => _csliderSet(_csliderValFromClientX(ev.clientX));
+        const up = () => {
+            el.jumpCSlider.removeEventListener("pointermove", move);
+            el.jumpCSlider.removeEventListener("pointerup", up);
+            el.jumpCSlider.removeEventListener("pointercancel", up);
+            _jumpGo(_csliderVal); // jump on release, like native change
+        };
+        el.jumpCSlider.addEventListener("pointermove", move);
+        el.jumpCSlider.addEventListener("pointerup", up);
+        el.jumpCSlider.addEventListener("pointercancel", up);
+    });
+    // Keyboard: arrows jump by 1 page, PgUp/PgDn by 10.
+    el.jumpCSlider.addEventListener("keydown", (e) => {
+        let d = 0;
+        if (e.key === "ArrowLeft" || e.key === "ArrowDown") d = -1;
+        else if (e.key === "ArrowRight" || e.key === "ArrowUp") d = 1;
+        else if (e.key === "PageDown") d = -10;
+        else if (e.key === "PageUp") d = 10;
+        else if (e.key === "Home") { _csliderSet(_jumpFirst); _jumpGo(_csliderVal); e.preventDefault(); return; }
+        else if (e.key === "End") { _csliderSet(_jumpLast); _jumpGo(_csliderVal); e.preventDefault(); return; }
+        else return;
+        e.preventDefault();
+        _csliderSet(_csliderVal + d);
+        _jumpGo(_csliderVal);
+    });
 }
 function _jumpUpdateBubble(page) {
     page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
@@ -1513,7 +1559,7 @@ function setupJumpSheet() {
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     // Inline panel: no backdrop to tap, so no backdrop-click handler.
-    _bindJumpSlider();
+    _bindCSlider();
     if (el.jumpTicks) el.jumpTicks.addEventListener("click", _jumpTicksClick);
     const goExact = () => {
         const p = fromMyanmarNum(el.jumpPageInput.value);

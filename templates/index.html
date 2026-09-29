@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.4">
+    <link rel="stylesheet" href="/static/app.css?v=7.5">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -1085,7 +1085,10 @@
             <div class="jump-sheet-body">
                 <div class="jump-slider-wrap">
                     <div class="jump-bubble" id="jumpBubble">၁</div>
-                    <input type="range" id="jumpSlider" class="jump-slider" min="1" max="381" value="1" step="1" aria-label="စာမျက်နှာ ရွေးချယ်ရန် slider">
+                    <div class="jump-cslider" id="jumpCSlider" role="slider" tabindex="0" aria-label="စာမျက်နှာ ရွေးချယ်ရန် slider" aria-valuemin="1" aria-valuemax="381" aria-valuenow="1">
+                        <div class="jump-cslider-track"><div class="jump-cslider-fill" id="jumpCFill"></div></div>
+                        <div class="jump-cslider-thumb" id="jumpCThumb"></div>
+                    </div>
                     <div class="jump-ticks" id="jumpTicks" title="သုတ္တန်/အခန်း အစသို့ ခုန်ရန် နှိပ်ပါ"></div>
                 </div>
                 <div class="jump-slider-labels">
@@ -1103,6 +1106,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.16"></script>
+    <script src="/static/app.js?v=7.17"></script>
 </body>
 </html>

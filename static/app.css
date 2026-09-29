@@ -4643,6 +4643,50 @@ body.ios-fullscreen-fallback .reader-container {
     transform: translateX(-50%);
     pointer-events: none;
 }
+/* Custom div-based slider (v7.18): replaces native <input type=range>,
+   whose programmatic .value setter hangs Chromium on some devices.
+   Pure divs + pointer events — no native control, no bug. */
+.jump-cslider {
+    position: relative;
+    height: 28px;
+    cursor: pointer;
+    touch-action: none;
+    outline: none;
+}
+.jump-cslider-track {
+    position: absolute;
+    top: 11px;
+    left: 14px;
+    right: 14px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+}
+.jump-cslider-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+    width: 0%;
+}
+.jump-cslider-thumb {
+    position: absolute;
+    top: 0;
+    left: 0%;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.jump-cslider:focus-visible .jump-cslider-thumb {
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(0,0,0,0.15)), 0 2px 8px rgba(0,0,0,0.3);
+}
 .jump-slider-labels {
     display: flex;
     justify-content: space-between;
