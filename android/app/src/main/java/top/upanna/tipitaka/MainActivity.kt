@@ -101,6 +101,9 @@ class MainActivity : AppCompatActivity() {
 
             setStatus("ဆာဗာ စတင်နေသည်…\n(ပထမအကြိမ် ၂-၃ မိနစ်ခန့် ကြာနိုင်သည်)")
             runOnUiThread { progressBar.isIndeterminate = true }
+            // Fresh stage log for this launch; bootstrap.py appends markers
+            // as it progresses so the splash shows exactly where it's stuck.
+            try { File(dbDir, "server_stages.log").delete() } catch (_: Exception) { }
             // Blocking call on this bg thread; Flask serves 127.0.0.1:PORT.
             // Any startup failure is captured (never swallowed) and rethrown
             // from waitForServer() so the real cause reaches the UI + logcat.
@@ -115,7 +118,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }.start()
 
-            waitForServer()
+            waitForServer(dbDir)
             runOnUiThread {
                 splash.visibility = View.GONE
                 webView.visibility = View.VISIBLE
@@ -128,11 +131,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun waitForServer() {
+    private fun waitForServer(dbDir: File) {
         val deadline = System.currentTimeMillis() + 180_000
+        var lastStage = ""
         while (System.currentTimeMillis() < deadline) {
-            // Fail fast with the REAL cause instead of a blind 90s wait.
+            // Fail fast with the REAL cause instead of a blind wait.
             serverError.get()?.let { throw IllegalStateException("ဆာဗာ error: $it", it) }
+            // Show the Python-side stage so a hang is diagnosable on-screen.
+            val stage = readLastStage(dbDir)
+            if (stage != lastStage) {
+                lastStage = stage
+                val label = if (stage.isEmpty()) "Python စတင်နေသည်…"
+                            else "အဆင့်: $stage"
+                setStatus("ဆာဗာ စတင်နေသည်…\n($label)")
+            }
             try {
                 val c = URL("http://127.0.0.1:$PORT/api/health")
                     .openConnection() as HttpURLConnection
@@ -143,7 +155,16 @@ class MainActivity : AppCompatActivity() {
             Thread.sleep(500)
         }
         serverError.get()?.let { throw IllegalStateException("ဆာဗာ မတက်လာပါ: $it", it) }
-        throw IllegalStateException("ဆာဗာ မတက်လာပါ (အချိန်ကုန်သွားသည်)")
+        val stage = readLastStage(dbDir).ifEmpty { "stage မရှိပါ (Python မစတင်ရသေး)" }
+        throw IllegalStateException("ဆာဗာ မတက်လာပါ (အချိန်ကုန်သွားသည်; နောက်ဆုံးအဆင့်: $stage)")
+    }
+
+    private fun readLastStage(dbDir: File): String {
+        return try {
+            val f = File(dbDir, "server_stages.log")
+            if (!f.exists()) return ""
+            f.readLines().lastOrNull()?.substringAfter(" ")?.trim() ?: ""
+        } catch (_: Exception) { "" }
     }
 
     // ---------------- first-run DB download ----------------
