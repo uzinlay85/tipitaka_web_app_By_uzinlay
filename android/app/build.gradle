@@ -37,7 +37,7 @@ android {
         release {
             // Same debug signing for now; swap in a keystore before Play.
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
+            minifyEnabled = false
         }
     }
     compileOptions {
