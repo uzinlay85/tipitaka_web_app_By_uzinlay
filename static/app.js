@@ -1472,7 +1472,12 @@ function _csliderSet(val) {
 }
 function _bindCSlider() {
     if (!el.jumpCSlider) return;
+    // Cleanup for leaked drag listeners: if pointerup/pointercancel never
+    // fired (e.g. setPointerCapture threw), the move/up handlers stay attached
+    // and accumulate on every drag -> each pointermove does Nx work -> hang.
+    let _csliderCleanup = null;
     el.jumpCSlider.addEventListener("pointerdown", (e) => {
+        if (_csliderCleanup) { _csliderCleanup(); _csliderCleanup = null; }
         e.preventDefault();
         try { el.jumpCSlider.setPointerCapture(e.pointerId); } catch (_) {}
         // Cache rect ONCE per drag: getBoundingClientRect() forces a sync
@@ -1486,10 +1491,13 @@ function _bindCSlider() {
         _csliderSet(valFromX(e.clientX));
         const move = (ev) => _csliderSet(valFromX(ev.clientX));
         const up = () => {
+            if (_csliderCleanup) { _csliderCleanup(); _csliderCleanup = null; }
+            _jumpGo(_csliderVal); // jump on release, like native change
+        };
+        _csliderCleanup = () => {
             el.jumpCSlider.removeEventListener("pointermove", move);
             el.jumpCSlider.removeEventListener("pointerup", up);
             el.jumpCSlider.removeEventListener("pointercancel", up);
-            _jumpGo(_csliderVal); // jump on release, like native change
         };
         el.jumpCSlider.addEventListener("pointermove", move);
         el.jumpCSlider.addEventListener("pointerup", up);
