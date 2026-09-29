@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=6.13">
+    <link rel="stylesheet" href="/static/app.css?v=7.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -1074,9 +1074,11 @@
     </div>
 
     <!-- Page Jump Sheet: tap footer "စာမျက်နှာ X / Y" to open -->
-    <div id="jumpSheet" class="jump-sheet" style="display:none;">
+    <!-- Jump panel: inline (in normal document flow), moved after the tapped
+         pill/badge by openJumpSheet(). No fixed overlay: avoids the
+         Chromium fixed-overlay compositing hang seen on some devices. -->
+    <div id="jumpSheet" class="jump-sheet" hidden>
         <div class="jump-sheet-card">
-            <div class="jump-sheet-handle"></div>
             <div class="jump-sheet-header">
                 <span class="jump-sheet-title">📖 စာမျက်နှာ ရွေးချယ်ရန်</span>
                 <button id="btnCloseJumpSheet" class="ann-popup-close">✕</button>
@@ -1102,6 +1104,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=6.20"></script>
+    <script src="/static/app.js?v=7.0"></script>
 </body>
 </html>

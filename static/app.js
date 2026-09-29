@@ -1372,46 +1372,51 @@ let _jumpFirst = 1, _jumpLast = 1;
 
 function _jumpIsMM() { return state.readerMode === "mm"; }
 
-function openJumpSheet() {
-    console.log("[jump] openJumpSheet: entry");
+// Jump panel: inline card moved in the DOM to sit right after the tapped
+// pill/badge. No fixed overlay (avoids the Chromium fixed-overlay hang).
+// Tapping the same trigger again toggles it closed.
+let _jumpAnchor = null; // element the panel is currently anchored after
+
+function openJumpSheet(triggerEl) {
     _trackAction("openJumpSheet");
-    if (!el.jumpSheet) { console.log("[jump] no sheet el"); return; }
-    // Prune the feed BEFORE showing the sheet: a huge DOM can block layout
-    // when display:flex triggers a full-page recalc.
-    if (typeof pruneFeedDOM === "function") {
-        pruneFeedDOM();
-        console.log(`[jump] pruned, nodes=${document.getElementsByTagName("*").length}`);
+    if (!el.jumpSheet) return;
+    // Toggle: if already open anchored at this trigger, close it.
+    if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
+        closeJumpSheet();
+        return;
     }
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
-    console.log(`[jump] bounds first=${_jumpFirst} last=${_jumpLast} cur=${cur}`);
 
     el.jumpSlider.min = _jumpFirst;
     el.jumpSlider.max = _jumpLast;
     el.jumpSlider.value = cur;
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
+    el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
-    console.log("[jump] slider/labels updated");
     _jumpUpdateBubble(cur);
-    console.log("[jump] bubble updated");
-    // Show the sheet immediately; render the (potentially large) tick strip
-    // on the next frame so the tap feels instant on low-end Android.
-    el.jumpSheet.style.display = "flex";
-    console.log("[jump] display:flex set");
-    requestAnimationFrame(() => {
-        console.log("[jump] rAF fired, rendering ticks");
-        _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
-        console.log("[jump] ticks done");
-    });
-    console.log("[jump] openJumpSheet: exit");
+    // Anchor the panel right after the trigger so it appears in context.
+    // The trigger may be the footer pill or a page-divider badge.
+    _jumpAnchor = triggerEl || null;
+    if (triggerEl && triggerEl.parentNode) {
+        triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
+    }
+    // Render ticks synchronously now (capped at 120); the panel is inline so
+    // there is no overlay-layout cost.
+    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
+    el.jumpSheet.hidden = false;
+    // Bring the panel into view without hijacking the user's scroll position
+    // harshly; `nearest` keeps it minimal.
+    try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
 }
 
 function closeJumpSheet() {
-    if (el.jumpSheet) el.jumpSheet.style.display = "none";
+    if (el.jumpSheet) el.jumpSheet.hidden = true;
+    _jumpAnchor = null;
 }
 
 // Live bubble follows the thumb while dragging; the page loads on release.
@@ -1427,10 +1432,8 @@ function _jumpUpdateBubble(page) {
 }
 
 function _jumpRenderTicks(tocs) {
-    console.log(`[jump] _jumpRenderTicks: tocs=${(tocs||[]).length}`);
     if (!el.jumpTicks) return;
     const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
-    console.log(`[jump] _jumpRenderTicks: filtered=${list.length}`);
     if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
     // Cap rendered ticks: the strip is only a few hundred px wide, so more
     // than ~120 ticks overlap sub-pixel and only cost layout time on mobile.
@@ -1474,10 +1477,13 @@ function _jumpGo(page) {
 }
 
 function setupJumpSheet() {
-    if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", openJumpSheet);
-    // Page-divider badges (at every page boundary in the feed) also open the sheet.
+    if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openJumpSheet(el.btnOpenJumpSheet);
+    });
+    // Page-divider badges (at every page boundary in the feed) also open the panel.
     // Delegated: dividers are added/removed dynamically by feed windowing.
-    // Tap-vs-drag guard: a text-selection drag across the badge must not open the sheet.
+    // Tap-vs-drag guard: a text-selection drag across the badge must not open the panel.
     let _badgeDownPos = null;
     document.addEventListener("pointerdown", (e) => {
         _badgeDownPos = e.target.closest(".divider-badge") ? [e.clientX, e.clientY] : null;
@@ -1489,12 +1495,10 @@ function setupJumpSheet() {
             const dx = e.clientX - _badgeDownPos[0], dy = e.clientY - _badgeDownPos[1];
             if (dx * dx + dy * dy > 100) return;
         }
-        openJumpSheet();
+        openJumpSheet(badge);
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
-    if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
-        if (e.target === el.jumpSheet) closeJumpSheet();
-    });
+    // Inline panel: no backdrop to tap, so no backdrop-click handler.
     if (el.jumpSlider) {
         el.jumpSlider.addEventListener("input", () => _jumpUpdateBubble(parseInt(el.jumpSlider.value, 10)));
         // Jump only on release: the bubble lets the user aim first.
@@ -6560,9 +6564,9 @@ function setupPageVisibilityObserver() {
 }
 
 function updateCurrentViewPage(pageNum) {
-    // Skip while the jump sheet is open: the sheet's fixed overlay can shift
-    // layout, causing the IntersectionObserver to fire in a loop.
-    if (el.jumpSheet && el.jumpSheet.style.display !== "none") return;
+    // Skip while the jump panel is open: the panel insertion shifts layout,
+    // which can make the IntersectionObserver fire spuriously.
+    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     if (state.readerMode === "pali") {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;
