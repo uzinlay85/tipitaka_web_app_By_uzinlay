@@ -1385,33 +1385,26 @@ function openJumpSheet(triggerEl) {
         closeJumpSheet();
         return;
     }
-    // v7.16: slider recreated via outerHTML (see below); labels/input set here.
-    // Bubble + ticks stay disabled until slider fix is confirmed.
+    // v7.17: slider min/max set, .value NEVER touched (hangs).
+    // Bubble + ticks re-enabled.
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
 
-    // v7.16: recreate the slider via outerHTML with min/max/value baked in.
-    // NEVER use the .value/.min/.max property setters: they trigger a
-    // Chromium range-input hang on this device (v7.14/v7.15 diag).
-    // Parsing value from HTML avoids the buggy setter code path.
-    // Listeners are re-attached via _bindJumpSlider().
-    const _f = Math.max(1, Math.round(_jumpFirst) || 1);
-    const _l = Math.max(_f, Math.round(_jumpLast) || _f);
-    const _c = Math.min(_l, Math.max(_f, Math.round(cur) || _f));
+    // v7.17: set min/max ONLY (no .value — the value setter hangs).
+    // If this hangs, min/max are also broken and we'll drop all slider writes.
+    // Bubble + ticks re-enabled (never implicated in current code).
     if (el.jumpSlider) {
-        el.jumpSlider.outerHTML =
-            `<input type="range" id="jumpSlider" class="jump-slider" min="${_f}" max="${_l}" value="${_c}" step="1" aria-label="စာမျက်နှာရွေးချယ်ရန် slider">`;
-        el.jumpSlider = document.getElementById("jumpSlider");
-        _bindJumpSlider();
+        el.jumpSlider.min = _jumpFirst;
+        el.jumpSlider.max = _jumpLast;
     }
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
-    // _jumpUpdateBubble(cur); // DIAG v7.12: still disabled.
+    _jumpUpdateBubble(cur);
 
     _jumpAnchor = triggerEl || null;
     // F1: position the panel adjacent to the trigger via style.top.
@@ -1429,7 +1422,7 @@ function openJumpSheet(triggerEl) {
             el.jumpSheet.style.top = Math.max(0, top) + "px";
         }
     } catch (_) {}
-    _jumpRenderTicks([]); // DIAG v7.16: blank — skip real ticks.
+    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
 }
 
