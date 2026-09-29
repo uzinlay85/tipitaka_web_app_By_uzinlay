@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=6.8">
+    <link rel="stylesheet" href="/static/app.css?v=6.9">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -492,7 +492,7 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
                         <span>ယခင် စာမျက်နှာသို့</span>
                     </button>
-                    <div class="footer-page-info">
+                    <div class="footer-page-info jump-trigger" id="btnOpenJumpSheet" title="နှိပ်ပြီး စာမျက်နှာ ရွေးချယ်ရန်">
                         <span>စာမျက်နှာ <strong id="footerCurrentPage">၁</strong> / <span id="footerTotalPage">၃၈၁</span></span>
                     </div>
                     <button class="footer-nav-btn next" id="btnFooterNext">
@@ -1073,7 +1073,35 @@
         </div>
     </div>
 
+    <!-- Page Jump Sheet: tap footer "စာမျက်နှာ X / Y" to open -->
+    <div id="jumpSheet" class="jump-sheet" style="display:none;">
+        <div class="jump-sheet-card">
+            <div class="jump-sheet-handle"></div>
+            <div class="jump-sheet-header">
+                <span class="jump-sheet-title">📖 စာမျက်နှာ ရွေးချယ်ရန်</span>
+                <button id="btnCloseJumpSheet" class="ann-popup-close">✕</button>
+            </div>
+            <div class="jump-sheet-body">
+                <div class="jump-slider-wrap">
+                    <div class="jump-bubble" id="jumpBubble">၁</div>
+                    <input type="range" id="jumpSlider" class="jump-slider" min="1" max="381" value="1" step="1" aria-label="စာမျက်နှာ ရွေးချယ်ရန် slider">
+                    <div class="jump-ticks" id="jumpTicks" title="သုတ္တန်/အခန်း အစသို့ ခုန်ရန် နှိပ်ပါ"></div>
+                </div>
+                <div class="jump-slider-labels">
+                    <span id="jumpMinLabel">၁</span>
+                    <span id="jumpCurLabel" class="jump-cur-label">စာ-၁ / ၃၈၁</span>
+                    <span id="jumpMaxLabel">၃၈၁</span>
+                </div>
+                <div class="jump-exact-row">
+                    <input type="text" id="jumpPageInput" class="jump-page-input" inputmode="numeric" pattern="[0-9၀-၉]*" placeholder="စာမျက်နှာနံပါတ် ရိုက်ထည့်ပါ">
+                    <button id="btnJumpGo" class="jump-go-btn">သွားမည်</button>
+                </div>
+                <p class="jump-hint">slider ဆွဲပြီး လွှတ်လိုက်ရင် ရွေးထားတဲ့ စာမျက်နှာသို့ ရောက်မည် • အမှတ်ကလေးများကို နှိပ်ရင် အနီးဆုံး သုတ္တန်/အခန်း အစသို့ ခုန်မည်</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=6.10"></script>
+    <script src="/static/app.js?v=6.11"></script>
 </body>
 </html>

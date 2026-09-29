@@ -147,6 +147,17 @@ const el = {
     btnFooterNext: document.getElementById("btnFooterNext"),
     footerCurrentPage: document.getElementById("footerCurrentPage"),
     footerTotalPage: document.getElementById("footerTotalPage"),
+    btnOpenJumpSheet: document.getElementById("btnOpenJumpSheet"),
+    jumpSheet: document.getElementById("jumpSheet"),
+    jumpSlider: document.getElementById("jumpSlider"),
+    jumpBubble: document.getElementById("jumpBubble"),
+    jumpTicks: document.getElementById("jumpTicks"),
+    jumpMinLabel: document.getElementById("jumpMinLabel"),
+    jumpMaxLabel: document.getElementById("jumpMaxLabel"),
+    jumpCurLabel: document.getElementById("jumpCurLabel"),
+    jumpPageInput: document.getElementById("jumpPageInput"),
+    btnJumpGo: document.getElementById("btnJumpGo"),
+    btnCloseJumpSheet: document.getElementById("btnCloseJumpSheet"),
     
     // Split View (Left: Current Pali / Right: Dynamic Companion)
     splitViewContainer: document.getElementById("splitViewContainer"),
@@ -1352,6 +1363,108 @@ function setupExportUI() {
     }
 }
 
+// ============================================================
+// Page Jump Sheet (v6.11): tap footer "စာမျက်နှာ X / Y" to open.
+// Slider with live page bubble (jump on release), section ticks
+// (tap -> nearest sutta/chapter start), exact page input.
+// ============================================================
+let _jumpFirst = 1, _jumpLast = 1;
+
+function _jumpIsMM() { return state.readerMode === "mm"; }
+
+function openJumpSheet() {
+    if (!el.jumpSheet) return;
+    const isMM = _jumpIsMM();
+    _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
+    _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
+    const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
+
+    el.jumpSlider.min = _jumpFirst;
+    el.jumpSlider.max = _jumpLast;
+    el.jumpSlider.value = cur;
+    el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
+    el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
+    el.jumpPageInput.value = "";
+    el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
+    _jumpUpdateBubble(cur);
+    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
+    el.jumpSheet.style.display = "flex";
+}
+
+function closeJumpSheet() {
+    if (el.jumpSheet) el.jumpSheet.style.display = "none";
+}
+
+// Live bubble follows the thumb while dragging; the page loads on release.
+function _jumpUpdateBubble(page) {
+    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
+    el.jumpBubble.textContent = toMyanmarNum(page);
+    const pct = _jumpLast === _jumpFirst ? 0
+        : (page - _jumpFirst) / (_jumpLast - _jumpFirst) * 100;
+    // Clamp so the bubble never overflows the sheet edges.
+    const clamped = Math.max(8, Math.min(92, pct));
+    el.jumpBubble.style.left = clamped + "%";
+    el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(page)} / ${toMyanmarNum(_jumpLast)}`;
+}
+
+function _jumpRenderTicks(tocs) {
+    if (!el.jumpTicks) return;
+    const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
+    if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
+    const span = _jumpLast - _jumpFirst || 1;
+    let html = "";
+    for (const t of list) {
+        const pct = (t.page_number - _jumpFirst) / span * 100;
+        html += `<span class="jump-tick" style="left:${pct.toFixed(2)}%" title="${escapeHtml(t.name || "")}"></span>`;
+    }
+    el.jumpTicks.innerHTML = html;
+}
+
+// Tap the tick strip -> jump to the nearest section start.
+function _jumpTicksClick(e) {
+    const tocs = (_jumpIsMM() ? state.mmTocs : state.paliTocs) || [];
+    const list = tocs.filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
+    if (list.length === 0) return;
+    const r = el.jumpTicks.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const target = _jumpFirst + x * (_jumpLast - _jumpFirst);
+    let best = list[0];
+    for (const t of list) {
+        if (Math.abs(t.page_number - target) < Math.abs(best.page_number - target)) best = t;
+    }
+    _jumpGo(best.page_number);
+}
+
+function _jumpGo(page) {
+    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
+    closeJumpSheet();
+    if (_jumpIsMM()) loadMMPage(state.mmBookId, page);
+    else loadPaliPage(state.paliBookId, page);
+}
+
+function setupJumpSheet() {
+    if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", openJumpSheet);
+    if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
+    if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
+        if (e.target === el.jumpSheet) closeJumpSheet();
+    });
+    if (el.jumpSlider) {
+        el.jumpSlider.addEventListener("input", () => _jumpUpdateBubble(parseInt(el.jumpSlider.value, 10)));
+        // Jump only on release: the bubble lets the user aim first.
+        el.jumpSlider.addEventListener("change", () => _jumpGo(parseInt(el.jumpSlider.value, 10)));
+    }
+    if (el.jumpTicks) el.jumpTicks.addEventListener("click", _jumpTicksClick);
+    const goExact = () => {
+        const p = fromMyanmarNum(el.jumpPageInput.value);
+        if (p > 0) _jumpGo(p);
+        else el.jumpPageInput.focus();
+    };
+    if (el.btnJumpGo) el.btnJumpGo.addEventListener("click", goExact);
+    if (el.jumpPageInput) el.jumpPageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") goExact();
+    });
+}
+
 // Setup annotation popup event listeners (called once in setupEventListeners)
 function setupAnnotationListeners() {
     const popup = document.getElementById("annotationPopup");
@@ -1414,6 +1527,8 @@ function setupAnnotationListeners() {
     // Cross-device sync UI + background sync
     setupSyncUI();
     setupExportUI();
+    // Page jump sheet (footer "စာမျက်နှာ X / Y" tap -> slider + ticks + input)
+    setupJumpSheet();
 }
 
 // Initialize Application
