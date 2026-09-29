@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.view.View
 import android.webkit.DownloadListener
 import android.webkit.URLUtil
@@ -23,6 +24,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipInputStream
 
 class MainActivity : AppCompatActivity() {
@@ -43,6 +45,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var progressBar: ProgressBar
     private val bg = Executors.newSingleThreadExecutor()
+    // Root cause from the Flask/Chaquopy server thread (never swallowed silently).
+    private val serverError = AtomicReference<Throwable?>(null)
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,12 +99,20 @@ class MainActivity : AppCompatActivity() {
             }
             if (!isValidDb(paliDb)) throw IllegalStateException("DB မတွေ့ပါ")
 
-            setStatus("ဆာဗာ စတင်နေသည်…")
+            setStatus("ဆာဗာ စတင်နေသည်…\n(ပထမအကြိမ် ၂-၃ မိနစ်ခန့် ကြာနိုင်သည်)")
             runOnUiThread { progressBar.isIndeterminate = true }
             // Blocking call on this bg thread; Flask serves 127.0.0.1:PORT.
+            // Any startup failure is captured (never swallowed) and rethrown
+            // from waitForServer() so the real cause reaches the UI + logcat.
+            serverError.set(null)
             Thread {
-                Python.getInstance().getModule("bootstrap")
-                    .callAttr("run_server", dbDir.absolutePath, PORT, SYNC_UPSTREAM)
+                try {
+                    Python.getInstance().getModule("bootstrap")
+                        .callAttr("run_server", dbDir.absolutePath, PORT, SYNC_UPSTREAM)
+                } catch (e: Throwable) {
+                    Log.e("Tipitaka", "Flask server failed to start", e)
+                    serverError.set(e)
+                }
             }.start()
 
             waitForServer()
@@ -110,13 +122,17 @@ class MainActivity : AppCompatActivity() {
                 webView.loadUrl("http://127.0.0.1:$PORT/")
             }
         } catch (e: Exception) {
-            setStatus("အမှား: ${e.message}\nအင်တာနက်စစ်ပြီး app ကို ပြန်ဖွင့်ပါ။")
+            Log.e("Tipitaka", "startup failed", e)
+            val cause = (serverError.get() ?: e).toString().take(400)
+            setStatus("အမှား: $cause\n\napp ကို ပိတ်၍ ပြန်ဖွင့်ကြည့်ပါ။")
         }
     }
 
     private fun waitForServer() {
-        val deadline = System.currentTimeMillis() + 90_000
+        val deadline = System.currentTimeMillis() + 180_000
         while (System.currentTimeMillis() < deadline) {
+            // Fail fast with the REAL cause instead of a blind 90s wait.
+            serverError.get()?.let { throw IllegalStateException("ဆာဗာ error: $it", it) }
             try {
                 val c = URL("http://127.0.0.1:$PORT/api/health")
                     .openConnection() as HttpURLConnection
@@ -126,7 +142,8 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) { }
             Thread.sleep(500)
         }
-        throw IllegalStateException("ဆာဗာ မတက်လာပါ")
+        serverError.get()?.let { throw IllegalStateException("ဆာဗာ မတက်လာပါ: $it", it) }
+        throw IllegalStateException("ဆာဗာ မတက်လာပါ (အချိန်ကုန်သွားသည်)")
     }
 
     // ---------------- first-run DB download ----------------

@@ -7,11 +7,18 @@ Runs the same Flask app as the web/VPS deployment, but with:
                             for everything else.
 """
 import os
+import traceback
 
 
 def run_server(data_dir, port, sync_upstream=""):
-    os.environ["TIPITAKA_DATA_DIR"] = data_dir
-    if sync_upstream:
-        os.environ["TIPITAKA_SYNC_UPSTREAM"] = sync_upstream
-    import app as tipitaka_app
-    tipitaka_app.app.run(host="127.0.0.1", port=port, threaded=True)
+    try:
+        os.environ["TIPITAKA_DATA_DIR"] = data_dir
+        if sync_upstream:
+            os.environ["TIPITAKA_SYNC_UPSTREAM"] = sync_upstream
+        import app as tipitaka_app
+        tipitaka_app.app.run(host="127.0.0.1", port=port, threaded=True)
+    except BaseException:
+        # Chaquopy routes stderr to logcat; print explicitly so the real
+        # cause is never lost even if the Kotlin side can't capture it.
+        traceback.print_exc()
+        raise
