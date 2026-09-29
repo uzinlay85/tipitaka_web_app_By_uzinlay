@@ -4541,14 +4541,18 @@ body.ios-fullscreen-fallback .reader-container {
    Chromium). position:fixed caused the hang (v7.8 fixed=hang, v7.9
    static=no hang). Absolute + explicit top avoids fixed compositing. */
 .jump-sheet {
-    padding: 0;
-    border: none;
-    background: transparent;
-    max-width: min(560px, calc(100vw - 24px));
-    width: calc(100vw - 24px);
-}
-.jump-sheet::backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 96px 12px 12px;
     background: rgba(0, 0, 0, 0.4);
+    border: none;
+}
+.jump-sheet[hidden] {
+    display: none;
 }
 .jump-sheet-card {
     width: 100%;

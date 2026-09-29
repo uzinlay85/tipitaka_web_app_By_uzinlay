@@ -1390,7 +1390,7 @@ function openJumpSheet(triggerEl) {
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
     // Toggle: if already open anchored at this trigger, close it.
-    if (el.jumpSheet.open && _jumpAnchor === triggerEl) {
+    if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
         closeJumpSheet();
         return;
     }
@@ -1421,15 +1421,14 @@ function openJumpSheet(triggerEl) {
     _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     _trackAction("jump:show");
-    // Native dialog: top-layer, no layout impact on the feed.
-    if (!el.jumpSheet.open) {
-        try { el.jumpSheet.showModal(); }
-        catch (err) { console.error("[jump] showModal failed:", err); }
+    // Div overlay: simple hidden toggle, no dialog API.
+    if (el.jumpSheet.hidden) {
+        el.jumpSheet.hidden = false;
     }
 }
 
 function closeJumpSheet() {
-    if (el.jumpSheet && el.jumpSheet.open) el.jumpSheet.close();
+    if (el.jumpSheet) el.jumpSheet.hidden = true;
     _jumpAnchor = null;
 }
 
@@ -1579,9 +1578,10 @@ function setupJumpSheet() {
         try { openJumpSheet(badge); } catch (err) { console.error("[jump] open failed:", err); }
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
-    // Native dialog: ESC closes automatically; keep _jumpAnchor in sync.
-    if (el.jumpSheet) el.jumpSheet.addEventListener("close", () => { _jumpAnchor = null; });
-    // Backdrop tap closes (dialogs don't do this by default).
+    // Div overlay: ESC closes manually; backdrop is the overlay div itself.
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && el.jumpSheet && !el.jumpSheet.hidden) closeJumpSheet();
+    });
     if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
         if (e.target === el.jumpSheet) closeJumpSheet();
     });
@@ -6497,7 +6497,7 @@ function setupSentinelObserver() {
                 // and can make the sentinel intersect, starting an infinite
                 // load loop that hangs the renderer. (loadNextFeedPage has
                 // the same guard; this avoids even queueing the async work.)
-                if (el.jumpSheet && el.jumpSheet.open) return;
+                if (el.jumpSheet && !el.jumpSheet.hidden) return;
                 loadNextFeedPage();
             }
         });
@@ -6536,7 +6536,7 @@ async function loadNextFeedPage() {
     // shifts layout, which can make the infinite sentinel intersect and
     // trigger an infinite load loop (fetch -> render -> observe -> fetch)
     // that hangs the renderer. This guard was intended in v6.20 but missing.
-    if (el.jumpSheet && el.jumpSheet.open) return;
+    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
@@ -6654,7 +6654,7 @@ function setupPageVisibilityObserver() {
 function updateCurrentViewPage(pageNum) {
     // Skip while the jump panel is open: the panel insertion shifts layout,
     // which can make the IntersectionObserver fire spuriously.
-    if (el.jumpSheet && el.jumpSheet.open) return;
+    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     if (state.readerMode === "pali") {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;

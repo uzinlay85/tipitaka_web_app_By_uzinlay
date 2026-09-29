@@ -26,9 +26,10 @@ check("jump badge delegation is reader-local", "e.target.closest(\".divider-badg
 check("jump panel is never reparented", "insertBefore(el.jumpSheet" not in JS and "appendChild(el.jumpSheet" not in JS)
 check("jump panel avoids feed layout reads", "triggerEl.getBoundingClientRect()" not in JS and
       "el.jumpSheet.style.top" not in JS and
-      "showModal()" in JS)
+      "showModal()" not in JS and
+      'id="jumpSheet"' in HTML)
 check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
-check("jump panel is native dialog", '<dialog id="jumpSheet"' in HTML)
+check("jump panel is div overlay (not dialog)", '<div id="jumpSheet"' in HTML and '<dialog id="jumpSheet"' not in HTML)
 check("jump panel has no manual positioning", "el.jumpSheet.style.top" not in JS)
-check("cache-busting version is current", 'app.js?v=7.33' in HTML)
-check("feed loader skips while jump panel open", "if (el.jumpSheet && el.jumpSheet.open) return;" in JS)
+check("cache-busting version is current", 'app.js?v=7.34' in HTML)
+check("feed loader skips while jump panel open", "if (el.jumpSheet && !el.jumpSheet.hidden) return;" in JS)
