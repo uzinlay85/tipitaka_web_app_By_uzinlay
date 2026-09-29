@@ -1376,6 +1376,12 @@ function openJumpSheet() {
     console.log("[jump] openJumpSheet: entry");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) { console.log("[jump] no sheet el"); return; }
+    // Prune the feed BEFORE showing the sheet: a huge DOM can block layout
+    // when display:flex triggers a full-page recalc.
+    if (typeof pruneFeedDOM === "function") {
+        pruneFeedDOM();
+        console.log(`[jump] pruned, nodes=${document.getElementsByTagName("*").length}`);
+    }
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
