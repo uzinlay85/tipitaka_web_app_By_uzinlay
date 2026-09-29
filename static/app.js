@@ -1373,12 +1373,14 @@ let _jumpFirst = 1, _jumpLast = 1;
 function _jumpIsMM() { return state.readerMode === "mm"; }
 
 function openJumpSheet() {
+    console.log("[jump] openJumpSheet: entry");
     _trackAction("openJumpSheet");
-    if (!el.jumpSheet) return;
+    if (!el.jumpSheet) { console.log("[jump] no sheet el"); return; }
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
+    console.log(`[jump] bounds first=${_jumpFirst} last=${_jumpLast} cur=${cur}`);
 
     el.jumpSlider.min = _jumpFirst;
     el.jumpSlider.max = _jumpLast;
@@ -1387,11 +1389,19 @@ function openJumpSheet() {
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
+    console.log("[jump] slider/labels updated");
     _jumpUpdateBubble(cur);
+    console.log("[jump] bubble updated");
     // Show the sheet immediately; render the (potentially large) tick strip
     // on the next frame so the tap feels instant on low-end Android.
     el.jumpSheet.style.display = "flex";
-    requestAnimationFrame(() => _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs));
+    console.log("[jump] display:flex set");
+    requestAnimationFrame(() => {
+        console.log("[jump] rAF fired, rendering ticks");
+        _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
+        console.log("[jump] ticks done");
+    });
+    console.log("[jump] openJumpSheet: exit");
 }
 
 function closeJumpSheet() {
