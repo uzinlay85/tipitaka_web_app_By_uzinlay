@@ -1403,6 +1403,7 @@ function openJumpSheet(triggerEl) {
 
     console.log("[jump] csliderSet");
     _trackAction("jump:csliderSet");
+    _csliderVal = null; // force UI refresh even if value matches previous open
     _csliderSet(cur); // sets fill/thumb/bubble; safe div writes only
     console.log("[jump] labels");
     _trackAction("jump:labels");
@@ -1452,9 +1453,8 @@ function closeJumpSheet() {
 // .value-setter hang is impossible. All visuals are plain div style writes.
 let _csliderVal = 1;
 function _csliderSet(val) {
-    console.log("[jump] _csliderSet in, val=", val);
-    _trackAction("jump:cslider-in");
     val = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(val) || _jumpFirst));
+    if (val === _csliderVal) return; // unchanged — skip redundant DOM writes
     _csliderVal = val;
     const pct = _jumpLast === _jumpFirst ? 0
         : (val - _jumpFirst) / (_jumpLast - _jumpFirst) * 100;
@@ -1465,10 +1465,7 @@ function _csliderSet(val) {
         el.jumpCSlider.setAttribute("aria-valuemax", _jumpLast);
         el.jumpCSlider.setAttribute("aria-valuenow", val);
     }
-    console.log("[jump] _csliderSet bubble");
-    _trackAction("jump:cslider-bubble");
     _jumpUpdateBubble(val);
-    console.log("[jump] _csliderSet done");
 }
 function _bindCSlider() {
     if (!el.jumpCSlider) return;
