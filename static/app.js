@@ -1393,9 +1393,12 @@ function openJumpSheet(triggerEl) {
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
 
-    el.jumpSlider.min = _jumpFirst;
-    el.jumpSlider.max = _jumpLast;
-    el.jumpSlider.value = cur;
+    // DIAG v7.13: slider DISABLED, labels/input only.
+    // If hangs -> labels/input/toMyanmarNum is the culprit.
+    // If not -> slider min/max/value is the culprit.
+    // el.jumpSlider.min = _jumpFirst;
+    // el.jumpSlider.max = _jumpLast;
+    // el.jumpSlider.value = cur;
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
