@@ -1393,12 +1393,14 @@ function openJumpSheet(triggerEl) {
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
 
-    // DIAG v7.14: enable ONLY slider.value (min/max stay disabled).
-    // If hangs -> .value assignment is the culprit.
-    // If not -> min or max assignment is the culprit.
-    // el.jumpSlider.min = _jumpFirst;
-    // el.jumpSlider.max = _jumpLast;
-    el.jumpSlider.value = cur;
+    // DIAG v7.15: min/max set directly; .value DEFERRED via rAF.
+    // Theory: setting .value while panel is display:none then unhiding
+    // triggers a Chromium range-input layout bug. Deferring to after
+    // paint may avoid it. If v7.15 hangs -> value setter itself is broken.
+    el.jumpSlider.min = _jumpFirst;
+    el.jumpSlider.max = _jumpLast;
+    const _deferredVal = cur;
+    // el.jumpSlider.value = cur; // moved to rAF below
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
@@ -1422,8 +1424,12 @@ function openJumpSheet(triggerEl) {
             el.jumpSheet.style.top = Math.max(0, top) + "px";
         }
     } catch (_) {}
-    _jumpRenderTicks([]); // DIAG v7.11: blank — skip real ticks.
+    _jumpRenderTicks([]); // DIAG v7.15: blank — skip real ticks.
     el.jumpSheet.hidden = false;
+    // DIAG v7.15: deferred value set (see above).
+    requestAnimationFrame(() => {
+        try { if (el.jumpSlider) el.jumpSlider.value = _deferredVal; } catch (_) {}
+    });
 }
 
 function closeJumpSheet() {
