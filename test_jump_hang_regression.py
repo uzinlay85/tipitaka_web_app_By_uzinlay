@@ -23,8 +23,10 @@ check("dropdown outside checks use contains", "el.scrollModeDropdownWrapper.cont
       "el.relatedDropdownWrapper.contains(e.target)" in JS)
 check("jump badge delegation is reader-local", "e.target.closest(\".divider-badge\")" in JS)
 check("jump panel is never reparented", "insertBefore(el.jumpSheet" not in JS and "appendChild(el.jumpSheet" not in JS)
+check("jump panel top is viewport-clamped", "const maxTop = Math.max(8, window.innerHeight - estH - 8)" in JS and
+      "Math.min(maxTop, top)" in JS)
 check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
 check("jump panel is absolute, not sticky", ".jump-sheet {" in CSS and
       "position: absolute;" in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden]")] and
       "position: sticky" not in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden")] )
-check("cache-busting version is current", 'app.js?v=7.24' in HTML)
+check("cache-busting version is current", 'app.js?v=7.25' in HTML)

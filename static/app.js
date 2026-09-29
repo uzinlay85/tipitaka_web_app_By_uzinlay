@@ -1433,11 +1433,17 @@ function openJumpSheet(triggerEl) {
         if (triggerEl && triggerEl.getBoundingClientRect) {
             const r = triggerEl.getBoundingClientRect();
             const estH = 340;
+            // The trigger can live inside the scrollable reader feed. Its
+            // rect may therefore be far below the viewport even though the
+            // user reached it through a nested scroll. Keep the panel inside
+            // the viewport instead of writing an off-screen absolute top.
+            const maxTop = Math.max(8, window.innerHeight - estH - 8);
             let top = r.bottom + 8;
             if (top + estH > window.innerHeight) {
                 top = Math.max(8, r.top - estH - 8);
             }
-            el.jumpSheet.style.top = Math.max(0, top) + "px";
+            top = Math.max(8, Math.min(maxTop, top));
+            el.jumpSheet.style.top = top + "px";
         }
     } catch (_) {}
     console.log("[jump] ticks");
