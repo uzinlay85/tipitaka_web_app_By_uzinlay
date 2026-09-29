@@ -651,17 +651,17 @@ def api_page(book_id, page_num):
 
 @app.route("/api/export/<mode>/<book_id>")
 def api_export(mode, book_id):
-    """Download a book (or page range) as .docx or .pdf.
+    """Download a book (or page range) as a Word (.docx) file.
 
-    Query params: from=<page>, to=<page>, format=docx|pdf
+    Query params: from=<page>, to=<page>, format=docx
     """
     from flask import send_file
 
     if mode not in ("pali", "mm"):
         return jsonify({"error": "mode must be pali or mm"}), 400
     fmt = (request.args.get("format") or "docx").lower()
-    if fmt not in ("docx", "pdf"):
-        return jsonify({"error": "format must be docx or pdf"}), 400
+    if fmt != "docx":
+        return jsonify({"error": "only docx format is supported"}), 400
 
     # Rate limit: 10 exports / hour / IP (files are expensive to build)
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
@@ -714,17 +714,12 @@ def api_export(mode, book_id):
         "SELECT page, content FROM %s WHERE book_id = ? AND page BETWEEN ? AND ? ORDER BY page ASC"
         % table, (book_id, p_from, p_to)).fetchall()
 
-    from export_doc import parse_page, build_docx, build_pdf
+    from export_doc import parse_page, build_docx
     pages = [(r["page"], parse_page(r["content"])) for r in rows]
 
-    if fmt == "docx":
-        data = build_docx(book_name, pages, edition)
-        mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ext = "docx"
-    else:
-        data = build_pdf(book_name, pages, edition)
-        mimetype = "application/pdf"
-        ext = "pdf"
+    data = build_docx(book_name, pages, edition)
+    mimetype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ext = "docx"
 
     filename = "tipitaka_%s_p%d-%d.%s" % (book_id, p_from, p_to, ext)
     resp = send_file(io.BytesIO(data), mimetype=mimetype, as_attachment=True,

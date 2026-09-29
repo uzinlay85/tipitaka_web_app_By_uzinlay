@@ -1266,7 +1266,6 @@ function openExportModal() {
         '<div>' +
             '<span class="export-group-label">ဖိုင်အမျိုးအစား</span>' +
             '<label class="export-radio-row"><input type="radio" name="exportFormat" value="docx" checked> Word (.docx)</label>' +
-            '<label class="export-radio-row"><input type="radio" name="exportFormat" value="pdf"> PDF</label>' +
         '</div>' +
         '<button class="export-dl-btn" id="btnStartExport">⤓ ဒေါင်းလုဒ်ဆွဲမယ်</button>' +
         '<div class="export-status" id="exportStatus"></div>' +

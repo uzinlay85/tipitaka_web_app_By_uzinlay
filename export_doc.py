@@ -1,21 +1,12 @@
-"""Export Tipitaka book pages to Word (.docx) / PDF.
+"""Export Tipitaka book pages to Word (.docx).
 
 The page HTML stored in the DB (classes: nikaya/book/chapter/bodytext/...)
-is parsed into plain blocks, then rendered into:
-
-- DOCX via python-docx  (pure python, no system deps; Word shapes Myanmar)
-- PDF  via WeasyPrint   (Pango/HarfBuzz shapes Myanmar correctly;
-                         uses the bundled Pyidaungsu TTF via @font-face,
-                         needs libpango on the host - see VPS notes)
+is parsed into plain blocks, then rendered into a .docx via python-docx
+(pure python, no system deps; Word shapes Myanmar correctly).
 """
-import html as _html
 import io
-import os
 import re
 from html.parser import HTMLParser
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FONT_PATH = os.path.join(BASE_DIR, "static", "Pyidaungsu-2.5.3_Regular.ttf")
 
 # p class -> block kind
 _BLOCK_KIND = {
@@ -211,96 +202,6 @@ def build_docx(book_name, pages, edition_label=""):
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
-
-
-# ----------------------------------------------------------------- PDF ---
-
-_PDF_CSS = """
-@font-face {{
-    font-family: 'Pyidaungsu';
-    src: url('{font_url}');
-}}
-@page {{
-    size: A4;
-    margin: 22mm 18mm 20mm 18mm;
-    @top-center {{
-        content: "{book_name}";
-        font-family: 'Pyidaungsu', serif;
-        font-size: 9pt;
-        color: #888;
-    }}
-    @bottom-center {{
-        content: "စာမျက်နှာ " counter(page);
-        font-family: 'Pyidaungsu', serif;
-        font-size: 9pt;
-        color: #888;
-    }}
-}}
-body {{
-    font-family: 'Pyidaungsu', 'Noto Serif Myanmar', serif;
-    font-size: 12.5pt;
-    line-height: 1.9;
-    color: #1a1a1a;
-}}
-.cover {{ text-align: center; margin-top: 90mm; page-break-after: always; }}
-.cover h1 {{ font-size: 24pt; }}
-.cover .edition {{ color: #666; font-size: 13pt; margin-top: 8mm; }}
-.src-page {{ page-break-after: always; }}
-.page-label {{ text-align: center; color: #999; font-size: 10pt; margin-bottom: 4mm; }}
-h1.nikaya, h1.book {{ text-align: center; font-size: 16pt; margin: 6mm 0 4mm; }}
-h2.chapter {{ font-size: 14pt; margin: 5mm 0 3mm; }}
-p.center {{ text-align: center; }}
-p.verse {{ margin-left: 10mm; }}
-p.body {{ text-align: justify; margin: 0 0 2.5mm; }}
-"""
-
-_PDF_BODY_OPEN = """<html><head><meta charset="utf-8"><style>{css}</style></head><body>
-<div class="cover"><h1>{book}</h1><div class="edition">{edition}</div></div>
-"""
-
-
-def build_pdf(book_name, pages, edition_label=""):
-    from weasyprint import HTML
-
-    font_url = "file://" + FONT_PATH
-    css = _PDF_CSS.format(
-        font_url=font_url,
-        book_name=_html.escape(book_name).replace('"', ""),
-    )
-    parts = [
-        _PDF_BODY_OPEN.format(
-            css=css,
-            book=_html.escape(book_name),
-            edition=_html.escape(edition_label),
-        )
-    ]
-    total = len(pages)
-    for idx, (page_num, blocks) in enumerate(_iter_all_blocks(pages)):
-        parts.append('<section class="src-page">')
-        parts.append(
-            '<div class="page-label">— စာမျက်နှာ %d —</div>' % page_num
-        )
-        for kind, segs in blocks:
-            inner = []
-            for text, bold in segs:
-                esc = _html.escape(text).replace("\n", "<br>")
-                inner.append("<b>%s</b>" % esc if bold else esc)
-            html_inner = "".join(inner)
-            if kind == "nikaya":
-                parts.append("<h1 class=\"nikaya\">%s</h1>" % html_inner)
-            elif kind == "book":
-                parts.append("<h1 class=\"book\">%s</h1>" % html_inner)
-            elif kind == "chapter":
-                parts.append("<h2 class=\"chapter\">%s</h2>" % html_inner)
-            elif kind == "center":
-                parts.append("<p class=\"center\">%s</p>" % html_inner)
-            elif kind == "verse":
-                parts.append("<p class=\"verse\">%s</p>" % html_inner)
-            else:
-                parts.append("<p class=\"body\">%s</p>" % html_inner)
-        parts.append("</section>")
-    parts.append("</body></html>")
-    return HTML(string="".join(parts)).write_pdf()
 
 
 MAX_EXPORT_PAGES = 1000

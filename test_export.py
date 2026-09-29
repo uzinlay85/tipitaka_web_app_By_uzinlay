@@ -43,11 +43,9 @@ texts = [p.text for p in doc.paragraphs if p.text.strip()]
 check("docx contains book title", any("ပါရာဇိကပါဠိ" in t for t in texts))
 check("docx contains page label", any("စာမျက်နှာ 1" in t for t in texts))
 
-# --- pdf ---
+# --- pdf removed: only docx supported ---
 r = c.get("/api/export/pali/mula_vi_01?from=1&to=2&format=pdf")
-check("pdf 200", r.status_code == 200)
-check("pdf mimetype", r.headers["Content-Type"] == "application/pdf")
-check("pdf magic", r.data[:5] == b"%PDF-")
+check("pdf -> 400 not supported", r.status_code == 400)
 
 # --- mm mode ---
 r = c.get("/api/export/mm/01_vinaya_01?from=1&to=2&format=docx")
