@@ -4536,14 +4536,17 @@ body.ios-fullscreen-fallback .reader-container {
     border-bottom: 1px dotted var(--text-muted);
     padding-bottom: 2px;
 }
-/* Jump panel: DIAG v7.9 — position:static (normal flow, end of <body>).
-   Single-variable test of v7.8: if the hang disappears, position:fixed was
-   the cause. JS is untouched. Never move this element in the DOM
-   (insertBefore reparenting hangs Chromium). */
+/* Jump panel: F1 — position:absolute, top set by JS in openJumpSheet().
+   Never move this element in the DOM (insertBefore reparenting hangs
+   Chromium). position:fixed caused the hang (v7.8 fixed=hang, v7.9
+   static=no hang). Absolute + explicit top avoids fixed compositing. */
 .jump-sheet {
     display: block;
-    margin: 8px 12px;
-    position: static;
+    margin: 0;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    z-index: 50;
 }
 .jump-sheet[hidden] {
     display: none;

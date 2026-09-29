@@ -1400,9 +1400,21 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
     _jumpAnchor = triggerEl || null;
-    // The panel is NEVER moved in the DOM (insertBefore reparenting hangs
-    // Chromium). It lives at the end of <body>; positioning is controlled
-    // purely by CSS (.jump-sheet). No scrollIntoView.
+    // F1: position the panel adjacent to the trigger via style.top.
+    // A style change is a recalc, NOT a DOM reparent (safe). Body never
+    // scrolls (overflow:hidden), so viewport coords are stable.
+    // Place below the trigger; flip above if there isn't room.
+    try {
+        if (triggerEl && triggerEl.getBoundingClientRect) {
+            const r = triggerEl.getBoundingClientRect();
+            const estH = 340;
+            let top = r.bottom + 8;
+            if (top + estH > window.innerHeight) {
+                top = Math.max(8, r.top - estH - 8);
+            }
+            el.jumpSheet.style.top = Math.max(0, top) + "px";
+        }
+    } catch (_) {}
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
 }

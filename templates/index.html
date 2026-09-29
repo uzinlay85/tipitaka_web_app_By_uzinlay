@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.3">
+    <link rel="stylesheet" href="/static/app.css?v=7.4">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -1073,10 +1073,9 @@
         </div>
     </div>
 
-    <!-- Page Jump Sheet: tap footer "စာမျက်နှာ X / Y" to open -->
-    <!-- Jump panel: inline (in normal document flow), moved after the tapped
-         pill/badge by openJumpSheet(). No fixed overlay: avoids the
-         Chromium fixed-overlay compositing hang seen on some devices. -->
+    <!-- Page Jump panel: tap footer "စာမျက်နှာ X / Y" or a divider badge to open.
+         Positioned via CSS (position:absolute; top set by JS). Never moved
+         in the DOM. -->
     <div id="jumpSheet" class="jump-sheet" hidden>
         <div class="jump-sheet-card">
             <div class="jump-sheet-header">
