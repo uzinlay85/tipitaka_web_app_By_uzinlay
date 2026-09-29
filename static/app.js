@@ -1400,17 +1400,12 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
     _jumpAnchor = triggerEl || null;
-    // Place the panel right after the trigger so it appears in context.
-    // (The v7.1 DOM-move suspicion was wrong: the hang was in the
-    // document-level handlers, now fixed. Moving the panel is safe.)
-    if (triggerEl && triggerEl.parentNode) {
-        triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
-    }
+    // The panel is NEVER moved in the DOM (insertBefore caused a Chromium
+    // hang). It lives at the end of <body> with position:sticky;bottom:0,
+    // so it is always visible at the viewport bottom when unhidden.
+    // No scrollIntoView needed.
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
-    // The panel is now adjacent to the trigger, so this only scrolls
-    // minimally if needed. Instant (no smooth animation).
-    try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "auto" }); } catch (_) {}
 }
 
 function closeJumpSheet() {

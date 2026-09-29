@@ -4542,6 +4542,12 @@ body.ios-fullscreen-fallback .reader-container {
 .jump-sheet {
     display: block;
     margin: 8px 12px;
+    /* Sticky at viewport bottom: visible wherever the user is, without
+       moving the element in the DOM (insertBefore caused a hang) and
+       without position:fixed (overlay caused a hang). */
+    position: sticky;
+    bottom: 8px;
+    z-index: 50;
 }
 .jump-sheet[hidden] {
     display: none;
