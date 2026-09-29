@@ -1385,11 +1385,9 @@ function openJumpSheet(triggerEl) {
         closeJumpSheet();
         return;
     }
-    // DIAG v7.11 BLANK PANEL TEST: skip ALL content population.
-    // If 2nd open no longer hangs -> contents (ticks/slider/bubble) implicated.
-    // If still hangs -> positioning/unhide/toggle logic is the cause.
-    // (Re-enable by deleting this block comment.)
-    /*
+    // DIAG v7.12: re-enable BASIC content (slider/labels/input).
+    // Bubble + ticks stay disabled. If 2nd open hangs -> culprit is here.
+    // If not -> culprit is _jumpUpdateBubble or _jumpRenderTicks.
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
@@ -1403,8 +1401,8 @@ function openJumpSheet(triggerEl) {
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
-    _jumpUpdateBubble(cur);
-    */
+    // _jumpUpdateBubble(cur); // DIAG v7.12: still disabled.
+
     _jumpAnchor = triggerEl || null;
     // F1: position the panel adjacent to the trigger via style.top.
     // A style change is a recalc, NOT a DOM reparent (safe). Body never
