@@ -1378,9 +1378,6 @@ function _jumpIsMM() { return state.readerMode === "mm"; }
 let _jumpAnchor = null; // element the panel is currently anchored after
 
 function openJumpSheet(triggerEl) {
-    // TEMP-DIAG: completely empty to test if the hang is in event dispatch
-    console.log("[jump] openJumpSheet called (empty)");
-    return;
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
     // Toggle: if already open anchored at this trigger, close it.
@@ -1402,17 +1399,10 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
-    // TEMP-DIAG: do NOT move the panel in the DOM, do NOT scrollIntoView.
-    // Just unhide it where it sits (end of body) to isolate the hang.
     _jumpAnchor = triggerEl || null;
-    // if (triggerEl && triggerEl.parentNode) {
-    //     triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
-    // }
-    // Render ticks synchronously now (capped at 120); the panel is inline so
-    // there is no overlay-layout cost.
+    // Panel stays at end of body (no DOM move): avoids layout thrash.
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
-    // try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
 }
 
 function closeJumpSheet() {
@@ -1485,20 +1475,15 @@ function setupJumpSheet() {
     // Page-divider badges (at every page boundary in the feed) also open the panel.
     // Delegated: dividers are added/removed dynamically by feed windowing.
     // Tap-vs-drag guard: a text-selection drag across the badge must not open the panel.
-    // TEMP-DIAG: document-level badge handlers DISABLED to isolate hang
-    // let _badgeDownPos = null;
-    // document.addEventListener("pointerdown", (e) => {
-    //     _badgeDownPos = e.target.closest(".divider-badge") ? [e.clientX, e.clientY] : null;
-    // });
-    // document.addEventListener("click", (e) => {
-    //     const badge = e.target.closest(".divider-badge");
-    //     if (!badge) return;
-    //     if (_badgeDownPos) {
-    //         const dx = e.clientX - _badgeDownPos[0], dy = e.clientY - _badgeDownPos[1];
-    //         if (dx * dx + dy * dy > 100) return;
-    //     }
-    //     openJumpSheet(badge);
-    // });
+    // Page-divider badges: delegate on the reader container (NOT document).
+    // Document-level pointerdown/closest() caused a Chromium hang.
+    // No drag guard: a text-selection drag across a badge is rare, and the
+    // toggle behavior (tap again to close) makes accidents harmless.
+    if (el.readerContainer) el.readerContainer.addEventListener("click", (e) => {
+        const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
+        if (!badge) return;
+        openJumpSheet(badge);
+    });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     // Inline panel: no backdrop to tap, so no backdrop-click handler.
     if (el.jumpSlider) {
