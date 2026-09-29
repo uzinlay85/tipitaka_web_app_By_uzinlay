@@ -1373,6 +1373,7 @@ let _jumpFirst = 1, _jumpLast = 1;
 function _jumpIsMM() { return state.readerMode === "mm"; }
 
 function openJumpSheet() {
+    _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
@@ -1448,7 +1449,7 @@ function _jumpTicksClick(e) {
 }
 
 function _jumpGo(page) {
-    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
+    _trackAction("_jumpGo", page);    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
     closeJumpSheet();
     if (_jumpIsMM()) loadMMPage(state.mmBookId, page);
     else loadPaliPage(state.paliBookId, page);
@@ -1501,6 +1502,16 @@ function setupJumpSheet() {
 // a one-tap reload. Visibility changes reset the heartbeat so returning
 // from background never triggers a false alarm.
 // ============================================================
+// Last user action tracker for hang diagnostics: updated on every
+// navigation interaction so the HangWatchdog can report WHAT the user
+// was doing when the main thread stalled.
+window._lastUserAction = "init";
+function _trackAction(name, detail) {
+    try {
+        window._lastUserAction = detail ? `${name}(${detail})` : name;
+    } catch (e) {}
+}
+
 const HangWatchdog = {
     HANG_THRESHOLD_MS: 6000,
     COOLDOWN_MS: 120000,
@@ -1525,7 +1536,11 @@ const HangWatchdog = {
         if (now - this._lastWarn < this.COOLDOWN_MS) return;
         this._lastWarn = now;
         const secs = Math.round(gapMs / 1000);
-        console.warn(`[hang-watchdog] main thread blocked ~${secs}s`);
+        const lastAction = window._lastUserAction || "unknown";
+        const book = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
+        const page = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+        const domNodes = document.getElementsByTagName("*").length;
+        console.warn(`[hang-watchdog] main thread blocked ~${secs}s | action=${lastAction} | book=${book} page=${page} | domNodes=${domNodes}`);
         showAppToast(
             `⚠️ စာမျက်နှာ ${toMyanmarNum(secs)} စက္ကန့်ခန့် ရပ်ဆိုင်းသွားခဲ့သည်`,
             { actionLabel: "↻ ပြန်ဖွင့်မည်", onAction: () => location.reload(), timeout: 10000 }
@@ -5389,6 +5404,7 @@ function setupEventListeners() {
     
     // Page Navigation
     function prevPage(scrollToBottom = false) {
+        _trackAction("prevPage");
         if (state.scrollMode === "feed") {
             const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
             const first = (state.readerMode === "mm") ? state.mmFirstPage : state.paliFirstPage;
@@ -5424,6 +5440,7 @@ function setupEventListeners() {
     }
 
     function nextPage(scrollToBottom = false) {
+        _trackAction("nextPage");
         if (state.scrollMode === "feed") {
             const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
             const last = (state.readerMode === "mm") ? state.mmLastPage : state.paliLastPage;
@@ -6408,6 +6425,7 @@ function _feedLockRelease() {
     _feedLockSince = 0;
 }
 async function loadNextFeedPage() {
+    _trackAction("loadNextFeedPage");
     _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
