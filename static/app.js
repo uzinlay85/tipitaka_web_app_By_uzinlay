@@ -1430,9 +1430,12 @@ function openJumpSheet(triggerEl) {
     // above forces a synchronous layout over the whole feed and can wedge
     // Chromium when many pages are loaded. Use a deterministic viewport-safe
     // absolute position instead, avoiding any read-after-write layout flush.
+    // NOTE: the panel is position:absolute (document-relative), so add
+    // window.scrollY to place it 96px below the VIEWPORT top. Reading scrollY
+    // does not force a layout (safe).
     const estH = 340;
     const maxTop = Math.max(8, window.innerHeight - estH - 8);
-    el.jumpSheet.style.top = Math.min(96, maxTop) + "px";
+    el.jumpSheet.style.top = (window.scrollY + Math.min(96, maxTop)) + "px";
     console.log("[jump] ticks");
     _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
