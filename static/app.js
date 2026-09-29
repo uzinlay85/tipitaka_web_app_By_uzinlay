@@ -1389,6 +1389,8 @@ function openJumpSheet(triggerEl) {
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
+    // Prune feed DOM before opening to keep the DOM small across repeated uses.
+    try { pruneFeedDOM(); } catch (e) {}
     // Toggle: if already open anchored at this trigger, close it.
     if (el.jumpSheet.open && _jumpAnchor === triggerEl) {
         closeJumpSheet();
@@ -1553,6 +1555,9 @@ function _jumpTicksClick(e) {
 function _jumpGo(page) {
     _trackAction("_jumpGo", page);    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
     closeJumpSheet();
+    // Prune feed DOM before loading the target page to prevent accumulation
+    // across repeated jumps (each jump adds pages; prune keeps window small).
+    try { pruneFeedDOM(); } catch (e) {}
     if (_jumpIsMM()) loadMMPage(state.mmBookId, page);
     else loadPaliPage(state.paliBookId, page);
 }
@@ -1946,7 +1951,7 @@ function getLoadedFeedPages() {
 // of sections in the DOM (memory + slow layout on mobile). Pruned pages reload
 // on demand through the existing infinite-scroll machinery (handleLoadPrevPage
 // / loadNextFeedPage detect the missing section by id and fetch it).
-const FEED_WINDOW_RADIUS = 8;
+const FEED_WINDOW_RADIUS = 5;
 function pruneFeedDOM() {
     if (state.scrollMode !== "feed" || !el.paliContent || !el.readerContainer) return;
     const isMM = (state.readerMode === "mm");
