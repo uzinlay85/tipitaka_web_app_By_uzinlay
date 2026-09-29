@@ -1385,22 +1385,27 @@ function openJumpSheet(triggerEl) {
         closeJumpSheet();
         return;
     }
-    // DIAG v7.12: re-enable BASIC content (slider/labels/input).
-    // Bubble + ticks stay disabled. If 2nd open hangs -> culprit is here.
-    // If not -> culprit is _jumpUpdateBubble or _jumpRenderTicks.
+    // v7.16: slider recreated via outerHTML (see below); labels/input set here.
+    // Bubble + ticks stay disabled until slider fix is confirmed.
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
 
-    // DIAG v7.15: min/max set directly; .value DEFERRED via rAF.
-    // Theory: setting .value while panel is display:none then unhiding
-    // triggers a Chromium range-input layout bug. Deferring to after
-    // paint may avoid it. If v7.15 hangs -> value setter itself is broken.
-    el.jumpSlider.min = _jumpFirst;
-    el.jumpSlider.max = _jumpLast;
-    const _deferredVal = cur;
-    // el.jumpSlider.value = cur; // moved to rAF below
+    // v7.16: recreate the slider via outerHTML with min/max/value baked in.
+    // NEVER use the .value/.min/.max property setters: they trigger a
+    // Chromium range-input hang on this device (v7.14/v7.15 diag).
+    // Parsing value from HTML avoids the buggy setter code path.
+    // Listeners are re-attached via _bindJumpSlider().
+    const _f = Math.max(1, Math.round(_jumpFirst) || 1);
+    const _l = Math.max(_f, Math.round(_jumpLast) || _f);
+    const _c = Math.min(_l, Math.max(_f, Math.round(cur) || _f));
+    if (el.jumpSlider) {
+        el.jumpSlider.outerHTML =
+            `<input type="range" id="jumpSlider" class="jump-slider" min="${_f}" max="${_l}" value="${_c}" step="1" aria-label="စာမျက်နှာရွေးချယ်ရန် slider">`;
+        el.jumpSlider = document.getElementById("jumpSlider");
+        _bindJumpSlider();
+    }
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
@@ -1424,12 +1429,8 @@ function openJumpSheet(triggerEl) {
             el.jumpSheet.style.top = Math.max(0, top) + "px";
         }
     } catch (_) {}
-    _jumpRenderTicks([]); // DIAG v7.15: blank — skip real ticks.
+    _jumpRenderTicks([]); // DIAG v7.16: blank — skip real ticks.
     el.jumpSheet.hidden = false;
-    // DIAG v7.15: deferred value set (see above).
-    requestAnimationFrame(() => {
-        try { if (el.jumpSlider) el.jumpSlider.value = _deferredVal; } catch (_) {}
-    });
 }
 
 function closeJumpSheet() {
@@ -1438,6 +1439,12 @@ function closeJumpSheet() {
 }
 
 // Live bubble follows the thumb while dragging; the page loads on release.
+function _bindJumpSlider() {
+    if (!el.jumpSlider) return;
+    el.jumpSlider.addEventListener("input", () => _jumpUpdateBubble(parseInt(el.jumpSlider.value, 10)));
+    // Jump only on release: the bubble lets the user aim first.
+    el.jumpSlider.addEventListener("change", () => _jumpGo(parseInt(el.jumpSlider.value, 10)));
+}
 function _jumpUpdateBubble(page) {
     page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
     el.jumpBubble.textContent = toMyanmarNum(page);
@@ -1513,11 +1520,7 @@ function setupJumpSheet() {
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
     // Inline panel: no backdrop to tap, so no backdrop-click handler.
-    if (el.jumpSlider) {
-        el.jumpSlider.addEventListener("input", () => _jumpUpdateBubble(parseInt(el.jumpSlider.value, 10)));
-        // Jump only on release: the bubble lets the user aim first.
-        el.jumpSlider.addEventListener("change", () => _jumpGo(parseInt(el.jumpSlider.value, 10)));
-    }
+    _bindJumpSlider();
     if (el.jumpTicks) el.jumpTicks.addEventListener("click", _jumpTicksClick);
     const goExact = () => {
         const p = fromMyanmarNum(el.jumpPageInput.value);
