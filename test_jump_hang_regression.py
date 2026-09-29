@@ -31,4 +31,5 @@ check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range
 check("jump panel is absolute, not sticky", ".jump-sheet {" in CSS and
       "position: absolute;" in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden]")] and
       "position: sticky" not in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden")] )
-check("cache-busting version is current", 'app.js?v=7.27' in HTML)
+check("cache-busting version is current", 'app.js?v=7.28' in HTML)
+check("feed loader skips while jump panel open", "if (el.jumpSheet && !el.jumpSheet.hidden) return;" in JS)

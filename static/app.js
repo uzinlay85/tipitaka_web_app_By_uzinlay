@@ -6507,6 +6507,11 @@ function setupSentinelObserver() {
     infiniteSentinelObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
+                // Skip while the jump panel is open: opening it shifts layout
+                // and can make the sentinel intersect, starting an infinite
+                // load loop that hangs the renderer. (loadNextFeedPage has
+                // the same guard; this avoids even queueing the async work.)
+                if (el.jumpSheet && !el.jumpSheet.hidden) return;
                 loadNextFeedPage();
             }
         });
@@ -6541,6 +6546,11 @@ function _feedLockRelease() {
 }
 async function loadNextFeedPage() {
     _trackAction("loadNextFeedPage");
+    // Don't load more pages while the jump panel is open. Opening the panel
+    // shifts layout, which can make the infinite sentinel intersect and
+    // trigger an infinite load loop (fetch -> render -> observe -> fetch)
+    // that hangs the renderer. This guard was intended in v6.20 but missing.
+    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
