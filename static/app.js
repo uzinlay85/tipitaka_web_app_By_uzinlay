@@ -1399,19 +1399,17 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
-    // Anchor the panel right after the trigger so it appears in context.
-    // The trigger may be the footer pill or a page-divider badge.
+    // TEMP-DIAG: do NOT move the panel in the DOM, do NOT scrollIntoView.
+    // Just unhide it where it sits (end of body) to isolate the hang.
     _jumpAnchor = triggerEl || null;
-    if (triggerEl && triggerEl.parentNode) {
-        triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
-    }
+    // if (triggerEl && triggerEl.parentNode) {
+    //     triggerEl.parentNode.insertBefore(el.jumpSheet, triggerEl.nextSibling);
+    // }
     // Render ticks synchronously now (capped at 120); the panel is inline so
     // there is no overlay-layout cost.
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
     el.jumpSheet.hidden = false;
-    // Bring the panel into view without hijacking the user's scroll position
-    // harshly; `nearest` keeps it minimal.
-    try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
+    // try { el.jumpSheet.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {}
 }
 
 function closeJumpSheet() {
