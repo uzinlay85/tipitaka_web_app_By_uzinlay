@@ -1425,27 +1425,14 @@ function openJumpSheet(triggerEl) {
     console.log("[jump] anchor+position");
     _trackAction("jump:anchor-position");
     _jumpAnchor = triggerEl || null;
-    // F1: position the panel adjacent to the trigger via style.top.
-    // A style change is a recalc, NOT a DOM reparent (safe). Body never
-    // scrolls (overflow:hidden), so viewport coords are stable.
-    // Place below the trigger; flip above if there isn't room.
-    try {
-        if (triggerEl && triggerEl.getBoundingClientRect) {
-            const r = triggerEl.getBoundingClientRect();
-            const estH = 340;
-            // The trigger can live inside the scrollable reader feed. Its
-            // rect may therefore be far below the viewport even though the
-            // user reached it through a nested scroll. Keep the panel inside
-            // the viewport instead of writing an off-screen absolute top.
-            const maxTop = Math.max(8, window.innerHeight - estH - 8);
-            let top = r.bottom + 8;
-            if (top + estH > window.innerHeight) {
-                top = Math.max(8, r.top - estH - 8);
-            }
-            top = Math.max(8, Math.min(maxTop, top));
-            el.jumpSheet.style.top = top + "px";
-        }
-    } catch (_) {}
+    // Do not read triggerEl.getBoundingClientRect() here. A divider badge lives
+    // inside the scrollable feed; reading its rect after the slider/text writes
+    // above forces a synchronous layout over the whole feed and can wedge
+    // Chromium when many pages are loaded. Use a deterministic viewport-safe
+    // absolute position instead, avoiding any read-after-write layout flush.
+    const estH = 340;
+    const maxTop = Math.max(8, window.innerHeight - estH - 8);
+    el.jumpSheet.style.top = Math.min(96, maxTop) + "px";
     console.log("[jump] ticks");
     _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
@@ -1600,6 +1587,7 @@ function setupJumpSheet() {
     if (el.readerContainer) el.readerContainer.addEventListener("click", (e) => {
         const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
         if (!badge) return;
+        e.stopPropagation();
         openJumpSheet(badge);
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
