@@ -1378,6 +1378,9 @@ function _jumpIsMM() { return state.readerMode === "mm"; }
 let _jumpAnchor = null; // element the panel is currently anchored after
 
 function openJumpSheet(triggerEl) {
+    // TEMP-DIAG: completely empty to test if the hang is in event dispatch
+    console.log("[jump] openJumpSheet called (empty)");
+    return;
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
     // Toggle: if already open anchored at this trigger, close it.
