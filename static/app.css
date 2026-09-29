@@ -4588,7 +4588,9 @@ body.ios-fullscreen-fallback .reader-container {
     border-radius: 999px;
     white-space: nowrap;
     pointer-events: none;
-    transition: left 0.05s linear;
+    /* No transition on `left`: it is a layout property and animating it
+       during slider drags causes layout thrash on low-end Android.
+       `input` events already fire per-frame, so the bubble tracks directly. */
 }
 .jump-slider {
     width: 100%;
@@ -4633,6 +4635,8 @@ body.ios-fullscreen-fallback .reader-container {
     height: 20px;
     margin-top: 4px;
     cursor: pointer;
+    /* Isolate tick layout/paint so strip updates never reflow the sheet. */
+    contain: layout paint;
 }
 .jump-tick {
     position: absolute;
@@ -4685,4 +4689,66 @@ body.ios-fullscreen-fallback .reader-container {
     line-height: 1.6;
     margin: 0;
     text-align: center;
+}
+
+/* Lighter card shadow on touch devices: large-blur shadows repaint
+   expensively on mobile GPUs during the slide-up animation. */
+@media (pointer: coarse) {
+    .jump-sheet-card {
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+    }
+    .jump-slider::-webkit-slider-thumb {
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+}
+
+/* ============================================================
+   App toast (v6.14): non-blocking user-visible warnings, e.g.
+   the hang watchdog's "page froze for N seconds" notice.
+   ============================================================ */
+.app-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 88px;
+    transform: translate(-50%, 16px);
+    z-index: 10005;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(92vw, 480px);
+    background: #2d2a26;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 12px 12px 16px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+}
+.app-toast-msg { flex: 1; }
+.app-toast-action {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: transparent;
+    color: #ffd97a;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.app-toast-close {
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 8px;
 }

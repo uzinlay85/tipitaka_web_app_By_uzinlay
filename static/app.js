@@ -1387,8 +1387,10 @@ function openJumpSheet() {
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     _jumpUpdateBubble(cur);
-    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
+    // Show the sheet immediately; render the (potentially large) tick strip
+    // on the next frame so the tap feels instant on low-end Android.
     el.jumpSheet.style.display = "flex";
+    requestAnimationFrame(() => _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs));
 }
 
 function closeJumpSheet() {
@@ -1411,9 +1413,19 @@ function _jumpRenderTicks(tocs) {
     if (!el.jumpTicks) return;
     const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
     if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
+    // Cap rendered ticks: the strip is only a few hundred px wide, so more
+    // than ~120 ticks overlap sub-pixel and only cost layout time on mobile.
+    // Sample evenly so section coverage stays representative.
+    const MAX_TICKS = 120;
+    let items = list;
+    if (list.length > MAX_TICKS) {
+        items = [];
+        const step = (list.length - 1) / (MAX_TICKS - 1);
+        for (let i = 0; i < MAX_TICKS; i++) items.push(list[Math.round(i * step)]);
+    }
     const span = _jumpLast - _jumpFirst || 1;
     let html = "";
-    for (const t of list) {
+    for (const t of items) {
         const pct = (t.page_number - _jumpFirst) / span * 100;
         html += `<span class="jump-tick" style="left:${pct.toFixed(2)}%" title="${escapeHtml(t.name || "")}"></span>`;
     }
@@ -1481,6 +1493,80 @@ function setupJumpSheet() {
     });
 }
 
+// ============================================================
+// Hang watchdog (v6.14): detects main-thread stalls and tells the user.
+// A rAF heartbeat records every frame; if the gap between frames exceeds
+// HANG_THRESHOLD_MS while the page is visible, the UI thread was blocked
+// (frozen). On recovery a non-blocking toast shows how long it froze, with
+// a one-tap reload. Visibility changes reset the heartbeat so returning
+// from background never triggers a false alarm.
+// ============================================================
+const HangWatchdog = {
+    HANG_THRESHOLD_MS: 6000,
+    COOLDOWN_MS: 120000,
+    _lastFrame: 0,
+    _lastWarn: 0,
+    init() {
+        this._lastFrame = performance.now();
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) this._lastFrame = performance.now();
+        });
+        const tick = () => {
+            const now = performance.now();
+            const gap = now - this._lastFrame;
+            this._lastFrame = now;
+            if (gap > this.HANG_THRESHOLD_MS && !document.hidden) this._onHang(gap);
+            requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    },
+    _onHang(gapMs) {
+        const now = Date.now();
+        if (now - this._lastWarn < this.COOLDOWN_MS) return;
+        this._lastWarn = now;
+        const secs = Math.round(gapMs / 1000);
+        console.warn(`[hang-watchdog] main thread blocked ~${secs}s`);
+        showAppToast(
+            `⚠️ စာမျက်နှာ ${toMyanmarNum(secs)} စက္ကန့်ခန့် ရပ်ဆိုင်းသွားခဲ့သည်`,
+            { actionLabel: "↻ ပြန်ဖွင့်မည်", onAction: () => location.reload(), timeout: 10000 }
+        );
+    }
+};
+
+// Minimal non-blocking toast (no dependency on any UI framework).
+let _appToastTimer = null;
+function showAppToast(message, opts = {}) {
+    let toast = document.getElementById("appToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "appToast";
+        toast.className = "app-toast";
+        toast.innerHTML = `<span class="app-toast-msg"></span>
+            <button class="app-toast-action" type="button"></button>
+            <button class="app-toast-close" type="button" aria-label="ပိတ်ရန်">✕</button>`;
+        document.body.appendChild(toast);
+        toast.querySelector(".app-toast-close").addEventListener("click", hideAppToast);
+    }
+    toast.querySelector(".app-toast-msg").textContent = message;
+    const actionBtn = toast.querySelector(".app-toast-action");
+    if (opts.actionLabel) {
+        actionBtn.style.display = "";
+        actionBtn.textContent = opts.actionLabel;
+        actionBtn.onclick = () => { hideAppToast(); if (opts.onAction) opts.onAction(); };
+    } else {
+        actionBtn.style.display = "none";
+        actionBtn.onclick = null;
+    }
+    toast.classList.add("show");
+    if (_appToastTimer) clearTimeout(_appToastTimer);
+    _appToastTimer = setTimeout(hideAppToast, opts.timeout || 6000);
+}
+function hideAppToast() {
+    const toast = document.getElementById("appToast");
+    if (toast) toast.classList.remove("show");
+    if (_appToastTimer) { clearTimeout(_appToastTimer); _appToastTimer = null; }
+}
+
 // Setup annotation popup event listeners (called once in setupEventListeners)
 function setupAnnotationListeners() {
     const popup = document.getElementById("annotationPopup");
@@ -1545,6 +1631,8 @@ function setupAnnotationListeners() {
     setupExportUI();
     // Page jump sheet (footer "စာမျက်နှာ X / Y" tap -> slider + ticks + input)
     setupJumpSheet();
+    // Main-thread hang watchdog -> user-visible warning toast
+    HangWatchdog.init();
 }
 
 // Initialize Application
@@ -6299,7 +6387,28 @@ function setupSentinelObserver() {
     infiniteSentinelObserver.observe(sentinel);
 }
 
+// Feed navigation lock timestamp: if a load wedges (network stall, an
+// exception outside try/finally), the lock self-heals after this long so
+// feed navigation never silently dies.
+const FEED_LOCK_STALE_MS = 30000;
+let _feedLockSince = 0;
+function _feedLockStaleReset() {
+    if (state.isLoadingMore && _feedLockSince && Date.now() - _feedLockSince > FEED_LOCK_STALE_MS) {
+        console.warn("[feed] stale isLoadingMore lock reset");
+        state.isLoadingMore = false;
+        _feedLockSince = 0;
+    }
+}
+function _feedLockAcquire() {
+    state.isLoadingMore = true;
+    _feedLockSince = Date.now();
+}
+function _feedLockRelease() {
+    state.isLoadingMore = false;
+    _feedLockSince = 0;
+}
 async function loadNextFeedPage() {
+    _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
 
@@ -6315,14 +6424,14 @@ async function loadNextFeedPage() {
             return;
         }
         if (document.getElementById(`pali-page-${nextPage}`)) return;
-        state.isLoadingMore = true;
+        _feedLockAcquire();
         showSentinelLoading(true);
         try {
             await loadPaliPage(state.paliBookId, nextPage, null, true);
         } catch (e) {
             console.error(e);
         } finally {
-            state.isLoadingMore = false;
+            _feedLockRelease();
             showSentinelLoading(false);
             pruneFeedDOM();
         }
@@ -6332,14 +6441,14 @@ async function loadNextFeedPage() {
             return;
         }
         if (document.getElementById(`mm-page-${nextPage}`)) return;
-        state.isLoadingMore = true;
+        _feedLockAcquire();
         showSentinelLoading(true);
         try {
             await loadMMPage(state.mmBookId, nextPage, false, true);
         } catch (e) {
             console.error(e);
         } finally {
-            state.isLoadingMore = false;
+            _feedLockRelease();
             showSentinelLoading(false);
             pruneFeedDOM();
         }
@@ -6347,6 +6456,7 @@ async function loadNextFeedPage() {
 }
 
 async function handleLoadPrevPage() {
+    _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
 
@@ -6356,7 +6466,7 @@ async function handleLoadPrevPage() {
     const currentFirst = loaded[0];
     const prevPageNum = currentFirst - 1;
 
-    state.isLoadingMore = true;
+    _feedLockAcquire();
     if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = true;
 
     try {
@@ -6372,7 +6482,7 @@ async function handleLoadPrevPage() {
     } catch (e) {
         console.error(e);
     } finally {
-        state.isLoadingMore = false;
+        _feedLockRelease();
         if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = false;
         pruneFeedDOM();
     }
