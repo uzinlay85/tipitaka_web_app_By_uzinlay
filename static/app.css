@@ -4541,11 +4541,13 @@ body.ios-fullscreen-fallback .reader-container {
    this avoids the Chromium fixed-overlay compositing hang. */
 .jump-sheet {
     display: block;
-    margin: 8px 12px;
-    /* Sticky at viewport bottom: visible wherever the user is, without
-       moving the element in the DOM (insertBefore caused a hang) and
-       without position:fixed (overlay caused a hang). */
-    position: sticky;
+    margin: 0;
+    /* Fixed at viewport bottom WITHOUT a backdrop. The element is never
+       moved in the DOM (insertBefore caused a hang). position:sticky caused
+       a layout loop (unhiding changed body height). Fixed avoids both. */
+    position: fixed;
+    left: 12px;
+    right: 12px;
     bottom: 8px;
     z-index: 50;
 }
