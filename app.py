@@ -51,6 +51,11 @@ def _proxy_to_upstream(req):
     ctype = req.headers.get("Content-Type")
     if ctype:
         proxy_req.add_header("Content-Type", ctype)
+    # Cloudflare blocks non-browser User-Agents with 403 (error 1010), which
+    # broke /api/sync/* from the Android app (urllib's default UA). Forward
+    # the WebView's browser UA so the upstream sees a normal browser.
+    proxy_req.add_header("User-Agent",
+                         req.headers.get("User-Agent", "TipitakaAndroid/1.0"))
     try:
         with urllib.request.urlopen(proxy_req, timeout=25) as resp:
             return Response(resp.read(), status=resp.status,
