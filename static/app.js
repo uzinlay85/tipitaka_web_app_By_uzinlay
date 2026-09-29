@@ -1386,18 +1386,14 @@ function _jumpIsMM() { return state.readerMode === "mm"; }
 let _jumpAnchor = null; // element that last opened the panel
 
 function openJumpSheet(triggerEl) {
-    console.log("[jump] open start");
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
-    console.log("[jump] toggle check, open=", el.jumpSheet.open);
     // Toggle: if already open anchored at this trigger, close it.
     if (el.jumpSheet.open && _jumpAnchor === triggerEl) {
-        console.log("[jump] toggle close");
         closeJumpSheet();
         return;
     }
-    console.log("[jump] computing range");
     _trackAction("jump:computing-range");
     // v7.18: custom div slider. _csliderSet writes only div styles
     // (fill width, thumb left) — the native range-input hang is gone.
@@ -1405,36 +1401,28 @@ function openJumpSheet(triggerEl) {
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
     const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
-    console.log("[jump] range:", _jumpFirst, _jumpLast, "cur:", cur);
 
-    console.log("[jump] csliderSet");
     _trackAction("jump:csliderSet");
     _csliderVal = null; // force UI refresh even if value matches previous open
     _csliderSet(cur); // sets fill/thumb/bubble; safe div writes only
-    console.log("[jump] labels");
     _trackAction("jump:labels");
     el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
     el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
     el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
-    console.log("[jump] input");
     _trackAction("jump:input");
     el.jumpPageInput.value = "";
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     // (bubble already updated inside _csliderSet)
 
-    console.log("[jump] anchor");
     _trackAction("jump:anchor");
     _jumpAnchor = triggerEl || null;
     // v7.29: native <dialog> renders in the top layer — no manual positioning,
     // no getBoundingClientRect, no scrollY math. The browser centers it.
-    console.log("[jump] ticks");
     _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
-    console.log("[jump] show");
     _trackAction("jump:show");
     // Native dialog: top-layer, no layout impact on the feed.
     if (!el.jumpSheet.open) el.jumpSheet.showModal();
-    console.log("[jump] open done");
 }
 
 function closeJumpSheet() {
@@ -1521,7 +1509,6 @@ function _jumpUpdateBubble(page) {
 }
 
 function _jumpRenderTicks(tocs) {
-    console.log("[jump] _jumpRenderTicks in, tocs len=", tocs ? tocs.length : tocs);
     _trackAction("jump:ticks-in");
     if (!el.jumpTicks) return;
     const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
