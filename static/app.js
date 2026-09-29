@@ -1390,9 +1390,9 @@ function openJumpSheet(triggerEl) {
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) return;
-    console.log("[jump] toggle check, hidden=", el.jumpSheet.hidden);
+    console.log("[jump] toggle check, open=", el.jumpSheet.open);
     // Toggle: if already open anchored at this trigger, close it.
-    if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
+    if (el.jumpSheet.open && _jumpAnchor === triggerEl) {
         console.log("[jump] toggle close");
         closeJumpSheet();
         return;
@@ -1422,31 +1422,23 @@ function openJumpSheet(triggerEl) {
     el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
     // (bubble already updated inside _csliderSet)
 
-    console.log("[jump] anchor+position");
-    _trackAction("jump:anchor-position");
+    console.log("[jump] anchor");
+    _trackAction("jump:anchor");
     _jumpAnchor = triggerEl || null;
-    // Do not read triggerEl.getBoundingClientRect() here. A divider badge lives
-    // inside the scrollable feed; reading its rect after the slider/text writes
-    // above forces a synchronous layout over the whole feed and can wedge
-    // Chromium when many pages are loaded. Use a deterministic viewport-safe
-    // absolute position instead, avoiding any read-after-write layout flush.
-    // NOTE: the panel is position:absolute (document-relative), so add
-    // window.scrollY to place it 96px below the VIEWPORT top. Reading scrollY
-    // does not force a layout (safe).
-    const estH = 340;
-    const maxTop = Math.max(8, window.innerHeight - estH - 8);
-    el.jumpSheet.style.top = (window.scrollY + Math.min(96, maxTop)) + "px";
+    // v7.29: native <dialog> renders in the top layer — no manual positioning,
+    // no getBoundingClientRect, no scrollY math. The browser centers it.
     console.log("[jump] ticks");
     _trackAction("jump:ticks");
     _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
-    console.log("[jump] unhide");
-    _trackAction("jump:unhide");
-    el.jumpSheet.hidden = false;
+    console.log("[jump] show");
+    _trackAction("jump:show");
+    // Native dialog: top-layer, no layout impact on the feed.
+    if (!el.jumpSheet.open) el.jumpSheet.showModal();
     console.log("[jump] open done");
 }
 
 function closeJumpSheet() {
-    if (el.jumpSheet) el.jumpSheet.hidden = true;
+    if (el.jumpSheet && el.jumpSheet.open) el.jumpSheet.close();
     _jumpAnchor = null;
 }
 
@@ -1594,7 +1586,12 @@ function setupJumpSheet() {
         openJumpSheet(badge);
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
-    // Inline panel: no backdrop to tap, so no backdrop-click handler.
+    // Native dialog: ESC closes automatically; keep _jumpAnchor in sync.
+    if (el.jumpSheet) el.jumpSheet.addEventListener("close", () => { _jumpAnchor = null; });
+    // Backdrop tap closes (dialogs don't do this by default).
+    if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
+        if (e.target === el.jumpSheet) closeJumpSheet();
+    });
     _bindCSlider();
     if (el.jumpTicks) el.jumpTicks.addEventListener("click", _jumpTicksClick);
     const goExact = () => {
@@ -6511,7 +6508,7 @@ function setupSentinelObserver() {
                 // and can make the sentinel intersect, starting an infinite
                 // load loop that hangs the renderer. (loadNextFeedPage has
                 // the same guard; this avoids even queueing the async work.)
-                if (el.jumpSheet && !el.jumpSheet.hidden) return;
+                if (el.jumpSheet && el.jumpSheet.open) return;
                 loadNextFeedPage();
             }
         });
@@ -6550,7 +6547,7 @@ async function loadNextFeedPage() {
     // shifts layout, which can make the infinite sentinel intersect and
     // trigger an infinite load loop (fetch -> render -> observe -> fetch)
     // that hangs the renderer. This guard was intended in v6.20 but missing.
-    if (el.jumpSheet && !el.jumpSheet.hidden) return;
+    if (el.jumpSheet && el.jumpSheet.open) return;
     _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
@@ -6668,7 +6665,7 @@ function setupPageVisibilityObserver() {
 function updateCurrentViewPage(pageNum) {
     // Skip while the jump panel is open: the panel insertion shifts layout,
     // which can make the IntersectionObserver fire spuriously.
-    if (el.jumpSheet && !el.jumpSheet.hidden) return;
+    if (el.jumpSheet && el.jumpSheet.open) return;
     if (state.readerMode === "pali") {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;

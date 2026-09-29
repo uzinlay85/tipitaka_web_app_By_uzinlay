@@ -1074,9 +1074,9 @@
     </div>
 
     <!-- Page Jump panel: tap footer "စာမျက်နှာ X / Y" or a divider badge to open.
-         Positioned via CSS (position:absolute; top set by JS). Never moved
-         in the DOM. -->
-    <div id="jumpSheet" class="jump-sheet" hidden>
+         Uses native <dialog>: renders in the top layer, does NOT affect page
+         layout (no IntersectionObserver triggers, no manual positioning). -->
+    <dialog id="jumpSheet" class="jump-sheet">
         <div class="jump-sheet-card">
             <div class="jump-sheet-header">
                 <span class="jump-sheet-title">📖 စာမျက်နှာ ရွေးချယ်ရန်</span>
@@ -1103,9 +1103,9 @@
                 <p class="jump-hint">slider ဆွဲပြီး လွှတ်လိုက်ရင် ရွေးထားတဲ့ စာမျက်နှာသို့ ရောက်မည် • အမှတ်ကလေးများကို နှိပ်ရင် အနီးဆုံး သုတ္တန်/အခန်း အစသို့ ခုန်မည်</p>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.28"></script>
+    <script src="/static/app.js?v=7.29"></script>
 </body>
 </html>

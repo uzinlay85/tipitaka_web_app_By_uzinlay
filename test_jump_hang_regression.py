@@ -24,12 +24,11 @@ check("dropdown outside checks use contains", "el.scrollModeDropdownWrapper.cont
 check("jump badge delegation is reader-local", "e.target.closest(\".divider-badge\")" in JS and
       "e.stopPropagation();" in JS)
 check("jump panel is never reparented", "insertBefore(el.jumpSheet" not in JS and "appendChild(el.jumpSheet" not in JS)
-check("jump panel avoids feed layout reads", "const r = triggerEl.getBoundingClientRect()" not in JS and
-      "const maxTop = Math.max(8, window.innerHeight - estH - 8)" in JS and
-      "Math.min(96, maxTop)" in JS)
+check("jump panel avoids feed layout reads", "triggerEl.getBoundingClientRect()" not in JS and
+      "el.jumpSheet.style.top" not in JS and
+      "showModal()" in JS)
 check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
-check("jump panel is absolute, not sticky", ".jump-sheet {" in CSS and
-      "position: absolute;" in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden]")] and
-      "position: sticky" not in CSS[CSS.index(".jump-sheet {"):CSS.index(".jump-sheet[hidden")] )
-check("cache-busting version is current", 'app.js?v=7.28' in HTML)
-check("feed loader skips while jump panel open", "if (el.jumpSheet && !el.jumpSheet.hidden) return;" in JS)
+check("jump panel is native dialog", '<dialog id="jumpSheet"' in HTML)
+check("jump panel has no manual positioning", "el.jumpSheet.style.top" not in JS)
+check("cache-busting version is current", 'app.js?v=7.29' in HTML)
+check("feed loader skips while jump panel open", "if (el.jumpSheet && el.jumpSheet.open) return;" in JS)

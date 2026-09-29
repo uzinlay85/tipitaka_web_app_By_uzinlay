@@ -4542,14 +4542,15 @@ body.ios-fullscreen-fallback .reader-container {
    static=no hang). Absolute + explicit top avoids fixed compositing. */
 .jump-sheet {
     display: block;
-    margin: 0;
-    position: absolute;
-    left: 12px;
-    right: 12px;
+    margin: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    max-width: min(560px, calc(100vw - 24px));
     z-index: 50;
 }
-.jump-sheet[hidden] {
-    display: none;
+.jump-sheet::backdrop {
+    background: rgba(0, 0, 0, 0.4);
 }
 .jump-sheet-card {
     width: 100%;
