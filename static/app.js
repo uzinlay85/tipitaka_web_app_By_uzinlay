@@ -1388,7 +1388,7 @@ let _jumpAnchor = null; // element that last opened the panel
 function openJumpSheet(triggerEl) {
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
-    if (!el.jumpSheet) return;
+    if (!el.jumpSheet) { console.error("[jump] jumpSheet element is NULL!"); return; }
     // Toggle: if already open anchored at this trigger, close it.
     if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
         closeJumpSheet();
@@ -1575,6 +1575,11 @@ function setupJumpSheet() {
         const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
         if (!badge) return;
         e.stopPropagation();
+        // DEBUG: visual feedback to confirm tap registered (remove after fix)
+        try {
+            badge.style.outline = "3px solid red";
+            setTimeout(() => { try { badge.style.outline = ""; } catch (_) {} }, 800);
+        } catch (_) {}
         try { openJumpSheet(badge); } catch (err) { console.error("[jump] open failed:", err); }
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
