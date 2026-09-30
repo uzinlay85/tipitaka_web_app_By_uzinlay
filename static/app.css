@@ -1246,6 +1246,13 @@ body.hide-notes .note {
     border-color: var(--accent);
 }
 
+/* v7.39: badges are static citation labels — not clickable, no handlers,
+   no accidental-tap hang vector. */
+.page-divider .divider-badge {
+    pointer-events: none;
+    cursor: default;
+}
+
 .page-divider .divider-badge .badge-text {
     border-bottom: 1px dotted var(--text-muted);
     padding-bottom: 1px;
@@ -4552,214 +4559,74 @@ body.ios-fullscreen-fallback .reader-container {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
-/* Jump panel: F1 — position:absolute, top set by JS in openJumpSheet().
-   Never move this element in the DOM (insertBefore reparenting hangs
-   Chromium). position:fixed caused the hang (v7.8 fixed=hang, v7.9
-   static=no hang). Absolute + explicit top avoids fixed compositing. */
-.jump-sheet {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
+/* ============================================================
+   Inline page jump (v7.39): replaces the jump sheet overlay.
+   The pill toggles this row in normal flow above the footer —
+   no overlay, no dialog, no fixed positioning, no DOM moves.
+   ============================================================ */
+.jump-inline-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: 96px 12px 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border: none;
-    overscroll-behavior: contain; /* v7.38: body must not scroll under the sheet */
-    transform: translateZ(0); /* v7.38: own compositing layer on mobile WebView */
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--card);
+    border-top: 1px solid var(--border-color);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
-.jump-sheet[hidden] {
+.jump-inline-row[hidden] {
     display: none;
 }
-.jump-sheet-card {
-    width: 100%;
-    max-width: 560px;
-    margin: 0 auto;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 20px 20px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-}
-.jump-sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-}
-.jump-sheet-title { font-size: 0.875rem; font-weight: 700; }
-.jump-sheet-body { display: flex; flex-direction: column; gap: 12px; }
-.jump-slider-wrap { position: relative; padding-top: 44px; }
-.jump-bubble {
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    background: var(--accent);
-    color: #fff;
-    font-size: 1.125rem;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 999px;
-    white-space: nowrap;
-    pointer-events: none;
-    /* No transition on `left`: it is a layout property and animating it
-       during slider drags causes layout thrash on low-end Android.
-       `input` events already fire per-frame, so the bubble tracks directly. */
-}
-.jump-slider {
-    width: 100%;
-    height: 28px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    cursor: pointer;
-    margin: 0;
-}
-.jump-slider::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 999px;
-    background: var(--border);
-}
-.jump-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    margin-top: -11px;
-}
-.jump-slider::-moz-range-track {
-    height: 6px;
-    border-radius: 999px;
-    background: var(--border);
-}
-.jump-slider::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-.jump-ticks {
-    position: relative;
-    height: 20px;
-    margin-top: 4px;
-    cursor: pointer;
-    /* Isolate tick layout/paint so strip updates never reflow the sheet. */
-    contain: layout paint;
-}
-.jump-tick {
-    position: absolute;
-    top: 6px;
-    width: 4px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--text-muted);
-    opacity: 0.7;
-    transform: translateX(-50%);
-    pointer-events: none;
-}
-/* Custom div-based slider (v7.18): replaces native <input type=range>,
-   whose programmatic .value setter hangs Chromium on some devices.
-   Pure divs + pointer events — no native control, no bug. */
-.jump-cslider {
-    position: relative;
-    height: 28px;
-    cursor: pointer;
-    touch-action: none;
-    outline: none;
-}
-.jump-cslider-track {
-    position: absolute;
-    top: 11px;
-    left: 14px;
-    right: 14px;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--border);
-}
-.jump-cslider-fill {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    border-radius: 999px;
-    background: var(--accent);
-    width: 0%;
-}
-.jump-cslider-thumb {
-    position: absolute;
-    top: 0;
-    left: 0%;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transform: translateX(-50%);
-    pointer-events: none;
-}
-.jump-cslider:focus-visible .jump-cslider-thumb {
-    box-shadow: 0 0 0 3px var(--accent-soft, rgba(0,0,0,0.15)), 0 2px 8px rgba(0,0,0,0.3);
-}
-.jump-slider-labels {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-.jump-cur-label {
+.jump-inline-label {
     font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-muted);
+    white-space: nowrap;
 }
-.jump-exact-row { display: flex; gap: 8px; }
-.jump-page-input {
-    flex: 1;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
+.jump-inline-input {
+    width: 110px;
+    padding: 8px 12px;
     font-size: 1rem;
+    text-align: center;
+    color: var(--text);
     background: var(--bg-surface);
-    color: var(--text-primary);
-    min-width: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    /* The input must stay editable: override the row's no-select. */
+    user-select: text;
+    -webkit-user-select: text;
 }
-.jump-go-btn {
+.jump-inline-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.jump-inline-go {
+    padding: 8px 16px;
+    min-height: 44px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
     border: none;
     border-radius: 8px;
-    padding: 12px 20px;
-    font-size: 0.875rem;
-    font-weight: 700;
     cursor: pointer;
-    background: var(--accent);
-    color: #fff;
-    white-space: nowrap;
+    touch-action: manipulation;
 }
-.jump-hint {
-    font-size: 0.75rem;
+.jump-inline-close {
+    padding: 8px 12px;
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 1rem;
     color: var(--text-muted);
-    line-height: 1.6;
-    margin: 0;
-    text-align: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
 }
 
-/* Lighter card shadow on touch devices: large-blur shadows repaint
-   expensively on mobile GPUs during the slide-up animation. */
-@media (pointer: coarse) {
-    .jump-sheet-card {
-        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
-    }
-    .jump-slider::-webkit-slider-thumb {
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-    }
-}
 
 /* ============================================================
    App toast (v6.14): non-blocking user-visible warnings, e.g.

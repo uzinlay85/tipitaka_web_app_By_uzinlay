@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.9">
+    <link rel="stylesheet" href="/static/app.css?v=7.39">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -486,6 +486,16 @@
                     <span class="indicator-icon">▼</span>
                 </div>
 
+                <!-- Inline page jump (v7.39): pill toggles this row in normal flow.
+                     No overlay, no dialog — the jump sheet is gone. -->
+                <div class="jump-inline-row" id="jumpInlineRow" hidden>
+                    <span class="jump-inline-label">စာမျက်နှာ</span>
+                    <input type="text" id="jumpInlineInput" class="jump-inline-input"
+                           inputmode="numeric" pattern="[0-9\u1040-\u1049]*" enterkeyhint="go"
+                           placeholder="နံပါတ်" autocomplete="off" aria-label="သွားလိုသော စာမျက်နှာ">
+                    <button id="btnJumpInlineGo" class="jump-inline-go">သွားမည်</button>
+                    <button id="btnJumpInlineClose" class="jump-inline-close" aria-label="ပိတ်ရန်">✕</button>
+                </div>
                 <!-- Page Footer Navigation -->
                 <div class="reader-footer-nav">
                     <button class="footer-nav-btn prev" id="btnFooterPrev">
@@ -1073,39 +1083,7 @@
         </div>
     </div>
 
-    <!-- Page Jump panel: tap footer "စာမျက်နှာ X / Y" or a divider badge to open.
-         Uses native <dialog>: renders in the top layer, does NOT affect page
-         layout (no IntersectionObserver triggers, no manual positioning). -->
-    <div id="jumpSheet" class="jump-sheet" hidden>
-        <div class="jump-sheet-card">
-            <div class="jump-sheet-header">
-                <span class="jump-sheet-title">📖 စာမျက်နှာ ရွေးချယ်ရန်</span>
-                <button id="btnCloseJumpSheet" class="ann-popup-close">✕</button>
-            </div>
-            <div class="jump-sheet-body">
-                <div class="jump-slider-wrap">
-                    <div class="jump-bubble" id="jumpBubble">၁</div>
-                    <div class="jump-cslider" id="jumpCSlider" role="slider" tabindex="0" aria-label="စာမျက်နှာ ရွေးချယ်ရန် slider" aria-valuemin="1" aria-valuemax="381" aria-valuenow="1">
-                        <div class="jump-cslider-track"><div class="jump-cslider-fill" id="jumpCFill"></div></div>
-                        <div class="jump-cslider-thumb" id="jumpCThumb"></div>
-                    </div>
-                    <div class="jump-ticks" id="jumpTicks" title="သုတ္တန်/အခန်း အစသို့ ခုန်ရန် နှိပ်ပါ"></div>
-                </div>
-                <div class="jump-slider-labels">
-                    <span id="jumpMinLabel">၁</span>
-                    <span id="jumpCurLabel" class="jump-cur-label">စာ-၁ / ၃၈၁</span>
-                    <span id="jumpMaxLabel">၃၈၁</span>
-                </div>
-                <div class="jump-exact-row">
-                    <input type="text" id="jumpPageInput" class="jump-page-input" inputmode="numeric" pattern="[0-9၀-၉]*" placeholder="စာမျက်နှာနံပါတ် ရိုက်ထည့်ပါ">
-                    <button id="btnJumpGo" class="jump-go-btn">သွားမည်</button>
-                </div>
-                <p class="jump-hint">slider ဆွဲပြီး လွှတ်လိုက်ရင် ရွေးထားတဲ့ စာမျက်နှာသို့ ရောက်မည် • အမှတ်ကလေးများကို နှိပ်ရင် အနီးဆုံး သုတ္တန်/အခန်း အစသို့ ခုန်မည်</p>
-            </div>
-        </div>
-    </div>
-
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.38"></script>
+    <script src="/static/app.js?v=7.39"></script>
 </body>
 </html>

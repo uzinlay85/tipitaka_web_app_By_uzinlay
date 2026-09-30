@@ -1,7 +1,9 @@
-"""Static regression checks for the page jump sheet hang fix.
+"""Static regression checks for the v7.39 inline page-jump redesign.
 
-These checks intentionally avoid importing Flask or requiring the production DB.
-The bug is caused by event delegation and layout choices in the browser client.
+The jump sheet overlay (dialog/div), custom slider, tick strip, and badge
+handlers are gone. The footer pill now toggles an inline input row in normal
+flow. These checks intentionally avoid importing Flask or requiring the
+production DB.
 """
 from pathlib import Path
 
@@ -17,25 +19,48 @@ def check(name, condition):
     print(f"PASS {name}")
 
 
+# --- Unchanged hardening from earlier versions ---
 check("no document-level pointerdown handler", 'document.addEventListener("pointerdown"' not in JS)
 check("annotation delegation is reader-local", "el.readerContainer.addEventListener(\"click\"" in JS)
 check("dropdown outside checks use contains", "el.scrollModeDropdownWrapper.contains(e.target)" in JS and
       "el.relatedDropdownWrapper.contains(e.target)" in JS)
-check("jump badge delegation is reader-local", "e.target.closest(\".divider-badge\")" in JS and
-      "e.stopPropagation();" in JS)
-check("jump panel is never reparented", "insertBefore(el.jumpSheet" not in JS and "appendChild(el.jumpSheet" not in JS)
-check("jump panel avoids feed layout reads", "triggerEl.getBoundingClientRect()" not in JS and
-      "el.jumpSheet.style.top" not in JS and
-      "showModal()" not in JS and
-      'id="jumpSheet"' in HTML)
-check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
-check("jump panel is div overlay (not dialog)", '<div id="jumpSheet"' in HTML and '<dialog id="jumpSheet"' not in HTML)
-check("jump panel has no manual positioning", "el.jumpSheet.style.top" not in JS)
-check("cache-busting version is current", 'app.js?v=7.38' in HTML and 'app.css?v=7.9' in HTML)
-check("feed loader skips while jump panel open", "if (el.jumpSheet && !el.jumpSheet.hidden) return;" in JS)
-
 check("footer pill prevents text selection", "user-select: none" in CSS and ".footer-page-info.jump-trigger" in CSS)
-check("v7.38 footer-nav selection hardening", ".reader-footer-nav" in CSS and "-webkit-touch-callout: none" in CSS)
-check("v7.38 pill blocks long-press menu", 'addEventListener("contextmenu"' in JS)
-check("v7.38 pill clears selection on touchstart", 'addEventListener("touchstart"' in JS and "{ passive: true }" in JS)
-check("v7.38 sheet contains overscroll", "overscroll-behavior: contain" in CSS)
+check("footer-nav selection hardening kept", ".reader-footer-nav" in CSS and "-webkit-touch-callout: none" in CSS)
+check("pill blocks long-press menu", 'addEventListener("contextmenu"' in JS)
+check("pill clears selection on touchstart", 'addEventListener("touchstart"' in JS and "{ passive: true }" in JS)
+
+# --- v7.39: the jump sheet is fully gone ---
+check("no jumpSheet element in HTML", 'id="jumpSheet"' not in HTML)
+check("no jumpSheet references in JS", "jumpSheet" not in JS)
+check("no jumpSheet styles in CSS", "jump-sheet" not in CSS)
+check("no dialog API anywhere", "showModal()" not in JS and "<dialog" not in HTML)
+check("no slider code remains", "jumpCSlider" not in JS and "jumpCSlider" not in HTML and
+      "_csliderSet" not in JS and 'type="range"' not in HTML)
+check("no tick-strip code remains", "jumpTicks" not in JS and "_jumpRenderTicks" not in JS)
+
+# --- v7.39: inline jump row replaces it ---
+check("inline jump row exists in HTML", 'id="jumpInlineRow"' in HTML and
+      'id="jumpInlineInput"' in HTML and
+      'id="btnJumpInlineGo"' in HTML and
+      'id="btnJumpInlineClose"' in HTML)
+check("inline row hidden by default", 'id="jumpInlineRow" hidden' in HTML)
+check("inline row styled in CSS", ".jump-inline-row" in CSS and ".jump-inline-input" in CSS)
+check("inline input stays editable", "user-select: text" in CSS)
+check("inline row is not an overlay", ".jump-inline-row" in CSS and
+      "position: fixed" not in CSS.split(".jump-inline-row")[1].split("}")[0])
+check("toggle + submit wired in JS", "function setupInlineJump" in JS and
+      "function _jumpInlineToggle" in JS and
+      "function _jumpInlineSubmit" in JS and
+      "setupInlineJump();" in JS)
+check("navigation core kept", "function _jumpGo(page)" in JS and
+      "loadMMPage(state.mmBookId, page)" in JS and
+      "loadPaliPage(state.paliBookId, page)" in JS)
+
+# --- v7.39: divider badges are static citation labels ---
+check("badges have no click handlers", 'closest(".divider-badge")' not in JS)
+check("badges are pointer-transparent", "pointer-events: none" in CSS)
+
+# --- versions ---
+check("cache-busting version is current", 'app.js?v=7.39' in HTML and 'app.css?v=7.39' in HTML)
+
+print("ALL PASS")

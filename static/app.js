@@ -148,18 +148,10 @@ const el = {
     footerCurrentPage: document.getElementById("footerCurrentPage"),
     footerTotalPage: document.getElementById("footerTotalPage"),
     btnOpenJumpSheet: document.getElementById("btnOpenJumpSheet"),
-    jumpSheet: document.getElementById("jumpSheet"),
-    jumpCSlider: document.getElementById("jumpCSlider"),
-    jumpCFill: document.getElementById("jumpCFill"),
-    jumpCThumb: document.getElementById("jumpCThumb"),
-    jumpBubble: document.getElementById("jumpBubble"),
-    jumpTicks: document.getElementById("jumpTicks"),
-    jumpMinLabel: document.getElementById("jumpMinLabel"),
-    jumpMaxLabel: document.getElementById("jumpMaxLabel"),
-    jumpCurLabel: document.getElementById("jumpCurLabel"),
-    jumpPageInput: document.getElementById("jumpPageInput"),
-    btnJumpGo: document.getElementById("btnJumpGo"),
-    btnCloseJumpSheet: document.getElementById("btnCloseJumpSheet"),
+    jumpInlineRow: document.getElementById("jumpInlineRow"),
+    jumpInlineInput: document.getElementById("jumpInlineInput"),
+    btnJumpInlineGo: document.getElementById("btnJumpInlineGo"),
+    btnJumpInlineClose: document.getElementById("btnJumpInlineClose"),
     
     // Split View (Left: Current Pali / Right: Dynamic Companion)
     splitViewContainer: document.getElementById("splitViewContainer"),
@@ -1380,180 +1372,42 @@ let _jumpFirst = 1, _jumpLast = 1;
 
 function _jumpIsMM() { return state.readerMode === "mm"; }
 
-// Jump panel: a permanently mounted card positioned beside the tapped
-// pill/badge. Never reparent it and never use a fixed/sticky overlay here.
-// Tapping the same trigger again toggles it closed.
-let _jumpAnchor = null; // element that last opened the panel
-
-function openJumpSheet(triggerEl) {
-    _trackAction("jump:open-start");
-    _trackAction("openJumpSheet");
-    if (!el.jumpSheet) { console.error("[jump] jumpSheet element is NULL!"); return; }
-    // Clear any text selection (mobile taps can select text, which hangs WebView).
-    try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
-    // Toggle: if already open anchored at this trigger, close it.
-    if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
-        closeJumpSheet();
-        return;
-    }
-    _trackAction("jump:computing-range");
-    // v7.18: custom div slider. _csliderSet writes only div styles
-    // (fill width, thumb left) — the native range-input hang is gone.
+// Inline page jump (v7.39): the footer pill toggles an input row in normal
+// flow inside the footer. No overlay, no dialog, no slider, no ticks,
+// no DOM moves — the hang vectors of the old jump sheet are gone by design.
+function _jumpRange() {
     const isMM = _jumpIsMM();
     _jumpFirst = isMM ? (state.mmFirstPage || 1) : (state.paliFirstPage || 1);
     _jumpLast = isMM ? (state.mmLastPage || 1) : (state.paliLastPage || 1);
-    const cur = isMM ? (state.mmPage || _jumpFirst) : (state.paliPage || _jumpFirst);
-
-    _trackAction("jump:csliderSet");
-    _csliderVal = null; // force UI refresh even if value matches previous open
-    _csliderSet(cur); // sets fill/thumb/bubble; safe div writes only
-    _trackAction("jump:labels");
-    el.jumpMinLabel.textContent = toMyanmarNum(_jumpFirst);
-    el.jumpMaxLabel.textContent = toMyanmarNum(_jumpLast);
-    el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(cur)} / ${toMyanmarNum(_jumpLast)}`;
-    _trackAction("jump:input");
-    el.jumpPageInput.value = "";
-    el.jumpPageInput.placeholder = `စာမျက်နှာနံပါတ် (${toMyanmarNum(_jumpFirst)}–${toMyanmarNum(_jumpLast)})`;
-    // (bubble already updated inside _csliderSet)
-
-    _trackAction("jump:anchor");
-    _jumpAnchor = triggerEl || null;
-    // v7.29: native <dialog> renders in the top layer — no manual positioning,
-    // no getBoundingClientRect, no scrollY math. The browser centers it.
-    _trackAction("jump:ticks");
-    _jumpRenderTicks(isMM ? state.mmTocs : state.paliTocs);
-    _trackAction("jump:show");
-    // Div overlay: simple hidden toggle, no dialog API.
-    if (el.jumpSheet.hidden) {
-        el.jumpSheet.hidden = false;
+}
+function _jumpInlineToggle() {
+    if (!el.jumpInlineRow) return;
+    // Clear any text selection (mobile taps can select text).
+    try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
+    if (el.jumpInlineRow.hidden) {
+        _jumpRange();
+        el.jumpInlineInput.value = "";
+        el.jumpInlineInput.placeholder = `${toMyanmarNum(_jumpFirst)}\u2013${toMyanmarNum(_jumpLast)}`;
+        el.jumpInlineRow.hidden = false;
+    } else {
+        el.jumpInlineRow.hidden = true;
+        if (el.jumpInlineInput) el.jumpInlineInput.blur();
     }
 }
-
-function closeJumpSheet() {
-    if (el.jumpSheet) el.jumpSheet.hidden = true;
-    _jumpAnchor = null;
-}
-
-// Live bubble follows the thumb while dragging; the page loads on release.
-// Custom div slider (v7.18): no native <input type=range>, so the Chromium
-// .value-setter hang is impossible. All visuals are plain div style writes.
-let _csliderVal = 1;
-function _csliderSet(val) {
-    val = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(val) || _jumpFirst));
-    if (val === _csliderVal) return; // unchanged — skip redundant DOM writes
-    _csliderVal = val;
-    const pct = _jumpLast === _jumpFirst ? 0
-        : (val - _jumpFirst) / (_jumpLast - _jumpFirst) * 100;
-    if (el.jumpCFill) el.jumpCFill.style.width = pct + "%";
-    if (el.jumpCThumb) el.jumpCThumb.style.left = pct + "%";
-    if (el.jumpCSlider) {
-        el.jumpCSlider.setAttribute("aria-valuemin", _jumpFirst);
-        el.jumpCSlider.setAttribute("aria-valuemax", _jumpLast);
-        el.jumpCSlider.setAttribute("aria-valuenow", val);
+function _jumpInlineSubmit() {
+    if (!el.jumpInlineInput) return;
+    const p = fromMyanmarNum((el.jumpInlineInput.value || "").trim());
+    if (p > 0) {
+        el.jumpInlineRow.hidden = true;
+        _jumpGo(p);
+    } else {
+        el.jumpInlineInput.focus();
+        try { el.jumpInlineInput.select(); } catch (_) {}
     }
-    _jumpUpdateBubble(val);
-}
-function _bindCSlider() {
-    if (!el.jumpCSlider) return;
-    // Cleanup for leaked drag listeners: if pointerup/pointercancel never
-    // fired (e.g. setPointerCapture threw), the move/up handlers stay attached
-    // and accumulate on every drag -> each pointermove does Nx work -> hang.
-    let _csliderCleanup = null;
-    el.jumpCSlider.addEventListener("pointerdown", (e) => {
-        if (_csliderCleanup) { _csliderCleanup(); _csliderCleanup = null; }
-        e.preventDefault();
-        try { el.jumpCSlider.setPointerCapture(e.pointerId); } catch (_) {}
-        // Cache rect ONCE per drag: getBoundingClientRect() forces a sync
-        // layout, and calling it on every pointermove = layout thrashing.
-        const rect = el.jumpCSlider.getBoundingClientRect();
-        const valFromX = (clientX) => {
-            const left = rect.left + 14, width = Math.max(1, rect.width - 28);
-            const pct = Math.max(0, Math.min(1, (clientX - left) / width));
-            return _jumpFirst + pct * (_jumpLast - _jumpFirst);
-        };
-        _csliderSet(valFromX(e.clientX));
-        const move = (ev) => _csliderSet(valFromX(ev.clientX));
-        const up = () => {
-            if (_csliderCleanup) { _csliderCleanup(); _csliderCleanup = null; }
-            _jumpGo(_csliderVal); // jump on release, like native change
-        };
-        _csliderCleanup = () => {
-            el.jumpCSlider.removeEventListener("pointermove", move);
-            el.jumpCSlider.removeEventListener("pointerup", up);
-            el.jumpCSlider.removeEventListener("pointercancel", up);
-        };
-        el.jumpCSlider.addEventListener("pointermove", move);
-        el.jumpCSlider.addEventListener("pointerup", up);
-        el.jumpCSlider.addEventListener("pointercancel", up);
-    });
-    // Keyboard: arrows jump by 1 page, PgUp/PgDn by 10.
-    el.jumpCSlider.addEventListener("keydown", (e) => {
-        let d = 0;
-        if (e.key === "ArrowLeft" || e.key === "ArrowDown") d = -1;
-        else if (e.key === "ArrowRight" || e.key === "ArrowUp") d = 1;
-        else if (e.key === "PageDown") d = -10;
-        else if (e.key === "PageUp") d = 10;
-        else if (e.key === "Home") { _csliderSet(_jumpFirst); _jumpGo(_csliderVal); e.preventDefault(); return; }
-        else if (e.key === "End") { _csliderSet(_jumpLast); _jumpGo(_csliderVal); e.preventDefault(); return; }
-        else return;
-        e.preventDefault();
-        _csliderSet(_csliderVal + d);
-        _jumpGo(_csliderVal);
-    });
-}
-function _jumpUpdateBubble(page) {
-    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
-    el.jumpBubble.textContent = toMyanmarNum(page);
-    const pct = _jumpLast === _jumpFirst ? 0
-        : (page - _jumpFirst) / (_jumpLast - _jumpFirst) * 100;
-    // Clamp so the bubble never overflows the sheet edges.
-    const clamped = Math.max(8, Math.min(92, pct));
-    el.jumpBubble.style.left = clamped + "%";
-    el.jumpCurLabel.textContent = `စာ-${toMyanmarNum(page)} / ${toMyanmarNum(_jumpLast)}`;
-}
-
-function _jumpRenderTicks(tocs) {
-    _trackAction("jump:ticks-in");
-    if (!el.jumpTicks) return;
-    const list = (tocs || []).filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
-    if (list.length === 0) { el.jumpTicks.innerHTML = ""; return; }
-    // Cap rendered ticks: the strip is only a few hundred px wide, so more
-    // than ~120 ticks overlap sub-pixel and only cost layout time on mobile.
-    // Sample evenly so section coverage stays representative.
-    const MAX_TICKS = 120;
-    let items = list;
-    if (list.length > MAX_TICKS) {
-        items = [];
-        const step = (list.length - 1) / (MAX_TICKS - 1);
-        for (let i = 0; i < MAX_TICKS; i++) items.push(list[Math.round(i * step)]);
-    }
-    const span = _jumpLast - _jumpFirst || 1;
-    let html = "";
-    for (const t of items) {
-        const pct = (t.page_number - _jumpFirst) / span * 100;
-        html += `<span class="jump-tick" style="left:${pct.toFixed(2)}%" title="${escapeHtml(t.name || "")}"></span>`;
-    }
-    el.jumpTicks.innerHTML = html;
-}
-
-// Tap the tick strip -> jump to the nearest section start.
-function _jumpTicksClick(e) {
-    const tocs = (_jumpIsMM() ? state.mmTocs : state.paliTocs) || [];
-    const list = tocs.filter(t => t && t.page_number >= _jumpFirst && t.page_number <= _jumpLast);
-    if (list.length === 0) return;
-    const r = el.jumpTicks.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-    const target = _jumpFirst + x * (_jumpLast - _jumpFirst);
-    let best = list[0];
-    for (const t of list) {
-        if (Math.abs(t.page_number - target) < Math.abs(best.page_number - target)) best = t;
-    }
-    _jumpGo(best.page_number);
 }
 
 function _jumpGo(page) {
     _trackAction("_jumpGo", page);    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
-    closeJumpSheet();
     // Prune feed DOM before loading the target page to prevent accumulation
     // across repeated jumps (each jump adds pages; prune keeps window small).
     try { pruneFeedDOM(); } catch (e) {}
@@ -1561,54 +1415,29 @@ function _jumpGo(page) {
     else loadPaliPage(state.paliBookId, page);
 }
 
-function setupJumpSheet() {
+function setupInlineJump() {
     if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Clear any accidental text selection (mobile tap can select text).
-        try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
-        openJumpSheet(el.btnOpenJumpSheet);
+        _jumpInlineToggle();
     });
-    // v7.38 hardening: block Android WebView long-press copy menu on the pill.
+    // v7.38 hardening kept: block Android WebView long-press copy menu on the pill.
     if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("contextmenu", (e) => e.preventDefault());
-    // v7.38 hardening: clear any selection at touchstart (passive: keeps click intact).
+    // v7.38 hardening kept: clear any selection at touchstart (passive: keeps click intact).
     if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("touchstart", () => {
         try {
             const sel = window.getSelection && window.getSelection();
             if (sel && sel.rangeCount > 0) sel.removeAllRanges();
         } catch (_) {}
     }, { passive: true });
-    // Page-divider badges (at every page boundary in the feed) also open the panel.
-    // Delegated: dividers are added/removed dynamically by feed windowing.
-    // Tap-vs-drag guard: a text-selection drag across the badge must not open the panel.
-    // Page-divider badges: delegate on the reader container (NOT document).
-    // Document-level pointerdown/closest() caused a Chromium hang.
-    // No drag guard: a text-selection drag across a badge is rare, and the
-    // toggle behavior (tap again to close) makes accidents harmless.
-    if (el.readerContainer) el.readerContainer.addEventListener("click", (e) => {
-        const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
-        if (!badge) return;
-        e.stopPropagation();
-        try { openJumpSheet(badge); } catch (err) { console.error("[jump] open failed:", err); }
+    // NOTE (v7.39): divider badges are static citation labels — no handlers.
+    if (el.btnJumpInlineGo) el.btnJumpInlineGo.addEventListener("click", _jumpInlineSubmit);
+    if (el.btnJumpInlineClose) el.btnJumpInlineClose.addEventListener("click", () => {
+        if (el.jumpInlineRow) el.jumpInlineRow.hidden = true;
     });
-    if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
-    // Div overlay: ESC closes manually; backdrop is the overlay div itself.
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && el.jumpSheet && !el.jumpSheet.hidden) closeJumpSheet();
-    });
-    if (el.jumpSheet) el.jumpSheet.addEventListener("click", (e) => {
-        if (e.target === el.jumpSheet) closeJumpSheet();
-    });
-    _bindCSlider();
-    if (el.jumpTicks) el.jumpTicks.addEventListener("click", _jumpTicksClick);
-    const goExact = () => {
-        const p = fromMyanmarNum(el.jumpPageInput.value);
-        if (p > 0) _jumpGo(p);
-        else el.jumpPageInput.focus();
-    };
-    if (el.btnJumpGo) el.btnJumpGo.addEventListener("click", goExact);
-    if (el.jumpPageInput) el.jumpPageInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") goExact();
+    if (el.jumpInlineInput) el.jumpInlineInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") _jumpInlineSubmit();
+        else if (e.key === "Escape" && el.jumpInlineRow) el.jumpInlineRow.hidden = true;
     });
 }
 
@@ -1764,7 +1593,7 @@ function setupAnnotationListeners() {
     setupSyncUI();
     setupExportUI();
     // Page jump sheet (footer "စာမျက်နှာ X / Y" tap -> slider + ticks + input)
-    setupJumpSheet();
+    setupInlineJump();
     // Main-thread hang watchdog -> user-visible warning toast
     HangWatchdog.init();
 }
@@ -6507,11 +6336,6 @@ function setupSentinelObserver() {
     infiniteSentinelObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // Skip while the jump panel is open: opening it shifts layout
-                // and can make the sentinel intersect, starting an infinite
-                // load loop that hangs the renderer. (loadNextFeedPage has
-                // the same guard; this avoids even queueing the async work.)
-                if (el.jumpSheet && !el.jumpSheet.hidden) return;
                 loadNextFeedPage();
             }
         });
@@ -6546,11 +6370,6 @@ function _feedLockRelease() {
 }
 async function loadNextFeedPage() {
     _trackAction("loadNextFeedPage");
-    // Don't load more pages while the jump panel is open. Opening the panel
-    // shifts layout, which can make the infinite sentinel intersect and
-    // trigger an infinite load loop (fetch -> render -> observe -> fetch)
-    // that hangs the renderer. This guard was intended in v6.20 but missing.
-    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     _feedLockStaleReset();
     if (state.isLoadingMore) return;
     if (state.scrollMode !== "feed") return;
@@ -6666,9 +6485,6 @@ function setupPageVisibilityObserver() {
 }
 
 function updateCurrentViewPage(pageNum) {
-    // Skip while the jump panel is open: the panel insertion shifts layout,
-    // which can make the IntersectionObserver fire spuriously.
-    if (el.jumpSheet && !el.jumpSheet.hidden) return;
     if (state.readerMode === "pali") {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;
