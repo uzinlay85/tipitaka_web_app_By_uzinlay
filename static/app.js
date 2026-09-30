@@ -1575,11 +1575,6 @@ function setupJumpSheet() {
         const badge = e.target.closest ? e.target.closest(".divider-badge") : null;
         if (!badge) return;
         e.stopPropagation();
-        // DEBUG: visual feedback to confirm tap registered (remove after fix)
-        try {
-            badge.style.outline = "3px solid red";
-            setTimeout(() => { try { badge.style.outline = ""; } catch (_) {} }, 800);
-        } catch (_) {}
         try { openJumpSheet(badge); } catch (err) { console.error("[jump] open failed:", err); }
     });
     if (el.btnCloseJumpSheet) el.btnCloseJumpSheet.addEventListener("click", closeJumpSheet);
