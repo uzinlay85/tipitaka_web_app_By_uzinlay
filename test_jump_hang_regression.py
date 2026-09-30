@@ -1,9 +1,10 @@
-"""Static regression checks for the v7.39 inline page-jump redesign.
+"""Static regression checks for the inline page-jump redesign (v7.39+) and the
+v7.42 badge-tap restoration.
 
-The jump sheet overlay (dialog/div), custom slider, tick strip, and badge
-handlers are gone. The footer pill now toggles an inline input row in normal
-flow. These checks intentionally avoid importing Flask or requiring the
-production DB.
+The jump sheet overlay (dialog/div), custom slider, and tick strip are gone.
+The footer pill toggles an inline input row in normal flow; divider badge taps
+open a disposable inline row right below the badge (no overlay, no dialog).
+These checks intentionally avoid importing Flask or requiring the production DB.
 """
 from pathlib import Path
 
@@ -56,11 +57,16 @@ check("navigation core kept", "function _jumpGo(page)" in JS and
       "loadMMPage(state.mmBookId, page)" in JS and
       "loadPaliPage(state.paliBookId, page)" in JS)
 
-# --- v7.39: divider badges are static citation labels ---
-check("badges have no click handlers", 'closest(".divider-badge")' not in JS)
-check("badges are pointer-transparent", "pointer-events: none" in CSS)
+# --- v7.42: divider badges open a disposable inline row (no overlay) ---
+check("badge tap opens inline badge row", 'closest(".divider-badge")' in JS and
+      "function _jumpBadgeToggle" in JS and 'id="jumpBadgeRow"' not in HTML)
+check("badge row is inline, not an overlay", "jumpBadgeRow" in JS and
+      "showModal()" not in JS)
+check("badges are tappable again", ".divider-badge" in CSS and
+      "pointer-events: auto" in CSS)
+check("badge row cleaned on prune", 'getElementById("jumpBadgeRow")' in JS)
 
 # --- versions ---
-check("cache-busting version is current", 'app.js?v=7.39' in HTML and 'app.css?v=7.39' in HTML)
+check("cache-busting version is current", 'app.js?v=7.42' in HTML and 'app.css?v=7.40' in HTML)
 
 print("ALL PASS")

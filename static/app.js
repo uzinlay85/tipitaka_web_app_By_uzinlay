@@ -1395,6 +1395,54 @@ function _jumpInlineToggle() {
         if (el.jumpInlineInput) el.jumpInlineInput.blur();
     }
 }
+// v7.42: divider badge tap → inline jump row right below the badge.
+// A fresh row is built per tap (no shared/moved element), so feed reloads
+// (innerHTML resets) and pruneFeedDOM can never strand a stale reference.
+// Tapping the same badge again closes its row (toggle).
+function _jumpBadgeToggle(badge) {
+    if (!badge || !badge.closest) return;
+    const divider = badge.closest(".page-divider");
+    if (!divider) return;
+    // Clear any text selection (mobile taps can select text).
+    try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
+    const existing = document.getElementById("jumpBadgeRow");
+    if (existing) {
+        const atThisBadge = existing.previousElementSibling === divider;
+        existing.remove();
+        if (atThisBadge) return;
+    }
+    // Only one jump UI at a time: hide the footer row.
+    if (el.jumpInlineRow) el.jumpInlineRow.hidden = true;
+    _jumpRange();
+    const row = document.createElement("div");
+    row.className = "jump-inline-row";
+    row.id = "jumpBadgeRow";
+    const lo = toMyanmarNum(_jumpFirst), hi = toMyanmarNum(_jumpLast);
+    row.innerHTML =
+        '<span class="jump-inline-label">စာမျက်နှာ</span>' +
+        `<input type="text" class="jump-inline-input" inputmode="numeric" pattern="[0-9\\u1040-\\u1049]*" enterkeyhint="go" ` +
+        `placeholder="${lo}\u2013${hi}" autocomplete="off" aria-label="သွားလိုသော စာမျက်နှာ">` +
+        '<button class="jump-inline-go" type="button">သွားမည်</button>' +
+        '<button class="jump-inline-close" type="button" aria-label="ပိတ်ရန်">✕</button>';
+    const input = row.querySelector(".jump-inline-input");
+    const goBtn = row.querySelector(".jump-inline-go");
+    const closeBtn = row.querySelector(".jump-inline-close");
+    const submit = () => {
+        const p = fromMyanmarNum((input.value || "").trim());
+        if (p > 0) { row.remove(); _jumpGo(p); }
+        else { try { input.focus(); input.select(); } catch (_) {} }
+    };
+    goBtn.addEventListener("click", (e) => { e.stopPropagation(); submit(); });
+    closeBtn.addEventListener("click", (e) => { e.stopPropagation(); row.remove(); });
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submit();
+        else if (e.key === "Escape") row.remove();
+    });
+    // Keep badge-row taps from bubbling to the reader container's badge toggle
+    // or the dictionary word-tap handler.
+    row.addEventListener("click", (e) => e.stopPropagation());
+    divider.insertAdjacentElement("afterend", row);
+}
 function _jumpInlineSubmit() {
     if (!el.jumpInlineInput) return;
     const p = fromMyanmarNum((el.jumpInlineInput.value || "").trim());
@@ -1431,6 +1479,16 @@ function setupInlineJump() {
             if (sel && sel.rangeCount > 0) sel.removeAllRanges();
         } catch (_) {}
     }, { passive: true });
+    // v7.42: divider badge tap → inline jump row right below the badge.
+    // (Restores the pre-v7.39 learned interaction; v7.39's static badges left
+    // continuous-scroll readers with no reachable jump UI.)
+    if (el.readerContainer) el.readerContainer.addEventListener("click", (e) => {
+        const badge = e.target && e.target.closest ? e.target.closest(".divider-badge") : null;
+        if (!badge) return;
+        e.preventDefault();
+        e.stopPropagation();
+        _jumpBadgeToggle(badge);
+    });
     // NOTE (v7.39): divider badges are static citation labels — no handlers.
     if (el.btnJumpInlineGo) el.btnJumpInlineGo.addEventListener("click", _jumpInlineSubmit);
     if (el.btnJumpInlineClose) el.btnJumpInlineClose.addEventListener("click", () => {
@@ -1796,6 +1854,9 @@ function getLoadedFeedPages() {
 const FEED_WINDOW_RADIUS = 5;
 function pruneFeedDOM() {
     if (state.scrollMode !== "feed" || !el.paliContent || !el.readerContainer) return;
+    // v7.42: drop any badge jump row — its divider may be pruned below.
+    const badgeRow = document.getElementById("jumpBadgeRow");
+    if (badgeRow) badgeRow.remove();
     const isMM = (state.readerMode === "mm");
     const prefix = isMM ? "mm-page-" : "pali-page-";
     const cur = isMM ? state.mmPage : state.paliPage;

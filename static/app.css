@@ -1246,11 +1246,18 @@ body.hide-notes .note {
     border-color: var(--accent);
 }
 
-/* v7.39: badges are static citation labels — not clickable, no handlers,
-   no accidental-tap hang vector. */
+/* v7.42: badges are tappable again — a tap opens the inline jump row right
+   below the badge. This restores the pre-v7.39 learned interaction; v7.39 had
+   made badges static, which stranded continuous-scroll readers (the footer
+   pill is unreachable while infinite scroll keeps appending pages). */
 .page-divider .divider-badge {
-    pointer-events: none;
-    cursor: default;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .page-divider .divider-badge .badge-text {
