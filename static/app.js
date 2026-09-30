@@ -66,6 +66,76 @@ const state = {
     isFocusMode: false
 };
 
+// Printed-volume labels (ဆဋဌမူ ပုံနှိပ်တွဲ) for books in multi-volume nikayas,
+// so a reader holding the physical book knows which app-book belongs to which
+// printed volume (e.g. စတုက္ကနိပါတပါဠိ → အံ၊ ပတွဲ).
+// Derived from the DB's own print pagination (verified 2026-09-30 against
+// tipitaka_pali.db books.firstpage/lastpage): books whose page ranges run
+// continuously (next.firstpage ≈ prev.lastpage + 1) were scanned from ONE bound
+// volume; a reset to page 1 starts a new printed volume.
+//   အံ ပတွဲ = an_01..04 (pp. 1-580) / ဒုတွဲ = an_05..07 (pp. 1-513) / တတွဲ = an_08..11 (pp. 1-558)
+//   သံ ပတွဲ = sa_01..02 / ဒုတွဲ = sa_03..04 / တတွဲ = sa_05
+//   ဒီ/မ ပတွဲ/ဒုတွဲ/တတွဲ = one volume per vagga/pannasa
+//   ခုဒ္ဒက ပတွဲ = ku_01..05 / ဒုတွဲ = ku_06..09 ; အပဒါန ဒုတွဲ = ku_11..13 (ku_10 is အပဒါန ပ)
+//   ဓာတုကထာ+ပုဂ္ဂလပညတ္တိ (bi_03 pp.1-100, bi_04 pp.101-185) and
+//   နေတ္တိ+ပေဋကောပဒေသ (ku_20 pp.1-166, ku_21 pp.167-341) are each one bound volume;
+//   their spine names follow the first-text convention — correct against the
+//   physical books if they differ.
+// Myanmar-translation labels mirror the Pali print division.
+const VOLUME_LABELS = {
+    mula_an_01: "အံ၊ ပတွဲ", mula_an_02: "အံ၊ ပတွဲ",
+    mula_an_03: "အံ၊ ပတွဲ", mula_an_04: "အံ၊ ပတွဲ",
+    mula_an_05: "အံ၊ ဒုတွဲ", mula_an_06: "အံ၊ ဒုတွဲ",
+    mula_an_07: "အံ၊ ဒုတွဲ",
+    mula_an_08: "အံ၊ တတွဲ", mula_an_09: "အံ၊ တတွဲ",
+    mula_an_10: "အံ၊ တတွဲ", mula_an_11: "အံ၊ တတွဲ",
+    mula_sa_01: "သံ၊ ပတွဲ", mula_sa_02: "သံ၊ ပတွဲ",
+    mula_sa_03: "သံ၊ ဒုတွဲ", mula_sa_04: "သံ၊ ဒုတွဲ",
+    mula_sa_05: "သံ၊ တတွဲ",
+    mula_di_01: "ဒီ၊ ပတွဲ", mula_di_02: "ဒီ၊ ဒုတွဲ",
+    mula_di_03: "ဒီ၊ တတွဲ",
+    mula_ma_01: "မ၊ ပတွဲ", mula_ma_02: "မ၊ ဒုတွဲ",
+    mula_ma_03: "မ၊ တတွဲ",
+    mula_ku_01: "ခုဒ္ဒက၊ ပတွဲ", mula_ku_02: "ခုဒ္ဒက၊ ပတွဲ",
+    mula_ku_03: "ခုဒ္ဒက၊ ပတွဲ", mula_ku_04: "ခုဒ္ဒက၊ ပတွဲ",
+    mula_ku_05: "ခုဒ္ဒက၊ ပတွဲ",
+    mula_ku_06: "ခုဒ္ဒက၊ ဒုတွဲ", mula_ku_07: "ခုဒ္ဒက၊ ဒုတွဲ",
+    mula_ku_08: "ခုဒ္ဒက၊ ဒုတွဲ", mula_ku_09: "ခုဒ္ဒက၊ ဒုတွဲ",
+    mula_ku_12: "အပဒါန၊ ဒုတွဲ", mula_ku_13: "အပဒါန၊ ဒုတွဲ",
+    mula_ku_20: "နေတ္တိတွဲ", mula_ku_21: "နေတ္တိတွဲ",
+    mula_bi_03: "ဓာတုကထာတွဲ", mula_bi_04: "ဓာတုကထာတွဲ",
+    "05_anguttara_01": "အံ၊ ပတွဲ", "05_anguttara_02": "အံ၊ ပတွဲ",
+    "05_anguttara_03": "အံ၊ ပတွဲ", "05_anguttara_04": "အံ၊ ပတွဲ",
+    "05_anguttara_05": "အံ၊ ဒုတွဲ", "05_anguttara_06": "အံ၊ ဒုတွဲ",
+    "05_anguttara_07": "အံ၊ ဒုတွဲ",
+    "05_anguttara_08": "အံ၊ တတွဲ", "05_anguttara_09": "အံ၊ တတွဲ",
+    "05_anguttara_10": "အံ၊ တတွဲ", "05_anguttara_11": "အံ၊ တတွဲ",
+    "04_sanyutta_01": "သံ၊ ပတွဲ", "04_sanyutta_02": "သံ၊ ပတွဲ",
+    "04_sanyutta_03": "သံ၊ ဒုတွဲ", "04_sanyutta_04": "သံ၊ ဒုတွဲ",
+    "04_sanyutta_05": "သံ၊ တတွဲ",
+    "02_digha_01": "ဒီ၊ ပတွဲ", "02_digha_02": "ဒီ၊ ဒုတွဲ",
+    "02_digha_03": "ဒီ၊ တတွဲ",
+    "03_majjhima_01": "မ၊ ပတွဲ", "03_majjhima_02": "မ၊ ဒုတွဲ",
+    "03_majjhima_03": "မ၊ တတွဲ",
+    "06_khuddaka_01": "ခုဒ္ဒက၊ ပတွဲ", "06_khuddaka_02": "ခုဒ္ဒက၊ ပတွဲ",
+    "06_khuddaka_03": "ခုဒ္ဒက၊ ပတွဲ", "06_khuddaka_04": "ခုဒ္ဒက၊ ပတွဲ",
+    "06_khuddaka_05": "ခုဒ္ဒက၊ ပတွဲ",
+    "06_khuddaka_06": "ခုဒ္ဒက၊ ဒုတွဲ", "06_khuddaka_07": "ခုဒ္ဒက၊ ဒုတွဲ",
+    "06_khuddaka_08": "ခုဒ္ဒက၊ ဒုတွဲ", "06_khuddaka_09": "ခုဒ္ဒက၊ ဒုတွဲ",
+    "06_khuddaka_12": "အပဒါန၊ ဒုတွဲ", "06_khuddaka_13": "အပဒါန၊ ဒုတွဲ"
+};
+function getVolumeLabel(bookId) { return VOLUME_LABELS[bookId] || ""; }
+// Display helper: "စတုက္ကနိပါတပါဠိ (အံ၊ ပတွဲ)". Pure name when no label.
+function withVolumeLabel(bookId, name) {
+    const v = getVolumeLabel(bookId);
+    return v ? name + " (" + v + ")" : name;
+}
+// Badge HTML for book lists. Empty string when no label.
+function volumeBadgeHtml(bookId) {
+    const v = getVolumeLabel(bookId);
+    return v ? ` <span class="book-volume-badge">${v}</span>` : "";
+}
+
 // DOM Elements
 const el = {
     appSidebar: document.getElementById("appSidebar"),
@@ -2129,7 +2199,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     state.feedFirstLoadedPage = actualPage;
                     state.feedLastLoadedPage = actualPage;
 
-                    el.bookTitleDisplay.textContent = data.book_name;
+                    el.bookTitleDisplay.textContent = withVolumeLabel(state.paliBookId, data.book_name);
                     el.chapterTitleDisplay.textContent = data.chapter_name || "";
                     el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                     el.metaBookName.textContent = data.book_name;
@@ -2276,7 +2346,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
             } else {
                 // Single page mode
                 state.paliPage = actualPage;
-                el.bookTitleDisplay.textContent = data.book_name;
+                el.bookTitleDisplay.textContent = withVolumeLabel(state.paliBookId, data.book_name);
                 el.chapterTitleDisplay.textContent = data.chapter_name || "";
                 el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                 el.metaBookName.textContent = data.book_name;
@@ -2421,7 +2491,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     state.feedFirstLoadedPage = actualPage;
                     state.feedLastLoadedPage = actualPage;
 
-                    el.bookTitleDisplay.textContent = data.book_name;
+                    el.bookTitleDisplay.textContent = withVolumeLabel(state.mmBookId, data.book_name);
                     el.chapterTitleDisplay.textContent = data.chapter_name || "";
                     el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                     el.metaBookName.textContent = data.book_name;
@@ -2566,7 +2636,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
             } else {
                 // Single page mode
                 state.mmPage = actualPage;
-                el.bookTitleDisplay.textContent = data.book_name;
+                el.bookTitleDisplay.textContent = withVolumeLabel(state.mmBookId, data.book_name);
                 el.chapterTitleDisplay.textContent = data.chapter_name || "";
                 el.totalPageDisplay.textContent = toMyanmarNum(data.last_page);
                 el.metaBookName.textContent = data.book_name;
@@ -2612,7 +2682,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
             if (el.btnSplitMMNext) el.btnSplitMMNext.disabled = !data.has_next;
             if (el.splitMMContent) el.splitMMContent.innerHTML = cleanMMContent(data.content);
             if (el.bookTitleDisplay && state.readerMode === "split") {
-                el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ ${data.book_name}`;
+                el.bookTitleDisplay.textContent = `${withVolumeLabel(state.paliBookId, state.paliBookName || 'ပါဠိတော်')} ↔ ${withVolumeLabel(data.book_id, data.book_name)}`;
             }
             attachSplitViewParagraphListeners();
             if (state.readerMode === "split") {
@@ -2628,7 +2698,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 // ----------------- Split View Logic & Dynamic Companion Tabs -----------------
 
 async function renderSplitView() {
-    el.bookTitleDisplay.textContent = `${state.paliBookName || 'ပါဠိတော်'} ↔ တွဲဖက်ကျမ်း`;
+    el.bookTitleDisplay.textContent = `${withVolumeLabel(state.paliBookId, state.paliBookName || 'ပါဠိတော်')} ↔ တွဲဖက်ကျမ်း`;
     el.chapterTitleDisplay.textContent = "ကျမ်းစာ ယှဉ်တွဲဖတ်ရှုခြင်း (Split View)";
     el.pageNumberInput.value = toMyanmarNum(state.paliPage);
     el.totalPageDisplay.textContent = toMyanmarNum(state.paliLastPage || 1);
@@ -3301,7 +3371,7 @@ async function renderHomeCatalog() {
                 books.forEach(b => {
                     html += `
                         <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
-                            <span class="home-book-name">${b.name}</span>
+                            <span class="home-book-name">${b.name}${volumeBadgeHtml(b.id)}</span>
                         </button>
                     `;
                 });
@@ -3324,7 +3394,7 @@ async function renderHomeCatalog() {
                 cat.books.forEach(b => {
                     html += `
                         <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
-                            <span class="home-book-name">${b.name}</span>
+                            <span class="home-book-name">${b.name}${volumeBadgeHtml(b.id)}</span>
                         </button>
                     `;
                 });
@@ -3375,7 +3445,7 @@ function renderBooksTree() {
                     const isActive = (b.id === state.mmBookId);
                     html += `
                         <button class="book-item-btn ${isActive ? 'active' : ''}" data-id="${b.id}" data-name="${b.name}">
-                            <span class="book-name-text">${b.name}</span>
+                            <span class="book-name-text">${b.name}${volumeBadgeHtml(b.id)}</span>
                             <span class="book-pages-badge">${b.page_count} မျက်နှာ</span>
                         </button>
                     `;
@@ -3400,7 +3470,7 @@ function renderBooksTree() {
                     const isActive = (b.id === state.paliBookId);
                     html += `
                         <button class="book-item-btn ${isActive ? 'active' : ''}" data-id="${b.id}" data-name="${b.name}">
-                            <span class="book-name-text">${b.name}</span>
+                            <span class="book-name-text">${b.name}${volumeBadgeHtml(b.id)}</span>
                             <span class="book-pages-badge">${b.pagecount} မျက်နှာ</span>
                         </button>
                     `;
@@ -3509,7 +3579,8 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
         if (el.tocCurrentCard) el.tocCurrentCard.style.display = "none";
         if (el.mobileChapterBreadcrumb) {
             const bookName = (mode === "mm") ? (state.mmBookName || "မြန်မာပြန်") : (state.paliBookName || "ပါဠိတော်");
-            if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = bookName;
+            const crumbBookId = (mode === "mm") ? state.mmBookId : state.paliBookId;
+            if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = withVolumeLabel(crumbBookId, bookName);
             if (el.mobileBreadcrumbChapter) el.mobileBreadcrumbChapter.textContent = "";
             if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
         }
@@ -3553,7 +3624,8 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
     // 2. Update Mobile Chapter Breadcrumb
     if (el.mobileChapterBreadcrumb) {
         const bookName = (mode === "mm") ? (state.mmBookName || "မြန်မာပြန်") : (state.paliBookName || "ပါဠိတော်");
-        if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = bookName;
+        const crumbBookId = (mode === "mm") ? state.mmBookId : state.paliBookId;
+        if (el.mobileBreadcrumbBook) el.mobileBreadcrumbBook.textContent = withVolumeLabel(crumbBookId, bookName);
         if (el.mobileBreadcrumbChapter && activeTocObj) el.mobileBreadcrumbChapter.textContent = activeTocObj.name;
         if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
     }
