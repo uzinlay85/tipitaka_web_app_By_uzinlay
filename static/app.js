@@ -81,7 +81,13 @@ const state = {
 //   နေတ္တိ+ပေဋကောပဒေသ (ku_20 pp.1-166, ku_21 pp.167-341) are each one bound volume;
 //   their spine names follow the first-text convention — correct against the
 //   physical books if they differ.
-// Myanmar-translation labels mirror the Pali print division.
+// Aṭṭhakathā/ṭīkā: same pagination rule. Combined vols —
+//   attha_vi_02+03 (pp.1-437), attha_vi_04+05 (pp.1-265),
+//   attha_sa_02+03 (pp.1-324), attha_sa_04+05 (pp.1-341),
+//   attha_an_03+04 (pp.1-357), tika_an_03+04 (pp.1-371),
+//   tika_ma_03+04 (pp.1-442), tika_sa_02..05 (pp.1-551).
+//   Numbering (ပတွဲ/ဒုတွဲ/တတွဲ/စတွဲ) follows DB order within each work.
+// Myanmar-translation labels mirror the Pali print division (MM DB has no attha/tika books).
 const VOLUME_LABELS = {
     mula_an_01: "အံ၊ ပတွဲ", mula_an_02: "အံ၊ ပတွဲ",
     mula_an_03: "အံ၊ ပတွဲ", mula_an_04: "အံ၊ ပတွဲ",
@@ -104,6 +110,39 @@ const VOLUME_LABELS = {
     mula_ku_12: "အပဒါန၊ ဒုတွဲ", mula_ku_13: "အပဒါန၊ ဒုတွဲ",
     mula_ku_20: "နေတ္တိတွဲ", mula_ku_21: "နေတ္တိတွဲ",
     mula_bi_03: "ဓာတုကထာတွဲ", mula_bi_04: "ဓာတုကထာတွဲ",
+    // ---- Aṭṭhakathā: Vinaya (သမန္တပါသာဒိကာ) — 4 vols; ပါစိတ္တိယ+မဟာဝဂ္ဂ and
+    // စူဠဝဂ္ဂ+ပရိဝါရ share continuous pagination (1–437 and 1–265) → one vol each
+    attha_vi_01_01: "ဝိ၊ ပတွဲ", attha_vi_01_02: "ဝိ၊ ဒုတွဲ",
+    attha_vi_02: "ဝိ၊ တတွဲ", attha_vi_03: "ဝိ၊ တတွဲ",
+    attha_vi_04: "ဝိ၊ စတွဲ", attha_vi_05: "ဝိ၊ စတွဲ",
+    // ---- Aṭṭhakathā: Dīgha (သုမင်္ဂလဝိလာသိနီ) — one vol per vagga
+    attha_di_01: "ဒီ၊ ပတွဲ", attha_di_02: "ဒီ၊ ဒုတွဲ",
+    attha_di_03: "ဒီ၊ တတွဲ",
+    // ---- Aṭṭhakathā: Majjhima (ပပဉ္စသူနနီ) — 4 vols
+    attha_ma_01_01: "မ၊ ပတွဲ", attha_ma_01_02: "မ၊ ဒုတွဲ",
+    attha_ma_02: "မ၊ တတွဲ", attha_ma_03: "မ၊ စတွဲ",
+    // ---- Aṭṭhakathā: Saṃyutta (သာရတ္ထပ္ပကာသိနီ) — 3 vols; နိဒါန+ခန္ဓ and
+    // သဠာယတန+မဟာ share continuous pagination → one vol each
+    attha_sa_01: "သံ၊ ပတွဲ",
+    attha_sa_02: "သံ၊ ဒုတွဲ", attha_sa_03: "သံ၊ ဒုတွဲ",
+    attha_sa_04: "သံ၊ တတွဲ", attha_sa_05: "သံ၊ တတွဲ",
+    // ---- Aṭṭhakathā: Aṅguttara (မနောရထပူရဏီ) — 3 vols;
+    // ပဉ္စကာဒိ+အဋ္ဌကာဒိ share continuous pagination (1–357) → one vol
+    attha_an_01: "အံ၊ ပတွဲ", attha_an_02: "အံ၊ ဒုတွဲ",
+    attha_an_03: "အံ၊ တတွဲ", attha_an_04: "အံ၊ တတွဲ",
+    // ---- Aṭṭhakathā: Abhidhamma — 3 vols
+    attha_bi_01: "အဘိ၊ ပတွဲ", attha_bi_02: "အဘိ၊ ဒုတွဲ",
+    attha_bi_03: "အဘိ၊ တတွဲ",
+    // ---- Ṭīkā: Aṅguttara — 3 vols; ပဉ္စကာဒိ+အဋ္ဌကာဒိ continuous (1–371)
+    tika_an_01: "အံ၊ ပတွဲ", tika_an_02: "အံ၊ ဒုတွဲ",
+    tika_an_03: "အံ၊ တတွဲ", tika_an_04: "အံ၊ တတွဲ",
+    // ---- Ṭīkā: Majjhima — 3 vols; မဇ္ဈိမ+ဥပရိပဏ္ဏာသ continuous (1–442)
+    tika_ma_01: "မ၊ ပတွဲ", tika_ma_02: "မ၊ ဒုတွဲ",
+    tika_ma_03: "မ၊ တတွဲ", tika_ma_04: "မ၊ တတွဲ",
+    // ---- Ṭīkā: Saṃyutta — 2 vols; နိဒါန–မဟာ continuous (1–551) → one vol
+    tika_sa_01: "သံ၊ ပတွဲ",
+    tika_sa_02: "သံ၊ ဒုတွဲ", tika_sa_03: "သံ၊ ဒုတွဲ",
+    tika_sa_04: "သံ၊ ဒုတွဲ", tika_sa_05: "သံ၊ ဒုတွဲ",
     "05_anguttara_01": "အံ၊ ပတွဲ", "05_anguttara_02": "အံ၊ ပတွဲ",
     "05_anguttara_03": "အံ၊ ပတွဲ", "05_anguttara_04": "အံ၊ ပတွဲ",
     "05_anguttara_05": "အံ၊ ဒုတွဲ", "05_anguttara_06": "အံ၊ ဒုတွဲ",
