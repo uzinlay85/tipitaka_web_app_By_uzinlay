@@ -240,6 +240,7 @@ const el = {
     btnNavHome: document.getElementById("btnNavHome"),
     btnNavReader: document.getElementById("btnNavReader"),
     btnNavRecent: document.getElementById("btnNavRecent"),
+    btnNavSearch: document.getElementById("btnNavSearch"),
     btnNavDict: document.getElementById("btnNavDict"),
     btnNavMore: document.getElementById("btnNavMore"),
 
@@ -6061,6 +6062,13 @@ function setupEventListeners() {
         el.btnNavRecent.addEventListener("click", () => {
             closeSidebarMobile();
             openHistoryModal();
+        });
+    }
+    if (el.btnNavSearch) {
+        el.btnNavSearch.addEventListener("click", () => {
+            openSearchModal();
+            const wordTabBtn = document.querySelector('.modal-tab-btn[data-mode="word"]');
+            if (wordTabBtn) wordTabBtn.click();
         });
     }
     if (el.btnNavDict) {
