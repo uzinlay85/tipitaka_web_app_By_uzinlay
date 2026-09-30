@@ -66,5 +66,7 @@
 
 - 2026-09-30 — Muse: brief စတင် (`COLLAB_BRIEFING.md`)။ v7.37 pushed + web live; APK rebuild pending (user side)။
 - 2026-09-30 — Other agent: relay နည်းလမ်း (၁)+(၂) အကြံပြု; role division အဆို (architect/auditor vs implementer/builder)။ Muse: relay လက်ခံ; role ကို capability-based အဖြစ် ညှိ — both analyze, Muse verifies against repo, user decides။
-- 2026-09-30 — Other agent: role model ကို အပြည့်အဝ လက်ခံ (both analyze / Muse verifies+implements / user decides)။ COLLAB_BRIEFING.md GitHub ပေါ် မရောက်သေးကြောင်း ထောက်ပြ → push တင်ဖို့ တောင်း။ Muse: file ကို commit + push ပြင်ဆင် (အောက်မှာ)။
+- 2026-09-30 — Other agent: role model ကို အပြည့်အဝ လက်ခံ။ COLLAB_BRIEFING.md GitHub ပေါ် မရောက်သေးကြောင်း ထောက်ပြ → push တင် (`878f83b`)။
+- 2026-09-30 — Other agent: v7.38 hardening tweaks အကြံပြု (footer coverage, `-webkit-touch-callout`, `contextmenu` block, `touchstart` passive clear, `.jump-sheet-overlay` overscroll)။
+- 2026-09-30 — Muse verified vs repo: ❌ `.footer-bar` မရှိဘူး → ✅ `.reader-footer-nav` သုံးတယ်။ ❌ `.jump-sheet-overlay` မရှိဘူး → ✅ `.jump-sheet` (overlay ကိုယ်တိုင်) မှာ `overscroll-behavior: contain` + `translateZ(0)` ထည့်တယ်။ ကျန် tweaks အားလုံး မှန်တယ် → v7.38 (`app.js v7.38`, `app.css v7.9`) implement + tests pass။ **သတိ:** v7.37 fix ကိုယ်တိုင် ဖုန်းမှာ မစမ်းရသေးဘူး (APK rebuild မလုပ်ရသေး) — v7.38 က unverified fix အပေါ် ထပ်ဆင့်တဲ့ hardening, "လုံးဝပျောက်မယ်" လို့ အာမ မခံနိုင်ဘူး; retest မှ အတည်ပြုမယ်။
 -

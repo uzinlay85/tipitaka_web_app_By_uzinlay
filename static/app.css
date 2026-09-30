@@ -4537,6 +4537,18 @@ body.ios-fullscreen-fallback .reader-container {
     padding-bottom: 2px;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none; /* v7.38: block iOS/WebKit long-press callout */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+/* v7.38 hardening: no text selection anywhere in the footer nav cluster —
+   a finger landing on the pill's edge must not start a selection.
+   (Actual container is .reader-footer-nav; there is no .footer-bar.) */
+.reader-footer-nav,
+.reader-footer-nav * {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
@@ -4554,6 +4566,8 @@ body.ios-fullscreen-fallback .reader-container {
     padding: 96px 12px 12px;
     background: rgba(0, 0, 0, 0.4);
     border: none;
+    overscroll-behavior: contain; /* v7.38: body must not scroll under the sheet */
+    transform: translateZ(0); /* v7.38: own compositing layer on mobile WebView */
 }
 .jump-sheet[hidden] {
     display: none;

@@ -1569,6 +1569,15 @@ function setupJumpSheet() {
         try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
         openJumpSheet(el.btnOpenJumpSheet);
     });
+    // v7.38 hardening: block Android WebView long-press copy menu on the pill.
+    if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("contextmenu", (e) => e.preventDefault());
+    // v7.38 hardening: clear any selection at touchstart (passive: keeps click intact).
+    if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("touchstart", () => {
+        try {
+            const sel = window.getSelection && window.getSelection();
+            if (sel && sel.rangeCount > 0) sel.removeAllRanges();
+        } catch (_) {}
+    }, { passive: true });
     // Page-divider badges (at every page boundary in the feed) also open the panel.
     // Delegated: dividers are added/removed dynamically by feed windowing.
     // Tap-vs-drag guard: a text-selection drag across the badge must not open the panel.

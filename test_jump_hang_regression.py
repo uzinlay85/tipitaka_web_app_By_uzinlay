@@ -31,7 +31,11 @@ check("jump panel avoids feed layout reads", "triggerEl.getBoundingClientRect()"
 check("jump slider uses custom div", 'id="jumpCSlider"' in HTML and 'type="range"' not in HTML)
 check("jump panel is div overlay (not dialog)", '<div id="jumpSheet"' in HTML and '<dialog id="jumpSheet"' not in HTML)
 check("jump panel has no manual positioning", "el.jumpSheet.style.top" not in JS)
-check("cache-busting version is current", 'app.js?v=7.37' in HTML)
+check("cache-busting version is current", 'app.js?v=7.38' in HTML and 'app.css?v=7.9' in HTML)
 check("feed loader skips while jump panel open", "if (el.jumpSheet && !el.jumpSheet.hidden) return;" in JS)
 
 check("footer pill prevents text selection", "user-select: none" in CSS and ".footer-page-info.jump-trigger" in CSS)
+check("v7.38 footer-nav selection hardening", ".reader-footer-nav" in CSS and "-webkit-touch-callout: none" in CSS)
+check("v7.38 pill blocks long-press menu", 'addEventListener("contextmenu"' in JS)
+check("v7.38 pill clears selection on touchstart", 'addEventListener("touchstart"' in JS and "{ passive: true }" in JS)
+check("v7.38 sheet contains overscroll", "overscroll-behavior: contain" in CSS)
