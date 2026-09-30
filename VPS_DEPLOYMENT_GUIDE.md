@@ -257,7 +257,37 @@ sudo crontab -e
 ```bash
 0 2 * * * /opt/tipitaka/backup_db.sh
 ```
-၇ ရက်ထက်ကြာသော backup ဟောင်းများကို script က အလိုအလျောက် ဖျက်ပေးပါသည်။
+၇ ရက်ထက်ကြာသော local backup ဟောင်းများကို script က အလိုအလျောက် ဖျက်ပေးပါသည်။
+
+### အဆင့် ၄ (အကြံပြုချက်) — Cloud သို့ Off-site Backup ချိတ်ဆက်ခြင်း
+
+VPS disk/hardware တစ်ခုလုံး ပျက်စီးသွားပါက local `/var/backups` ပါ ဆုံးရှုံးနိုင်ပါသည်။ `sync.db` ဖိုင်အရွယ်အစားမှာ သေးငယ်သဖြင့် (KB မှ MB အနည်းငယ်) Google Drive သို့မဟုတ် Cloudflare R2 စသည့် အခမဲ့ cloud storage များသို့ `rclone` ဖြင့် တွဲသိမ်းထားခြင်းက အလုံခြုံဆုံးဖြစ်ပါသည်။
+
+၁။ `rclone` ထည့်သွင်းပါ:
+```bash
+sudo apt update && sudo apt install -y rclone
+```
+
+၂။ မိမိ cloud storage နှင့် ချိတ်ဆက်ပါ:
+```bash
+rclone config
+```
+*(ဥပမာ: Google Drive အတွက် နာမည် `gdrive` ဟု ပေး၍ ချိတ်ပါ)*
+
+၃။ Config ဖိုင် `/opt/tipitaka/.backup_env` တွင် off-site destination သတ်မှတ်ပါ:
+```bash
+cat << 'EOF' | sudo tee /opt/tipitaka/.backup_env
+TIPITAKA_OFFSITE_DEST="gdrive:tipitaka_backups"
+TIPITAKA_OFFSITE_RETENTION_DAYS=30
+EOF
+sudo chmod 600 /opt/tipitaka/.backup_env
+```
+
+၄။ စမ်းသပ်ကြည့်ပါ:
+```bash
+sudo /opt/tipitaka/backup_db.sh
+```
+`offsite sync OK: gdrive:tipitaka_backups` ဟု ပေါ်လာပါက နေ့စဉ် cron run တိုင်း cloud ပေါ်သို့ အလိုအလျောက် ရောက်ရှိသွားမည် ဖြစ်ပါသည်။ (Cloud ပေါ်တွင် ရက် ၃၀ ထက် ကြာသော backup များကိုလည်း script က auto clean လုပ်ပေးပါသည်)။
 
 ### ပြန်လည်ရယူရန် (Restore)
 ```bash
@@ -265,4 +295,4 @@ sudo systemctl stop tipitaka
 sudo sqlite3 /opt/tipitaka/sync.db ".restore '/var/backups/tipitaka/sync_YYYYMMDD_HHMMSS.db'"
 sudo systemctl start tipitaka
 ```
-*(ရက်စွဲကို `ls /var/backups/tipitaka/` ဖြင့် ကြည့်ပါ)*
+*(ရက်စွဲကို `ls /var/backups/tipitaka/` ဖြင့် ကြည့်ပါ။ အကယ်၍ VPS အသစ်တင်ရပါက `rclone copy gdrive:tipitaka_backups/<ဖိုင်အမည်> /var/backups/tipitaka/` ဖြင့် ပြန်ဆွဲပြီး restore လုပ်နိုင်ပါသည်)*
