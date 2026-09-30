@@ -228,3 +228,41 @@ sudo certbot --nginx -d tipi.your-domain.com
 - **အပို setup မလို:** `requirements.txt` တွင် `python-docx` ပါဝင်ပြီးဖြစ်၍ `setup_vps.sh` (သို့မဟုတ် `pip install -r requirements.txt`) ဖြင့် အလိုအလျောက် ပါဝင်ပြီးသား ဖြစ်ပါသည်။ System library (apt package) အပို လုံးဝ မလိုပါ။
 - **ကန့်သတ်ချက်များ (server ကာကွယ်မှု):** တစ်ခါထုတ် စာမျက်နှာ ၁,၀၀၀ အထိ၊ IP တစ်ခုလျှင် တစ်နာရီ ၁၀ ခါ။
 - **အချိန်:** စာမျက်နှာ ၅၀၀ ပါ စာအုပ်ကြီးတစ်အုပ် ထုတ်ရန် ~၁၅ စက္ကန့်ခန့် ကြာနိုင်ပါသည် — gunicorn timeout (60s) အတွင်း အဆင်ပြေပါသည်။
+
+---
+
+## 💾 အပိုင်း (၆) - User Data Backup (sync.db) — မဖြစ်မနေ လုပ်ထားရန်
+
+User တွေရဲ့ ကိုယ်ပိုင်ဒေတာ (**bookmarks, မှတ်တမ်း/history, မှတ်ချက်များ, sync စက်ပစ္စည်းများ**) အားလုံး `/opt/tipitaka/sync.db` ထဲမှာ သိမ်းထားပါသည်။ စာအုပ် DB ကြီး ၂ ခု (`tipitaka_pali.db`, `tipitaka_mm.db`) က Google Drive ကနေ ပြန် download လို့ရပေမယ့် `sync.db` ပျက်သွားရင် **ပြန်မရနိုင်ပါ** — ဒါကြောင့် ပုံမှန် backup လုပ်ထားဖို့ အရေးကြီးပါသည်။
+
+Repo ထဲမှာ `backup_db.sh` script အသင့် ပါဝင်ပြီးသား ဖြစ်ပါသည် (app run နေစဉ်မှာပါ safe ဖြစ်သော `sqlite3 .backup` ကို သုံးထားသည်)။
+
+### အဆင့် ၁ — sqlite3 CLI သွင်းပါ
+```bash
+sudo apt update && sudo apt install -y sqlite3
+```
+
+### အဆင့် ၂ — တစ်ခါ စမ်းသပ်ကြည့်ပါ
+```bash
+sudo /opt/tipitaka/backup_db.sh
+ls -lh /var/backups/tipitaka/
+```
+`sync_YYYYMMDD_HHMMSS.db` ဖိုင် ပေါ်လာရင် အောင်မြင်ပါသည်။
+
+### အဆင့် ၃ — နေ့စဉ် auto backup (cron)
+```bash
+sudo crontab -e
+```
+အောက်ပါစာကြောင်းကို ထည့်ပါ (မနက် ၂ နာရီတိုင်း):
+```bash
+0 2 * * * /opt/tipitaka/backup_db.sh
+```
+၇ ရက်ထက်ကြာသော backup ဟောင်းများကို script က အလိုအလျောက် ဖျက်ပေးပါသည်။
+
+### ပြန်လည်ရယူရန် (Restore)
+```bash
+sudo systemctl stop tipitaka
+sudo sqlite3 /opt/tipitaka/sync.db ".restore '/var/backups/tipitaka/sync_YYYYMMDD_HHMMSS.db'"
+sudo systemctl start tipitaka
+```
+*(ရက်စွဲကို `ls /var/backups/tipitaka/` ဖြင့် ကြည့်ပါ)*
