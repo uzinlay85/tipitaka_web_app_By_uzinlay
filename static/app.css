@@ -4535,6 +4535,10 @@ body.ios-fullscreen-fallback .reader-container {
     cursor: pointer;
     border-bottom: 1px dotted var(--text-muted);
     padding-bottom: 2px;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 /* Jump panel: F1 — position:absolute, top set by JS in openJumpSheet().
    Never move this element in the DOM (insertBefore reparenting hangs

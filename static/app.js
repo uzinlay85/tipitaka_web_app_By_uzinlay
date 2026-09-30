@@ -1389,6 +1389,8 @@ function openJumpSheet(triggerEl) {
     _trackAction("jump:open-start");
     _trackAction("openJumpSheet");
     if (!el.jumpSheet) { console.error("[jump] jumpSheet element is NULL!"); return; }
+    // Clear any text selection (mobile taps can select text, which hangs WebView).
+    try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
     // Toggle: if already open anchored at this trigger, close it.
     if (!el.jumpSheet.hidden && _jumpAnchor === triggerEl) {
         closeJumpSheet();
@@ -1561,7 +1563,10 @@ function _jumpGo(page) {
 
 function setupJumpSheet() {
     if (el.btnOpenJumpSheet) el.btnOpenJumpSheet.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        // Clear any accidental text selection (mobile tap can select text).
+        try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
         openJumpSheet(el.btnOpenJumpSheet);
     });
     // Page-divider badges (at every page boundary in the feed) also open the panel.
