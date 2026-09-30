@@ -66,7 +66,14 @@ check("badges are tappable again", ".divider-badge" in CSS and
       "pointer-events: auto" in CSS)
 check("badge row cleaned on prune", 'getElementById("jumpBadgeRow")' in JS)
 
+# --- v7.43: badge-row lifecycle hardening ---
+check("badge row survives unrelated prunes", "toRemove.includes(anchor)" in JS)
+check("footer pill dismisses badge row", 'getElementById("jumpBadgeRow")' in JS and
+      "function _jumpInlineToggle" in JS)
+check("dictionary ignores badge taps", 'closest(".divider-badge")' in JS and
+      "badge taps open the inline jump row" in JS)
+
 # --- versions ---
-check("cache-busting version is current", 'app.js?v=7.42' in HTML and 'app.css?v=7.40' in HTML)
+check("cache-busting version is current", 'app.js?v=7.43' in HTML and 'app.css?v=7.40' in HTML)
 
 print("ALL PASS")

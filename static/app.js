@@ -1386,6 +1386,9 @@ function _jumpInlineToggle() {
     // Clear any text selection (mobile taps can select text).
     try { if (window.getSelection) window.getSelection().removeAllRanges(); } catch (_) {}
     if (el.jumpInlineRow.hidden) {
+        // v7.43: only one jump UI at a time — dismiss any open badge row.
+        const badgeRow = document.getElementById("jumpBadgeRow");
+        if (badgeRow) badgeRow.remove();
         _jumpRange();
         el.jumpInlineInput.value = "";
         el.jumpInlineInput.placeholder = `${toMyanmarNum(_jumpFirst)}\u2013${toMyanmarNum(_jumpLast)}`;
@@ -1854,9 +1857,6 @@ function getLoadedFeedPages() {
 const FEED_WINDOW_RADIUS = 5;
 function pruneFeedDOM() {
     if (state.scrollMode !== "feed" || !el.paliContent || !el.readerContainer) return;
-    // v7.42: drop any badge jump row — its divider may be pruned below.
-    const badgeRow = document.getElementById("jumpBadgeRow");
-    if (badgeRow) badgeRow.remove();
     const isMM = (state.readerMode === "mm");
     const prefix = isMM ? "mm-page-" : "pali-page-";
     const cur = isMM ? state.mmPage : state.paliPage;
@@ -1888,6 +1888,14 @@ function pruneFeedDOM() {
     // Single batch removal: one layout invalidation instead of N forced ones.
     // Scroll position may shift slightly; the feed re-stabilizes on next scroll.
     // This is acceptable vs. the hang caused by offsetHeight reads.
+    // v7.43: drop the badge jump row only when its own divider is pruned —
+    // an unconditional removal here killed open rows on unrelated scroll prunes
+    // while the user was about to type.
+    const badgeRow = document.getElementById("jumpBadgeRow");
+    if (badgeRow) {
+        const anchor = badgeRow.previousElementSibling;
+        if (anchor && toRemove.includes(anchor)) badgeRow.remove();
+    }
     for (const elm of toRemove) elm.remove();
 }
 
@@ -5942,6 +5950,10 @@ function setupEventListeners() {
         // Don't hijack taps on annotation highlights (they open the edit popup)
         const t = e && e.target;
         if (t && t.closest && t.closest("span.ann-sel")) return;
+        // v7.43: badge taps open the inline jump row — never the dictionary.
+        // (This handler sits on #paliContent, deeper than the badge toggle on
+        // #readerContainer, so it runs first in the bubble phase.)
+        if (t && t.closest && t.closest(".divider-badge")) return;
         const sel = window.getSelection();
         // A non-collapsed selection means the user is selecting text for
         // annotation — the 🖍️/📝 toolbar owns that gesture. Don't also fire a
