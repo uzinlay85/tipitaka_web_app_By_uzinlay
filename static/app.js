@@ -3156,6 +3156,13 @@ function setAppView(view) {
             // On mobile, ensure TOC tab is active inside the drawer
             switchToSidebarTab("tab-toc");
         }
+
+        // Sync dictionary sidebar with persisted open state. Without this,
+        // a persisted isDictOpen=true (dictionary open last session) leaves
+        // the sidebar collapsed from the home view while lookupDictionary()
+        // skips toggleDictSidebar() — word taps would load definitions into
+        // an invisible sidebar.
+        if (el.dictSidebar) el.dictSidebar.classList.toggle("collapsed", !state.isDictOpen);
     }
 
     // Update bottom navigation bar active states
