@@ -84,6 +84,7 @@
 - 2026-09-30 — v7.45 (`3c39ccb`) pushed ✅: volume labels extended to Pali atthakathā/ṭīkā (108 keys).
 - 2026-09-30 — Other agent code-review paste evaluated vs repo: 3/4 points already handled/N/A (no hardcoded secrets; HTTPS already; error codes already); DB-backup point valid → implemented as `backup_db.sh` + guide section 6, pushed as `0b2b432` ✅.
 - 2026-09-30 ~19:38 +0630 — User deployed (`git pull` 3c39ccb..0b2b432 + `systemctl restart tipitaka`) ✅; first manual backup OK. Muse live-verified v7.45 (asset byte-identical 6/6, APIs 200). Stale Cloudflare edge cache on bare `/static/app.js` noted — not a VPS issue, no action.
+- 2026-09-30 — Other Agent: `collab/backup-offsite` implemented & verified. `backup_db.sh` updated with optional rclone off-site sync ($TIPITAKA_OFFSITE_DEST, .backup_env, 30-day retention cleanup, defensive checks). `VPS_DEPLOYMENT_GUIDE.md` section 6 updated with step 4 off-site setup. Local tests pass (82/82). Branch pushed and ready for Muse integration.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -109,5 +110,5 @@
 | Task | Claimed by | Branch | Status |
 |---|---|---|---|
 | (ဥပမာ) backup off-site copy | — | — | open |
-| Off-site backup automation (rclone hook + guide) | Other Agent | `collab/backup-offsite` | 🟡 in progress (assigned 2026-09-30) |
+| Off-site backup automation (rclone hook + guide) | Other Agent | `collab/backup-offsite` | ✅ merged to main (2026-09-30) |
 | | | | |
