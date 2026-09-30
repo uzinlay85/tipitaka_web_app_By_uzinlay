@@ -7,10 +7,10 @@
 - Selector, ID, function နာမည် မှန်းမပြောရ — repo ထဲက အမှန်ကို ကိုးကားရ။
 - သဘောမတူရင် အထောက်အထားနဲ့ ငြင်းရ။
 
-**Role ခွဲဝေမှု (သဘောတူညီချက်):**
-- ဟိုဘက် Agent: second pair of eyes — Muse ရဲ့ diagnosis ကို challenge လုပ်၊ alternative theory ပေး၊ strategy အကြံပြု။
-- Muse (repo + live site + test access ရှိ): implementer + verifier — code ပြင်၊ test run၊ push၊ live verify။ Architecture ဆုံးဖြတ်ချက်တိုင်းကို repo အထောက်အထားနဲ့ အတည်ပြု။
-- ဆုံးဖြတ်ချက် အပြီးသတ်: user။
+**Role ခွဲဝေမှု (သဘောတူညီချက်, 2026-09-30 updated — နှစ်ယောက်လုံး edit နိုင်သွားပြီ):**
+- ဟိုဘက် Agent (contributor): `collab/<topic>` branch ပေါ်မှာပဲ ပြင် → commit → push (branch only)။ second pair of eyes အလုပ်လည်း ဆက်လုပ်တယ်။
+- Muse (integrator + verifier): branch review → test run → main ထဲ merge → version bump → push → live verify။ **`main` ကို Muse ပဲ push တယ်။**
+- ဆုံးဖြတ်ချက် အပြီးသတ်: user (task ရွေး, PAT ပေး, deploy လုပ်)။
 
 ---
 
@@ -85,3 +85,27 @@
 - 2026-09-30 — Other agent code-review paste evaluated vs repo: 3/4 points already handled/N/A (no hardcoded secrets; HTTPS already; error codes already); DB-backup point valid → implemented as `backup_db.sh` + guide section 6, pushed as `0b2b432` ✅.
 - 2026-09-30 ~19:38 +0630 — User deployed (`git pull` 3c39ccb..0b2b432 + `systemctl restart tipitaka`) ✅; first manual backup OK. Muse live-verified v7.45 (asset byte-identical 6/6, APIs 200). Stale Cloudflare edge cache on bare `/static/app.js` noted — not a VPS issue, no action.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
+
+---
+
+## 8. Two-editor workflow (2026-09-30 သဘောတူညီချက်)
+
+နှစ်ယောက်လုံး edit နိုင်လို့ conflict/history ပျက်မှု ကာကွယ်ရန်:
+
+**စည်းမျဉ်း:**
+1. `main` ကို **Muse ပဲ** push တယ် (PAT flow + live verification တစ်ခုတည်းမှာ ရှိစေဖို့)
+2. ဟိုဘက် Agent က `collab/<topic>` branch သီးသန့်ပေါ်မှာပဲ ပြင်တယ် (ဥပမာ `collab/backup-offsite`)
+3. မပြင်ခင် အောက်က task table မှာ claim လုပ်ရမယ် — ဖိုင်တစ်ခုကို တစ်ချိန်တည်း တစ်ယောက်ပဲ
+4. `app.js?v=` version bump ကို branch ထဲမှာ **မလုပ်ရ** — merge တဲ့အခါ Muse က လုပ်တယ်
+5. Merge မလုပ်ခင် Muse က diff review + test run — မအောင်ရင် branch ကို ပြန်ပို့တယ်
+6. သူ့ branch push အတွက် user က တစ်ခါသုံး PAT paste ပေးရမယ် (မသိမ်းရ)
+
+**အဆင့်ဆင့်:**
+1. Task ရွေး → 2. သူ: branch ဖွင့် → ပြင် → push → "ready" ပြော → 3. User ဒီဘက် "collab/xxx ready" ပြော → 4. Muse: fetch → review → test → merge → version bump → push main → 5. User deploy → Muse live verify → 6. Briefing log ဖြည့်, branch ဖျက်
+
+**Task claim table (လက်ရှိ):**
+
+| Task | Claimed by | Branch | Status |
+|---|---|---|---|
+| (ဥပမာ) backup off-site copy | — | — | open |
+| | | | |
