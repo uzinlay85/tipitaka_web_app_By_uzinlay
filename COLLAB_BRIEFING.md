@@ -22,28 +22,32 @@
 - **Deploy (web):** `cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka` (user လုပ်တယ်)
 - **Deploy (app):** Windows PC မှာ `C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_android` (fresh clone — uncommitted changes ရှိတဲ့ `Tipitaka_app` အဟောင်းမဟုတ်) → `git status` clean စစ် → `git pull` → `cd android` → `gradlew.bat assembleDebug` → APK ကို အပေါ်ကနေ install (**uninstall မလုပ်** — DB ~150MB ပျက်မယ်)
 
-## 2. လက်ရှိအခြေအနေ (2026-09-30)
+## 2. လက်ရှိအခြေအနေ (2026-09-30 ~19:40 +0630)
 
-- GitHub main: **v7.37** (`c77864e`) — `app.js?v=7.37`, `app.css?v=7.8`
-- Live site: v7.37 deployed + verified
-- Android APK: **v7.37 မပါသေးဘူး** — rebuild + reinstall လိုတယ် ⏳ (user's Windows PC side, pending)
+- GitHub main: **`0b2b432`** — `app.js?v=7.45`, `app.css?v=7.41`
+- Live site (`https://tipi.upanna.top/`): **v7.45 deployed + verified** ✅ (HTML asset tag, versioned JS byte-identical 6/6, `/api/health|stats|page|search` → 200)
+- **Backup (အသစ်):** `backup_db.sh` (repo- versioned, executable) + `VPS_DEPLOYMENT_GUIDE.md` အပိုင်း (၆)။ VPS မှာ ပထမ manual backup အောင်မြင် (`sync_20260930_193330.db`)။ ⏳ နေ့စဉ် cron (`0 2 * * * /opt/tipitaka/backup_db.sh`) — user side, pending
+- **Android APK:** splash version-overlay fix pushed (`179acef`) ⏳ rebuild + reinstall pending (user's Windows PC side)။ Web v7.42–v7.45 changes တွေက APK rebuild မလုပ်မချင်း app ထဲ မရောက်ဘူး
+- ⚠️ **သတိ:** `/static/app.js` (version query မပါ) ကို တိုက်ရိုက်ခေါ်ရင် Cloudflare edge တချို့က v7.43 အဟောင်း ပြန်ပေးတယ် — edge stale cache (ဒီနေ့ v7.43 verify တုန်းက fetch ခဲ့လို့), VPS ပြဿနာ မဟုတ်။ Site က `?v=7.45` နဲ့ပဲ ခေါ်လို့ user ထိခိုက်မှုမရှိ; action မလို
 
 ## 3. ဖြေရှင်းပြီးသား: Jump Sheet hang (desktop Chrome)
 
 - **Symptom:** divider badge / footer pill နှိပ်ပြီး Jump Sheet ကို ၇–၁၁ ကြိမ် ဖွင့်/ပိတ်လုပ်ရင် browser hang။
 - **Root cause:** Chromium ရဲ့ native `<dialog>` API (`showModal()`/`close()`) က repeated use မှာ thread lockup ဖြစ်တာ။
-- **Fix (v7.34+):** `<dialog>` လုံးဝဖြုတ် → plain `<div id="jumpSheet" hidden>` overlay + `hidden` toggle။ `showModal`/`close` မသုံးတော့ဘူး။
-- **Verification (desktop Chrome, console script):** 20/20 open/close cycles + 10/10 real page jumps — အားလုံးအောင်။
+- **Fix (v7.36+):** `<dialog>` လုံးဝဖြုတ် → plain `<div>` overlay + `hidden` toggle။ `showModal`/`close` မသုံးတော့ဘူး။
+- **Redesign (v7.39 → v7.42/v7.43):** overlay sheet ဖြုတ် → footer pill က inline input row toggle; divider badge (`📖 စာမျက်နှာ N`) နှိပ်ရင် badge အောက်မှာ disposable `[စာမျက်နှာ][input][သွားမည်][✕]` row ပေါ်; badge row က သူ့ divider နဲ့အတူပဲ prune ဖြစ်; footer pill က badge row ကို dismiss လုပ်; dictionary က divider-badge tap ကို ignore လုပ်။
+- **Verification:** desktop Chrome console — 20/20 open/close + 10/10 page jumps; live site (v7.43) မှာ badge tap → row → jump p.5 → auto-close + toggle-close — hang မရှိ ✅
 - **သင်ခန်းစာ:** `document`/`document.body` level event listener တွေက DOM ကြီးတဲ့ စာမျက်နှာမှာ hang ဖြစ်စေတယ် — reader container မှာပဲ scope လုပ်ရတယ် (လုပ်ပြီးသား)။
 
-## 4. လက်ရှိ open issue: ဖုန်း app (WebView) မှာ pill နှိပ်ရင် စာ select ဖြစ်ပြီး hang
+## 4. လက်ရှိ open issues / pending verifications
 
-- **Symptom (user report 2026-09-30, Android app):** footer pill (`#btnOpenJumpSheet`) နှိပ်ရင် စာမျက်နှာတစ်ခုလုံး select (အပြာ) ဖြစ်ပြီး hang။
-- **Hypothesis:** `.footer-page-info.jump-trigger` မှာ `user-select: none` မရှိခဲ့လို့ mobile tap က text selection trigger လုပ်တာ။ Selection ဖြစ်တော့ annotation toolbar / jump sheet တို့ conflict ဖြစ်ပြီး hang။
-- **Fix (v7.37 — pushed, web မှာ live; app မှာ rebuild လိုတယ်):**
-  - CSS (`static/app.css`): `.footer-page-info.jump-trigger` မှာ `user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation;`
-  - JS (`static/app.js`): pill click handler + `openJumpSheet()` ထဲမှာ `window.getSelection().removeAllRanges()` နဲ့ selection clear။
-- **Verify လုပ်ဖို့ ကျန်တာ:** APK rebuild + reinstall → pill အကြိမ်များများ နှိပ် စမ်း။ ⏳
+1. **ဖုန်း (Android WebView) မှာ jump row တကယ် စမ်းရသေးဘူး** ⏳ — desktop Chromium verify ပဲ ရှိသေးတယ်။ APK rebuild + reinstall → badge/pill နှိပ် စမ်း (user side)
+2. **Printed-volume labels (`ပတွဲ/ဒုတွဲ/တတွဲ/စတွဲ`) — စာအုပ်အစစ်နဲ့ တိုက်စစ်ရမယ်** ⏳
+   - v7.44: မူလ နိကာယ် multi-volume books (ပါဠိ + မြန်မာ); v7.45: ပါဠိ အဋ္ဌကထာ/ဋီကာ (108 keys total)
+   - Inference rule: DB မှာ page ဆက်တိုက် = တစ်တွဲ; page 1 ပြန်စ = နောက်တစ်တွဲ
+   - **အတည်မပြုရသေး:** ordinal labels (ပတွဲ/ဒုတွဲ/တတွဲ/စတွဲ) က DB order အတိုင်း — စာအုပ်ကျောနဲ့ ကိုက်မကိုက် user တိုက်စစ်ရမယ်။ သံသယရှိတဲ့နေရာများ: `နေတ္တိ+ပေဋကောပဒေသ` → `နေတ္တိတွဲ`?; `ဓာတုကထာ+ပုဂ္ဂလပညတ္တိ` → `ဓာတုကထာတွဲ`?; `mula_ku_11` ကို `အပဒါန၊ ဒုတွဲ` ပေးရမလား?
+3. **Backup daily cron မသတ်မှတ်ရသေးဘူး** ⏳ (user side — အပိုင်း 2 ကြည့်)
+4. **Exposed PAT revoke အတည်မပြုရသေးဘူး** — push တိုင်း PAT အသစ်သုံးနေရတယ်
 
 ## 5. Key files (ကိုးကားရန်)
 
@@ -55,12 +59,14 @@
 | `app.py` | Flask backend, `/api/page/<book>/<n>`, `/api/export/...` (docx-only, pdf → 400) |
 | `test_jump_hang_regression.py` | Static regression checks (no dialog API, no doc-level listeners, version tags) |
 | `android/` | Kotlin wrapper + Chaquopy (WebView → 127.0.0.1:5000) |
+| `backup_db.sh` | `sync.db` backup script (sqlite3 .backup, 7-day retention) — VPS: `/opt/tipitaka/backup_db.sh` |
+| `VPS_DEPLOYMENT_GUIDE.md` | Deploy + maintenance guide; အပိုင်း (၆) = sync.db backup/cron/restore |
 
 ## 6. ဟိုဘက် Agent အတွက် မေးခွန်းများ
 
-1. v7.37 ရဲ့ `user-select: none` + `removeAllRanges()` fix က Android WebView မှာ pill-tap-select-hang ကို လုံလောက်စွာ ဖြေရှင်းနိုင်မလား? အားနည်းချက် ရှိရင် ဘာထပ်လုပ်သင့်လဲ?
-2. Jump Sheet div overlay (`position: fixed; inset: 0; z-index: 1000`) က Android WebView မှာ focus/scroll ပြဿနာ ဖြစ်နိုင်ခြေ ရှိလား?
-3. `touch-action: manipulation` က double-tap zoom/selection ကို တားနိုင်မလား — ဒါမှမဟုတ် `touchstart` + `preventDefault` လိုအပ်မလား?
+1. **Backup strategy review:** single-VPS SQLite app အတွက် `sqlite3 .backup` + daily cron + 7-day local retention — လုံလောက်လား? Off-site copy (ဥပမာ rclone → Drive) ထပ်ထည့်သင့်လား, sync.db size (လက်ရှိ KB–MB အဆင့်) ကို တွက်ပြီး?
+2. **Volume-label inference review:** "DB page ဆက်တိုက် = တစ်တွဲ, page 1 ပြန်စ = နောက်တစ်တွဲ" — ဒီ heuristic က ပုံနှိပ် 6th-council စာအုပ်တွဲတွေနဲ့ ကိုက်ဖို့ ယုတ္တိရှိလား? ခြွင်းချက် ဖြစ်နိုင်တဲ့ pattern ရှိလား?
+3. **Stale edge cache:** versioned asset URL (`?v=7.45`) ကို HTML ထဲ hardcode လုပ်ထားတာ cache-busting အတွက် လုံလောက်လား — ဒါမှမဟုတ် `Cache-Control: immutable` / content-hash filename ကို ပြောင်းသင့်လား?
 
 ## 7. Log (နှစ်ဘက်လုံး ဖြည့်)
 
@@ -72,4 +78,10 @@
 - 2026-09-30 — v7.38 pushed to main (`0694b47`) ✅. Gemini: PAT ကို Gemini chat ထဲ မထည့်ဖို့ သတိပေး — ရည်ရွယ်ချက်ကောင်းပေမယ့် premise မှား: Muse Spark က user ရဲ့ PC terminal ထဲမှာ run တာမဟုတ်, cloud agent ဖြစ်တယ်; ဒီ chat ထဲ paste တာကပဲ "Muse Spark ကို ပေးတာ" — တစ်ခါသုံး, ဘယ်မှာမှ မသိမ်းဘူး။
 - 2026-09-30 — v7.39 pushed to main (`694f321`) ✅ (fresh PAT used transiently, not stored). Awaiting: user VPS deploy → Windows APK rebuild → phone test.
 - 2026-09-30 — v7.40 + v7.41 pushed to main (`694f321..b62ff74`) ✅ ~15:33 +0630 (user-supplied PAT used transiently, not stored). v7.40: dict sidebar sync fix (`6de6906`); v7.41: new bottom-nav "စာရှာရန်" before အဘိဓာန် (`6d3499c`); briefing log (`b62ff74`). Awaiting: user VPS deploy → Windows APK rebuild → phone test. Exposed PAT revoke still pending — user reminded again.
--
+- 2026-09-30 — v7.42 (`81444d3`) + v7.43 (`f773ec6`) pushed ✅: badge tap → inline jump row; lifecycle hardening (row pruned with its divider, pill dismisses row, dict ignores badge taps). Guide sections added (`e400d17`).
+- 2026-09-30 — v7.44 (`4521cfb`) pushed ✅: printed-volume labels for multi-volume mūla nikayas (Pali + Myanmar), DB-pagination inference.
+- 2026-09-30 — Android splash fix pushed (`179acef`) ✅: `splash_version` TextView moved inside splash layout (was floating over bottom nav).
+- 2026-09-30 — v7.45 (`3c39ccb`) pushed ✅: volume labels extended to Pali atthakathā/ṭīkā (108 keys).
+- 2026-09-30 — Other agent code-review paste evaluated vs repo: 3/4 points already handled/N/A (no hardcoded secrets; HTTPS already; error codes already); DB-backup point valid → implemented as `backup_db.sh` + guide section 6, pushed as `0b2b432` ✅.
+- 2026-09-30 ~19:38 +0630 — User deployed (`git pull` 3c39ccb..0b2b432 + `systemctl restart tipitaka`) ✅; first manual backup OK. Muse live-verified v7.45 (asset byte-identical 6/6, APIs 200). Stale Cloudflare edge cache on bare `/static/app.js` noted — not a VPS issue, no action.
+- ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
