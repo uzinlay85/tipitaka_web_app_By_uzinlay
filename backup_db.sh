@@ -7,6 +7,9 @@ APP_DIR="${TIPITAKA_APP_DIR:-/opt/tipitaka}"
 BACKUP_DIR="${TIPITAKA_BACKUP_DIR:-/var/backups/tipitaka}"
 DB_FILE="$APP_DIR/sync.db"
 
+# DB မရှိသေးရင် (fresh VPS / sync မသုံးရသေး) တိတ်တိတ်ဆိတ်ဆိတ် ထွက်
+[ -f "$DB_FILE" ] || exit 0
+
 mkdir -p "$BACKUP_DIR"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="$BACKUP_DIR/sync_${STAMP}.db"

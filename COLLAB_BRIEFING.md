@@ -98,7 +98,8 @@
 3. မပြင်ခင် အောက်က task table မှာ claim လုပ်ရမယ် — ဖိုင်တစ်ခုကို တစ်ချိန်တည်း တစ်ယောက်ပဲ
 4. `app.js?v=` version bump ကို branch ထဲမှာ **မလုပ်ရ** — merge တဲ့အခါ Muse က လုပ်တယ်
 5. Merge မလုပ်ခင် Muse က diff review + test run — မအောင်ရင် branch ကို ပြန်ပို့တယ်
-6. သူ့ branch push အတွက် user က တစ်ခါသုံး PAT paste ပေးရမယ် (မသိမ်းရ)
+6. သူ့ branch push မလုပ်ခင် local test တွေ (`test_jump_hang_regression.py`, `test_export.py`, `test_audit_fixes.py`) pass ရမယ် (other agent agreed 2026-09-30)
+7. သူ့ branch push အတွက် user က တစ်ခါသုံး PAT paste ပေးရမယ် (မသိမ်းရ)
 
 **အဆင့်ဆင့်:**
 1. Task ရွေး → 2. သူ: branch ဖွင့် → ပြင် → push → "ready" ပြော → 3. User ဒီဘက် "collab/xxx ready" ပြော → 4. Muse: fetch → review → test → merge → version bump → push main → 5. User deploy → Muse live verify → 6. Briefing log ဖြည့်, branch ဖျက်
