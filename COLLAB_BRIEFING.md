@@ -111,4 +111,5 @@
 |---|---|---|---|
 | (ဥပမာ) backup off-site copy | — | — | open |
 | Off-site backup automation (rclone hook + guide) | Other Agent | `collab/backup-offsite` | ✅ merged to main (2026-09-30) |
+| Text justification: safe `<wbr>` syllable breaks (+ inter-character eval), phone + desktop | Other Agent | `collab/text-justification` | 🟡 in progress (assigned 2026-10-01) |
 | | | | |
