@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.42">
+    <link rel="stylesheet" href="/static/app.css?v=7.43">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -633,11 +633,17 @@
                 <button class="modal-tab-btn active" data-mode="word">
                     <span>ပါဠိစကားလုံး (Word Index - ၉ သိန်းကျော်)</span>
                 </button>
+                <button class="modal-tab-btn" data-mode="phrase">
+                    <span>ပါဠိ စာပိုဒ်/စာကြောင်း (Phrase)</span>
+                </button>
                 <button class="modal-tab-btn" data-mode="sutta">
                     <span>ပါဠိ သုတ္တန်များ (Suttas - ၆ ထောင်ကျော်)</span>
                 </button>
                 <button class="modal-tab-btn" data-mode="book">
                     <span>ပါဠိ ကျမ်းစာအုပ်များ</span>
+                </button>
+                <button class="modal-tab-btn" data-mode="mm_phrase">
+                    <span>မြန်မာပြန် စာပိုဒ်/စာကြောင်း</span>
                 </button>
                 <button class="modal-tab-btn" data-mode="mm_book">
                     <span>မြန်မာပြန် ကျမ်းစာအုပ်များ</span>
@@ -651,7 +657,7 @@
 
             <div class="search-results-list" id="searchResultsList">
                 <div class="search-hint">
-                    <p>💡 ပါဠိစာလုံး (ဥပမာ- <strong>ဗုဒ္ဓ</strong>၊ <strong>နိဗ္ဗာန</strong>၊ <strong>သတိပဋ္ဌာန</strong>) သို့မဟုတ် မြန်မာပြန်ခေါင်းစဉ်များ ရိုက်ထည့်၍ ရှာဖွေနိုင်ပါသည်။</p>
+                    <p>💡 ပါဠိစာလုံး (ဥပမာ- <strong>ဗုဒ္ဓ</strong>၊ <strong>နိဗ္ဗာန</strong>)၊ စာကြောင်းအတွဲလိုက် (ဥပမာ- <strong>အာသဝါ တေ ပဒါလိတာ</strong>) သို့မဟုတ် မြန်မာပြန်ခေါင်းစဉ်များ ရိုက်ထည့်၍ ရှာဖွေနိုင်ပါသည်။</p>
                 </div>
             </div>
         </div>
@@ -1167,6 +1173,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.47"></script>
+    <script src="/static/app.js?v=7.48"></script>
 </body>
 </html>

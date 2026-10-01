@@ -4293,6 +4293,33 @@ function showQuickPopover(word, defHtml, x, y) {
 
 let searchDebounceTimer = null;
 
+function highlightSnippet(snippet, query) {
+    if (!snippet) return "";
+    let safe = escapeHtml(snippet);
+    if (!query) return safe;
+    const cleanQ = query.trim();
+    if (!cleanQ) return safe;
+    const words = cleanQ.split(/\s+/).filter(Boolean);
+    if (!words.length) return safe;
+
+    // Try exact phrase match first
+    const safePhrase = escapeHtml(cleanQ);
+    const regPhrase = new RegExp(`(${safePhrase.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")})`, "gi");
+    if (regPhrase.test(safe)) {
+        return safe.replace(regPhrase, `<mark class="search-highlight">$1</mark>`);
+    }
+
+    // Otherwise highlight individual words (longer words first to avoid subword overlap)
+    const sortedWords = [...words].sort((a, b) => b.length - a.length);
+    sortedWords.forEach(w => {
+        const sw = escapeHtml(w);
+        if (sw.length < 2) return;
+        const rw = new RegExp(`(${sw.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")})`, "gi");
+        safe = safe.replace(rw, `<mark class="search-highlight">$1</mark>`);
+    });
+    return safe;
+}
+
 async function performSearch() {
     const q = el.globalSearchInput.value.trim();
     if (!q) {
@@ -4318,22 +4345,37 @@ async function performSearch() {
         HistoryManager.recordSearch(q, state.searchMode, data.total);
 
         el.searchSummary.style.display = "block";
-        if (state.searchMode === "word") {
-            el.searchSummary.innerHTML = `တွေ့ရှိမှု စုစုပေါင်း <strong>${data.total_occurrences.toLocaleString()}</strong> ကြိမ် (စာမျက်နှာ <strong>${data.total.toLocaleString()}</strong> မျက်နှာ)`;
+        if (state.searchMode === "word" && data.type !== "phrase") {
+            const occ = data.total_occurrences || data.total || 0;
+            el.searchSummary.innerHTML = `တွေ့ရှိမှု စုစုပေါင်း <strong>${occ.toLocaleString()}</strong> ကြိမ် (စာမျက်နှာ <strong>${data.total.toLocaleString()}</strong> မျက်နှာ)`;
+        } else if (state.searchMode === "phrase" || data.type === "phrase" || state.searchMode === "mm_phrase" || data.type === "mm_phrase") {
+            el.searchSummary.innerHTML = `တွေ့ရှိသော စာမျက်နှာ စုစုပေါင်း <strong>${data.total.toLocaleString()}</strong> မျက်နှာ`;
         } else {
             el.searchSummary.innerHTML = `တွေ့ရှိမှု စုစုပေါင်း <strong>${data.total.toLocaleString()}</strong> ခု`;
         }
 
         let html = "";
         data.results.forEach(r => {
-            if (state.searchMode === "word") {
+            if (state.searchMode === "word" || state.searchMode === "phrase" || data.type === "phrase") {
+                const highlighted = highlightSnippet(r.snippet, q);
                 html += `
                     <div class="search-result-item" data-type="pali" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page}">
                         <div class="res-header">
                             <span class="res-book">${escapeHtml(r.book_name)}</span>
                             <span class="res-page">စာမျက်နှာ - ${r.page}</span>
                         </div>
-                        <div class="res-snippet">${escapeHtml(r.snippet)}</div>
+                        <div class="res-snippet">${highlighted}</div>
+                    </div>
+                `;
+            } else if (state.searchMode === "mm_phrase" || data.type === "mm_phrase") {
+                const highlighted = highlightSnippet(r.snippet, q);
+                html += `
+                    <div class="search-result-item" data-type="mm" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page}">
+                        <div class="res-header">
+                            <span class="res-book">${escapeHtml(r.book_name)}</span>
+                            <span class="res-page">စာမျက်နှာ - ${r.page}</span>
+                        </div>
+                        <div class="res-snippet">${highlighted}</div>
                     </div>
                 `;
             } else if (state.searchMode === "sutta") {

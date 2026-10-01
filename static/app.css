@@ -1637,6 +1637,12 @@ body.hide-notes .note {
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-surface);
     overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .modal-tab-btn {
@@ -1718,6 +1724,14 @@ body.hide-notes .note {
     font-size: 0.875rem;
     color: var(--text-secondary);
     line-height: 1.5;
+}
+
+.res-snippet mark.search-highlight {
+    background: rgba(245, 158, 11, 0.28);
+    color: var(--accent);
+    font-weight: 600;
+    border-radius: 3px;
+    padding: 1px 3px;
 }
 
 /* Quick Popover */

@@ -28,7 +28,11 @@ conn.execute("CREATE TABLE suttas (id INTEGER PRIMARY KEY, name TEXT)")
 conn.execute("CREATE TABLE dictionary (id INTEGER PRIMARY KEY)")
 conn.execute("CREATE TABLE wordlist (word TEXT PRIMARY KEY, rowids TEXT, count INT)")
 conn.execute("INSERT INTO wordlist VALUES ('test', '1,2', 2)")
+conn.execute("INSERT INTO wordlist VALUES ('သဗ္ဗေ', '1', 1)")
+conn.execute("INSERT INTO wordlist VALUES ('ဓမ္မာ', '1', 1)")
+conn.execute("INSERT INTO wordlist VALUES ('အနတ္တာ', '1', 1)")
 conn.execute("INSERT INTO books VALUES ('b1','Test Book',1,10,10)")
+conn.execute("INSERT INTO pages VALUES (1, 'b1', 1, '<p>သဗ္ဗေ ဓမ္မာ အနတ္တာ</p>', '1')")
 conn.commit()
 conn.close()
 appmod.DB_PALI_PATH = pali_tmp
@@ -169,6 +173,22 @@ check("push bad secret -> 401",
       client.post("/api/sync/push", json={"secret": "nope", "annotations": [], "history": []}).status_code == 401)
 check("pull bad secret -> 401",
       client.post("/api/sync/pull", json={"secret": "nope"}).status_code == 401)
+
+print("== phrase search ==")
+r_phrase = client.get("/api/search", query_string={"q": "သဗ္ဗေ ဓမ္မာ", "type": "phrase"})
+check("phrase search 200", r_phrase.status_code == 200)
+d_phrase = r_phrase.get_json()
+check("phrase search type is phrase", d_phrase.get("type") == "phrase")
+check("phrase search matches", d_phrase.get("total") == 1, f"got {d_phrase.get('total')}")
+check("phrase search has snippets", len(d_phrase.get("results", [])) == 1 and "snippet" in d_phrase["results"][0])
+
+r_auto = client.get("/api/search", query_string={"q": "သဗ္ဗေ ဓမ္မာ", "type": "word"})
+check("word multi-word auto-delegates to phrase", r_auto.status_code == 200 and r_auto.get_json().get("type") == "phrase")
+check("word multi-word returns total 1", r_auto.get_json().get("total") == 1)
+
+r_mm = client.get("/api/search", query_string={"q": "သစ္စာလေးပါး", "type": "mm_phrase"})
+check("mm phrase search 200 without mm db", r_mm.status_code == 200)
+check("mm phrase search returns 0 without mm db", r_mm.get_json().get("total") == 0)
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
