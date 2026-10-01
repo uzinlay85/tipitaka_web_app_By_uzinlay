@@ -86,6 +86,7 @@
 - 2026-09-30 ~19:38 +0630 — User deployed (`git pull` 3c39ccb..0b2b432 + `systemctl restart tipitaka`) ✅; first manual backup OK. Muse live-verified v7.45 (asset byte-identical 6/6, APIs 200). Stale Cloudflare edge cache on bare `/static/app.js` noted — not a VPS issue, no action.
 - 2026-09-30 — Other Agent: `collab/backup-offsite` implemented & verified. `backup_db.sh` updated with optional rclone off-site sync ($TIPITAKA_OFFSITE_DEST, .backup_env, 30-day retention cleanup, defensive checks). `VPS_DEPLOYMENT_GUIDE.md` section 6 updated with step 4 off-site setup. Local tests pass (82/82). Branch pushed and ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/text-justification` implemented & verified. Added `text-justify: inter-character;` on paragraphs in `app.css`. Enhanced `protectPaliWords` in `app.js` with `insertPaliWbr` (safe syllable/compound `<wbr>` breaks for words >= 8 chars, keeping stacked consonants in `.no-split` with `white-space: nowrap`, and wrapping in `.pali-word` so dictionary word-tap lookup works seamlessly on unbroken textContent). Local tests pass (82/82). Branch pushed and ready for Muse integration.
+- 2026-10-01 — Other Agent: `collab/docs-update` implemented. Added sections 21 to 24 in `README.md` (inline jump, volume labels, rclone off-site backup, responsive text justification & safe wbr breaking). Added text justification guide card in `index.html` in-app user guide modal. Branch pushed and ready for Muse integration.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -113,4 +114,5 @@
 | (ဥပမာ) backup off-site copy | — | — | open |
 | Off-site backup automation (rclone hook + guide) | Other Agent | `collab/backup-offsite` | ✅ merged to main (2026-09-30) |
 | Text justification: safe `<wbr>` syllable breaks + inter-character, phone + desktop | Other Agent | `collab/text-justification` | ✅ merged to main (2026-10-01, v7.47) |
+| Documentation update: README (sec 21-24) + in-app guide card | Other Agent | `collab/docs-update` | ready |
 | | | | |
