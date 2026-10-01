@@ -946,10 +946,12 @@ button, input, select {
 .split-pane-body p {
     margin-bottom: 1.4em;
     text-align: justify;
+    text-justify: inter-character;
 }
 
-/* Prevent line-break splitting of Pali words and stacked consonants (virama +) */
-.pali-word,
+/* Prevent line-break splitting of stacked consonants (virama +).
+   .pali-word allows natural wrapping at safe <wbr> boundaries and spaces,
+   while retaining the complete semantic word for dictionary lookup. */
 .no-split {
     white-space: nowrap;
 }
