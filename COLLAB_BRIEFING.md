@@ -88,6 +88,7 @@
 - 2026-10-01 — Other Agent: `collab/text-justification` implemented & verified. Added `text-justify: inter-character;` on paragraphs in `app.css`. Enhanced `protectPaliWords` in `app.js` with `insertPaliWbr` (safe syllable/compound `<wbr>` breaks for words >= 8 chars, keeping stacked consonants in `.no-split` with `white-space: nowrap`, and wrapping in `.pali-word` so dictionary word-tap lookup works seamlessly on unbroken textContent). Local tests pass (82/82). Branch pushed and ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/docs-update` implemented. Added sections 21 to 24 in `README.md` (inline jump, volume labels, rclone off-site backup, responsive text justification & safe wbr breaking). Added text justification guide card in `index.html` in-app user guide modal. Branch pushed and ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/phrase-search` implemented & verified. Added `search_pali_phrase` using rare token prefix-expansion (<= 2000 count, cap 20) + set intersection, matching 8/8 target pages in 0.024s. Added `search_mm_phrase` for Myanmar Tipitaka books. Auto-routed multi-word queries in word search. Added Phrase Search modal tabs and snippet highlighting in `app.js` and `app.css`. Local regression tests pass (94/94 across test_jump_hang_regression, test_export, test_audit_fixes, test_phrase_search_live). Ready for Muse integration.
+- 2026-10-01 — Other Agent: `collab/phrase-search-docs` implemented. Added section 25 (High-Speed Multi-Word Phrase & Sentence Search) to `README.md`. Added phrase search bullet to Section 4 and dedicated guide card to Section 9 in `templates/index.html` in-app user guide modal. Local tests pass (94/94). Ready for Muse integration.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -117,4 +118,6 @@
 | Text justification: safe `<wbr>` syllable breaks + inter-character, phone + desktop | Other Agent | `collab/text-justification` | ✅ merged to main (2026-10-01, v7.47) |
 | Documentation update: README (sec 21-24) + in-app guide card | Other Agent | `collab/docs-update` | ✅ merged to main (2026-10-01) |
 | | | | |
-| Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01) |
+| Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01, v7.48) |
+| Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | 🟡 ready for review |
+
