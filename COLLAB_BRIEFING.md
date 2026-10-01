@@ -119,5 +119,5 @@
 | Documentation update: README (sec 21-24) + in-app guide card | Other Agent | `collab/docs-update` | ✅ merged to main (2026-10-01) |
 | | | | |
 | Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01, v7.48) |
-| Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | 🟡 ready for review |
+| Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | ✅ merged to main (2026-10-01) |
 
