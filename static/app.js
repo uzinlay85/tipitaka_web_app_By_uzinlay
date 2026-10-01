@@ -2064,25 +2064,56 @@ function cleanPeyala(html) {
     }).replace(/[ \t]{2,}/g, " ");
 }
 
+function insertPaliWbr(word) {
+    if (!word || word.length < 8) return word;
+    const chars = Array.from(word);
+    const n = chars.length;
+    const result = [];
+    let lastBreak = 0;
+    for (let i = 0; i < n - 1; i++) {
+        result.push(chars[i]);
+        const c = chars[i];
+        const nextC = chars[i + 1];
+        if (i < 2 || (n - i - 1) < 3) continue;
+        if ((i - lastBreak) < 3) continue;
+        // Next character must be an independent consonant or vowel
+        if (nextC < '\u1000' || nextC > '\u102A') continue;
+        // Next character must NOT be followed by virama (stacked consonant cannot start a line)
+        if (i + 2 < n && chars[i + 2] === '\u1039') continue;
+        // Next character must NOT be start of Kinzi (င်္ = \u1004\u103A\u1039)
+        if (nextC === '\u1004' && i + 3 < n && chars[i + 2] === '\u103A' && chars[i + 3] === '\u1039') continue;
+        // Current character must be a valid syllable end (vowel sign, asat, tone, or inherent-vowel consonant)
+        if (/[\u102B-\u1032\u1036-\u1038\u103A]/.test(c)) {
+            result.push('<wbr>');
+            lastBreak = i;
+        } else if (c >= '\u1000' && c <= '\u1021') {
+            result.push('<wbr>');
+            lastBreak = i;
+        }
+    }
+    result.push(chars[n - 1]);
+    return result.join("");
+}
+
 function protectPaliWords(html) {
     if (!html) return "";
-    // Clean any prior spans to be idempotent
+    // Clean any prior spans and wbr to be idempotent
     const unspanned = html
         .replace(/<span class="pali-word">([\s\S]*?)<\/span>/g, "$1")
-        .replace(/<span class="no-split">([\s\S]*?)<\/span>/g, "$1");
+        .replace(/<span class="no-split">([\s\S]*?)<\/span>/g, "$1")
+        .replace(/<wbr>/g, "");
         
     const parts = unspanned.split(/(<[^>]+>)/g);
     const symRegex = /^[\s\d၀-၉၊။,.\-—–“’”"'()\[\]<>:;?!/\\#*~`]+$/;
+    const conjunctRegex = /([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])/g;
     
     return parts.map(part => {
         if (!part || part.startsWith("<")) return part;
         return part.replace(/\S+/g, (w) => {
             if (symRegex.test(w)) return w;
-            if (w.length <= 35) {
-                return `<span class="pali-word">${w}</span>`;
-            } else {
-                return w.replace(/([\u1000-\u1021\u1004\u103a]\u1039[\u1000-\u1021])/g, '<span class="no-split">$1</span>');
-            }
+            const wbrW = insertPaliWbr(w);
+            const protectedW = wbrW.replace(conjunctRegex, '<span class="no-split">$1</span>');
+            return `<span class="pali-word">${protectedW}</span>`;
         });
     }).join("");
 }
