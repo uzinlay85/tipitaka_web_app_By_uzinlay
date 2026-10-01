@@ -86,6 +86,7 @@
 - 2026-09-30 ~19:38 +0630 — User deployed (`git pull` 3c39ccb..0b2b432 + `systemctl restart tipitaka`) ✅; first manual backup OK. Muse live-verified v7.45 (asset byte-identical 6/6, APIs 200). Stale Cloudflare edge cache on bare `/static/app.js` noted — not a VPS issue, no action.
 - 2026-09-30 — Other Agent: `collab/backup-offsite` implemented & verified. `backup_db.sh` updated with optional rclone off-site sync ($TIPITAKA_OFFSITE_DEST, .backup_env, 30-day retention cleanup, defensive checks). `VPS_DEPLOYMENT_GUIDE.md` section 6 updated with step 4 off-site setup. Local tests pass (82/82). Branch pushed and ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/text-justification` implemented & verified. Added `text-justify: inter-character;` on paragraphs in `app.css`. Enhanced `protectPaliWords` in `app.js` with `insertPaliWbr` (safe syllable/compound `<wbr>` breaks for words >= 8 chars, keeping stacked consonants in `.no-split` with `white-space: nowrap`, and wrapping in `.pali-word` so dictionary word-tap lookup works seamlessly on unbroken textContent). Local tests pass (82/82). Branch pushed and ready for Muse integration.
+- 2026-10-01 — Other Agent: `collab/phrase-search` implemented & verified. Added `search_pali_phrase` using rare token prefix-expansion (<= 2000 count, cap 20) + set intersection, matching 8/8 target pages in 0.024s. Added `search_mm_phrase` for Myanmar Tipitaka books. Auto-routed multi-word queries in word search. Added Phrase Search modal tabs and snippet highlighting in `app.js` and `app.css`. Local regression tests pass (94/94 across test_jump_hang_regression, test_export, test_audit_fixes, test_phrase_search_live). Ready for Muse integration.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -113,4 +114,4 @@
 | (ဥပမာ) backup off-site copy | — | — | open |
 | Off-site backup automation (rclone hook + guide) | Other Agent | `collab/backup-offsite` | ✅ merged to main (2026-09-30) |
 | Text justification: safe `<wbr>` syllable breaks + inter-character, phone + desktop | Other Agent | `collab/text-justification` | ✅ merged to main (2026-10-01, v7.47) |
-| | | | |
+| Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | 🟡 ready for review |

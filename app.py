@@ -1222,6 +1222,143 @@ def api_dict_lookup():
 
 # ----------------- Search API -----------------
 
+def search_pali_phrase(cur, query, page=1, limit=20):
+    raw_tokens = query.strip().split()
+    clean_tokens = [clean_pali_word(t) for t in raw_tokens]
+    clean_tokens = [t for t in clean_tokens if t]
+    if not clean_tokens:
+        return {"type": "phrase", "query": query, "total": 0, "page": page, "results": []}
+
+    sets = []
+    for w in clean_tokens:
+        exact = cur.execute("SELECT word, rowids, count FROM wordlist WHERE word = ?", (w,)).fetchone()
+        w_pids = set()
+        count = exact["count"] if exact else 0
+        # Prefix expansion (capped at 20) for rare tokens (<= 2000) or missing entries
+        # to ensure full recall across attached quotes and suffixes (e.g. ပဒါလိတာ''တိ -> ပဒါလိတာတိ)
+        if count <= 2000:
+            prefix_rows = cur.execute(
+                "SELECT word, rowids FROM wordlist WHERE word LIKE ? ORDER BY count DESC LIMIT 20",
+                (w + "%",)
+            ).fetchall()
+            for pr in prefix_rows:
+                rowids_str = pr["rowids"] or ""
+                for tok in rowids_str.split(","):
+                    tok = tok.strip()
+                    if tok:
+                        w_pids.add(tok.split("_")[0])
+        elif exact and exact["rowids"]:
+            rowids_str = exact["rowids"] or ""
+            for tok in rowids_str.split(","):
+                tok = tok.strip()
+                if tok:
+                    w_pids.add(tok.split("_")[0])
+        sets.append(w_pids)
+
+    sets.sort(key=len)
+    candidate_pids = sets[0].intersection(*sets[1:]) if sets else set()
+    if not candidate_pids:
+        return {"type": "phrase", "query": query, "total": 0, "page": page, "results": []}
+
+    regex_pattern = re.compile(
+        r"[\s,၊။\-—–\"'‘’“”]*?".join(re.escape(t) for t in clean_tokens),
+        re.UNICODE
+    )
+
+    candidate_list = list(candidate_pids)
+    matching_pages = []
+    chunk_size = 900
+    for i in range(0, len(candidate_list), chunk_size):
+        chunk = candidate_list[i:i + chunk_size]
+        placeholders = ",".join(["?"] * len(chunk))
+        rows = cur.execute(f"""
+            SELECT p.id, p.book_id, b.name as book_name, p.page, p.content
+            FROM pages p
+            JOIN books b ON p.book_id = b.id
+            WHERE p.id IN ({placeholders})
+        """, chunk).fetchall()
+
+        for p in rows:
+            content = p["content"] or ""
+            clean_text = re.sub(r"<[^>]+>", " ", content)
+            clean_text = " ".join(clean_text.split())
+
+            m = regex_pattern.search(clean_text)
+            if m:
+                pos = m.start()
+                match_len = m.end() - m.start()
+                start = max(0, pos - 60)
+                end = min(len(clean_text), pos + match_len + 90)
+                snippet = ("..." if start > 0 else "") + clean_text[start:end] + ("..." if end < len(clean_text) else "")
+                matching_pages.append({
+                    "page_id": p["id"],
+                    "book_id": p["book_id"],
+                    "book_name": p["book_name"],
+                    "page": p["page"],
+                    "snippet": snippet
+                })
+
+    matching_pages.sort(key=lambda x: (x["book_id"], x["page"]))
+    total = len(matching_pages)
+    offset = (page - 1) * limit
+    results = matching_pages[offset:offset + limit]
+
+    return {
+        "type": "phrase",
+        "query": query,
+        "total": total,
+        "page": page,
+        "results": results
+    }
+
+def search_mm_phrase(conn, query, page=1, limit=20):
+    clean_q = query.strip()
+    if not clean_q:
+        return {"type": "mm_phrase", "query": query, "total": 0, "page": page, "results": []}
+
+    cur = conn.cursor()
+    like_pattern = f"%{clean_q}%"
+    offset = (page - 1) * limit
+
+    rows = cur.execute("""
+        SELECT p.book_id, b.name as book_name, p.page, p.content
+        FROM mm_pages p
+        JOIN book b ON p.book_id = b.id
+        WHERE p.content LIKE ?
+        LIMIT ? OFFSET ?
+    """, (like_pattern, limit + 1, offset)).fetchall()
+
+    has_more = len(rows) > limit
+    results_rows = rows[:limit]
+
+    results = []
+    for r in results_rows:
+        content = r["content"] or ""
+        clean_text = re.sub(r"<[^>]+>", " ", content)
+        clean_text = " ".join(clean_text.split())
+        pos = clean_text.find(clean_q)
+        if pos != -1:
+            start = max(0, pos - 60)
+            end = min(len(clean_text), pos + len(clean_q) + 90)
+            snippet = ("..." if start > 0 else "") + clean_text[start:end] + ("..." if end < len(clean_text) else "")
+        else:
+            snippet = clean_text[:140] + "..."
+        results.append({
+            "book_id": r["book_id"],
+            "book_name": r["book_name"],
+            "page": r["page"],
+            "snippet": snippet
+        })
+
+    total = offset + len(results_rows) + (1 if has_more else 0)
+    return {
+        "type": "mm_phrase",
+        "query": query,
+        "total": total,
+        "page": page,
+        "results": results
+    }
+
 @app.route("/api/search")
 def api_search():
     query = request.args.get("q", "").strip()
@@ -1242,7 +1379,18 @@ def api_search():
     if not query:
         return jsonify({"results": [], "total": 0})
 
-    if stype == "mm_book":
+    if stype == "phrase":
+        conn = get_pali_db()
+        cur = conn.cursor()
+        return jsonify(search_pali_phrase(cur, query, page=page, limit=limit))
+
+    elif stype == "mm_phrase":
+        if not os.path.exists(DB_MM_PATH):
+            return jsonify({"results": [], "total": 0})
+        m_conn = get_mm_db()
+        return jsonify(search_mm_phrase(m_conn, query, page=page, limit=limit))
+
+    elif stype == "mm_book":
         # Search Myanmar translated books
         if not os.path.exists(DB_MM_PATH):
             return jsonify({"results": [], "total": 0})
@@ -1344,6 +1492,13 @@ def api_search():
 
     else:
         # Word Search
+        # Auto-route multi-word queries to phrase search for high-accuracy phrase matching
+        tokens = query.strip().split()
+        if len(tokens) > 1:
+            conn = get_pali_db()
+            cur = conn.cursor()
+            return jsonify(search_pali_phrase(cur, query, page=page, limit=limit))
+
         conn = get_pali_db()
         cur = conn.cursor()
         clean_q = clean_pali_word(query)
