@@ -68,6 +68,10 @@ sudo bash setup_vps.sh
 cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka
 ```
 
+**ဘယ်အခါ restart လိုလဲ?**
+- ✅ **Restart လိုအပ်** — `app.py` သို့မဟုတ် `templates/*.html` ပြောင်းသွားလျှင် (Jinja က template များကို memory ထဲမှာ cache လုပ်ထားလို့ `index.html` ပြောင်းရင်တောင် restart မလုပ်ရင် အဟောင်း ဆက်ပေါ်နေမယ်)
+- ⏭️ **Restart မလို** — `static/app.js` / `static/app.css` သက်သက်သာ ပြောင်းသွားလျှင် (`?v=` version query ကြောင့် user ဘက်က အသစ် အလိုအလျောက်ရ)
+
 ---
 
 ## 🛠️ အပိုင်း (၃) - စနစ် စောင့်ကြည့်ခြင်းနှင့် ထိန်းသိမ်းမှု Commands (Maintenance)
