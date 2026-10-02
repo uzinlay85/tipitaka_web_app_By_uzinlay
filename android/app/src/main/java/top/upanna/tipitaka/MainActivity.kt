@@ -417,7 +417,10 @@ class MainActivity : AppCompatActivity() {
 
                 if (updateInfo.versionCode > currentVerCode) {
                     runOnUiThread {
-                        showUpdateDialog(updateInfo)
+                        // Guard: activity may have been closed while the network check ran
+                        if (!isFinishing && !isDestroyed) {
+                            showUpdateDialog(updateInfo)
+                        }
                     }
                 } else {
                     if (isManual) {

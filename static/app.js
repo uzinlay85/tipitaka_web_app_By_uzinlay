@@ -6448,7 +6448,7 @@ function setupEventListeners() {
             if (window.AndroidBridge && typeof window.AndroidBridge.checkForUpdates === "function") {
                 window.AndroidBridge.checkForUpdates();
             } else {
-                showAppToast("Web ဗားရှင်းသည် အမြဲတမ်း နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည် (v1.0.0)");
+                showAppToast("Web ဗားရှင်းသည် အမြဲတမ်း နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်");
             }
         });
     }
