@@ -533,6 +533,40 @@ button, input, select {
     font-size: 0.875rem;
 }
 
+.toc-search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.toc-search-box input {
+    flex: 1;
+    min-width: 0;
+}
+
+.toc-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-paper);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.toc-toolbar-btn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
 /* Tree Lists */
 .books-tree-list, .toc-list, .sutta-list, .bookmarks-list {
     flex: 1;
@@ -642,6 +676,91 @@ button, input, select {
     margin-left: 8px;
     white-space: nowrap;
 }
+
+/* Hierarchical TOC Tree */
+.toc-node-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.toc-item-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    border-radius: 8px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition-speed);
+}
+
+.toc-item-row:hover {
+    background: var(--bg-hover);
+}
+
+.toc-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.toc-toggle-btn:hover {
+    color: var(--accent);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.toc-toggle-btn .toc-chevron {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toc-toggle-btn.expanded .toc-chevron {
+    transform: rotate(90deg);
+}
+
+.toc-spacer {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    flex-shrink: 0;
+}
+
+.toc-spacer::after {
+    content: "•";
+    color: var(--text-muted);
+    font-size: 9px;
+    opacity: 0.35;
+}
+
+.toc-item-row .toc-item-btn {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    border-bottom: none;
+    padding-left: 4px;
+}
+
+.toc-children-list {
+    margin-left: 16px;
+    padding-left: 6px;
+    border-left: 1px dashed var(--border-color);
+}
+
 
 /* Sticky Current Reading Chapter Tracker Card */
 .toc-current-card {

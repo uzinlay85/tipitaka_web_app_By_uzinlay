@@ -89,6 +89,12 @@
 - 2026-10-01 — Other Agent: `collab/docs-update` implemented. Added sections 21 to 24 in `README.md` (inline jump, volume labels, rclone off-site backup, responsive text justification & safe wbr breaking). Added text justification guide card in `index.html` in-app user guide modal. Branch pushed and ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/phrase-search` implemented & verified. Added `search_pali_phrase` using rare token prefix-expansion (<= 2000 count, cap 20) + set intersection, matching 8/8 target pages in 0.024s. Added `search_mm_phrase` for Myanmar Tipitaka books. Auto-routed multi-word queries in word search. Added Phrase Search modal tabs and snippet highlighting in `app.js` and `app.css`. Local regression tests pass (94/94 across test_jump_hang_regression, test_export, test_audit_fixes, test_phrase_search_live). Ready for Muse integration.
 - 2026-10-01 — Other Agent: `collab/phrase-search-docs` implemented. Added section 25 (High-Speed Multi-Word Phrase & Sentence Search) to `README.md`. Added phrase search bullet to Section 4 and dedicated guide card to Section 9 in `templates/index.html` in-app user guide modal. Local tests pass (94/94). Ready for Muse integration.
+- 2026-10-02 — Other Agent: `collab/hierarchical-toc` implemented & verified.
+  1. Backend `app.py`: Updated Pali (`tocs`) and Myanmar (`toc`) queries to `ORDER BY page_number ASC, rowid ASC`, stabilizing 8,502 same-page sibling groups.
+  2. Test suite: Created `test_toc_tree.py` covering level skips (L1->L3), same-page siblings, degenerate (all-L1) flat fallback, and deep hierarchy up to L6 (5/5 PASS in 0.000s).
+  3. UI & CSS: Added `[⊞]` (Expand all) and `[⊟]` (Collapse all) toolbar buttons in `templates/index.html`. Added `.toc-node-wrapper`, `.toc-item-row`, `.toc-toggle-btn` (with 44px min touch target for mobile compliance), `.toc-spacer`, and nested `.toc-children-list` with dashed tree guidelines.
+  4. Logic in `app.js`: In-memory per-book expand state (`_tocExpandedByBook`), accordion toggle collapsing siblings at the same level, auto-ancestor-expansion in `highlightActiveToc` when active item is inside a collapsed branch, tree search filter with auto-expanding matching branches and state restoration on clear, O(1) button cache rebuilding.
+  All local test suites pass (100/100 across `test_toc_tree`, `test_jump_hang_regression`, `test_export`, `test_audit_fixes`, `test_phrase_search_live`). Branch ready for Muse review & merge (app.js?v= bump deferred to Muse for v7.49).
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -120,4 +126,6 @@
 | | | | |
 | Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01, v7.48) |
 | Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | ✅ merged to main (2026-10-01) |
+| Hierarchical Collapsible TOC (L1-L6, accordion, 44px tap, stable rowid order) | Other Agent | `collab/hierarchical-toc` | 🟡 ready for review |
+
 

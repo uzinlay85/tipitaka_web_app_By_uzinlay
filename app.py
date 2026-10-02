@@ -478,7 +478,7 @@ def api_book(book_id):
         SELECT name, type, page_number 
         FROM tocs 
         WHERE book_id = ? 
-        ORDER BY page_number ASC
+        ORDER BY page_number ASC, rowid ASC
     """, (book_id,)).fetchall()
 
     suttas = cur.execute("""
@@ -853,7 +853,7 @@ def api_mm_book(book_id):
         SELECT name, type, page_number 
         FROM toc 
         WHERE book_id = ? 
-        ORDER BY page_number ASC
+        ORDER BY page_number ASC, rowid ASC
     """, (book_id,)).fetchall()
 
     suttas = cur.execute("""

@@ -294,6 +294,8 @@ const el = {
     booksFilterInput: document.getElementById("booksFilterInput"),
     booksTreeList: document.getElementById("booksTreeList"),
     tocFilterInput: document.getElementById("tocFilterInput"),
+    btnTocExpandAll: document.getElementById("btnTocExpandAll"),
+    btnTocCollapseAll: document.getElementById("btnTocCollapseAll"),
     tocList: document.getElementById("tocList"),
     tocCurrentCard: document.getElementById("tocCurrentCard"),
     tocCurrentPagePill: document.getElementById("tocCurrentPagePill"),
@@ -3580,39 +3582,153 @@ let _lastTocActiveBtn = null;
 let _suttaBtnCache = [];
 let _lastSuttaActiveBtn = null;
 
-function renderTOC() {
-    const filter = (el.tocFilterInput.value || "").trim().toLowerCase();
-    const tocs = (state.readerMode === "mm") ? state.mmTocs : state.paliTocs;
-    const filtered = tocs.filter(t => !filter || t.name.toLowerCase().includes(filter));
+// In-memory per-book expanded state (no localStorage in v1)
+const _tocExpandedByBook = new Map();
+let _currentTocTree = [];
+let _currentTocNodesByIndex = [];
 
-    if (filtered.length === 0) {
+function getTocBookKey() {
+    const mode = (state.readerMode === "mm") ? "mm" : "pali";
+    const bookId = (mode === "mm") ? state.mmBookId : state.paliBookId;
+    return `${mode}_${bookId}`;
+}
+
+function getTocLevel(type) {
+    if (type == null || type === "") return 1;
+    const n = parseInt(type, 10);
+    if (!isNaN(n) && n >= 1 && n <= 6) return n;
+    const lower = String(type).trim().toLowerCase();
+    if (lower === "chapter") return 1;
+    if (lower === "title") return 2;
+    if (lower === "subhead") return 3;
+    if (lower === "subsubhead") return 4;
+    return 1;
+}
+
+function buildTocTree(items) {
+    if (!items || items.length === 0) return [];
+    const roots = [];
+    const stack = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const level = getTocLevel(item.type);
+        const node = {
+            item,
+            level,
+            index: i,
+            id: "toc-node-" + i,
+            children: [],
+            parent: null
+        };
+        while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+            stack.pop();
+        }
+        if (stack.length === 0) {
+            roots.push(node);
+        } else {
+            const parent = stack[stack.length - 1];
+            node.parent = parent;
+            parent.children.push(node);
+        }
+        stack.push(node);
+    }
+    return roots;
+}
+
+function rebuildTocBtnCache() {
+    if (!el.tocList) return;
+    _tocBtnCache = [...el.tocList.querySelectorAll(".toc-item-btn")].map(btn => ({
+        btn,
+        page: parseInt(btn.getAttribute("data-page"), 10),
+        index: parseInt(btn.getAttribute("data-index"), 10)
+    }));
+}
+
+function renderTOC() {
+    if (!el.tocList) return;
+    const tocs = (state.readerMode === "mm") ? state.mmTocs : state.paliTocs;
+    if (!tocs || tocs.length === 0) {
         el.tocList.innerHTML = `<div class="empty-state">မာတိကာ အချက်အလက် မရှိပါ။</div>`;
         _tocBtnCache = [];
         _lastTocActiveBtn = null;
+        _currentTocTree = [];
+        _currentTocNodesByIndex = [];
         return;
     }
 
-    let html = "";
-    filtered.forEach(t => {
-        html += `
-            <button class="toc-item-btn type-${t.type || 'item'}" data-page="${t.page_number}">
-                <span class="toc-item-title-wrapper">
-                    <span class="toc-bullet-icon"></span>
-                    <span class="toc-text">${escapeHtml(t.name)}</span>
-                </span>
-                <span class="item-page-badge">စာ-${t.page_number}</span>
-            </button>
-        `;
-    });
-    el.tocList.innerHTML = html;
+    const bookKey = getTocBookKey();
+    if (!_tocExpandedByBook.has(bookKey)) {
+        _tocExpandedByBook.set(bookKey, new Set());
+    }
+    const expandedSet = _tocExpandedByBook.get(bookKey);
 
-    // Cache buttons + pages for O(1) highlight updates (see highlightActiveToc).
-    // Rebuilt on every render since filter/book changes rewrite the DOM.
-    _tocBtnCache = [...el.tocList.querySelectorAll(".toc-item-btn")].map(btn => ({
-        btn,
-        page: parseInt(btn.getAttribute("data-page"), 10)
-    }));
+    _currentTocTree = buildTocTree(tocs);
+    _currentTocNodesByIndex = new Array(tocs.length);
+    function indexNodes(nodes) {
+        for (const node of nodes) {
+            _currentTocNodesByIndex[node.index] = node;
+            if (node.children.length > 0) indexNodes(node.children);
+        }
+    }
+    indexNodes(_currentTocTree);
+
+    function renderNodes(nodes) {
+        let html = "";
+        for (const node of nodes) {
+            const hasChildren = node.children.length > 0;
+            const isExpanded = expandedSet.has(node.id);
+            const t = node.item;
+            const typeClass = t.type ? `type-${t.type}` : 'type-item';
+
+            html += `<div class="toc-node-wrapper" data-node-id="${node.id}" data-index="${node.index}">`;
+            html += `  <div class="toc-item-row">`;
+            if (hasChildren) {
+                html += `    <button class="toc-toggle-btn${isExpanded ? ' expanded' : ''}" data-node-id="${node.id}" aria-label="ခေါက်/ဖြန့်" title="ခေါက်/ဖြန့်">`;
+                html += `      <svg class="toc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+                html += `    </button>`;
+            } else {
+                html += `    <span class="toc-spacer"></span>`;
+            }
+            html += `    <button class="toc-item-btn ${typeClass}" data-page="${t.page_number}" data-index="${node.index}">`;
+            html += `      <span class="toc-item-title-wrapper">`;
+            html += `        <span class="toc-bullet-icon"></span>`;
+            html += `        <span class="toc-text">${escapeHtml(t.name)}</span>`;
+            html += `      </span>`;
+            html += `      <span class="item-page-badge">စာ-${t.page_number}</span>`;
+            html += `    </button>`;
+            html += `  </div>`;
+
+            if (hasChildren) {
+                html += `  <div class="toc-children-list" id="children-${node.id}" style="display: ${isExpanded ? 'block' : 'none'};">`;
+                html += renderNodes(node.children);
+                html += `  </div>`;
+            }
+            html += `</div>`;
+        }
+        return html;
+    }
+
+    el.tocList.innerHTML = renderNodes(_currentTocTree);
     _lastTocActiveBtn = null;
+    rebuildTocBtnCache();
+    attachTocEventListeners();
+
+    if (el.tocFilterInput && el.tocFilterInput.value.trim()) {
+        handleTocFilter();
+    } else {
+        const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+        highlightActiveToc(curPg, false);
+    }
+}
+
+function attachTocEventListeners() {
+    el.tocList.querySelectorAll(".toc-toggle-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const nodeId = btn.getAttribute("data-node-id");
+            toggleTocNode(nodeId);
+        });
+    });
 
     el.tocList.querySelectorAll(".toc-item-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -3625,13 +3741,155 @@ function renderTOC() {
             if (window.innerWidth <= 992) {
                 closeSidebarMobile();
             } else {
-                highlightActiveToc(p, false);
+                highlightActiveToc(p, true);
             }
         });
     });
+}
 
+function toggleTocNode(nodeId) {
+    const bookKey = getTocBookKey();
+    let expandedSet = _tocExpandedByBook.get(bookKey);
+    if (!expandedSet) {
+        expandedSet = new Set();
+        _tocExpandedByBook.set(bookKey, expandedSet);
+    }
+    const isCurrentlyExpanded = expandedSet.has(nodeId);
+    const nodeWrapper = el.tocList.querySelector(`.toc-node-wrapper[data-node-id="${nodeId}"]`);
+    if (!nodeWrapper) return;
+    const childrenList = nodeWrapper.querySelector(`#children-${nodeId}`);
+    const toggleBtn = nodeWrapper.querySelector(`.toc-toggle-btn[data-node-id="${nodeId}"]`);
+
+    if (isCurrentlyExpanded) {
+        expandedSet.delete(nodeId);
+        if (toggleBtn) toggleBtn.classList.remove("expanded");
+        if (childrenList) childrenList.style.display = "none";
+    } else {
+        // Accordion rule: collapse sibling branches at the same level
+        const parentWrapper = nodeWrapper.parentElement.closest(".toc-node-wrapper");
+        const siblingContainer = parentWrapper ? parentWrapper.querySelector(".toc-children-list") : el.tocList;
+        if (siblingContainer) {
+            const siblingWrappers = Array.from(siblingContainer.children).filter(child => child.classList.contains("toc-node-wrapper") && child !== nodeWrapper);
+            for (const sib of siblingWrappers) {
+                const sibId = sib.getAttribute("data-node-id");
+                if (sibId && expandedSet.has(sibId)) {
+                    expandedSet.delete(sibId);
+                    const sibBtn = sib.querySelector(`.toc-toggle-btn[data-node-id="${sibId}"]`);
+                    const sibChildren = sib.querySelector(`#children-${sibId}`);
+                    if (sibBtn) sibBtn.classList.remove("expanded");
+                    if (sibChildren) sibChildren.style.display = "none";
+                }
+            }
+        }
+        expandedSet.add(nodeId);
+        if (toggleBtn) toggleBtn.classList.add("expanded");
+        if (childrenList) childrenList.style.display = "block";
+    }
+    _tocExpandedByBook.set(bookKey, expandedSet);
+    rebuildTocBtnCache();
+}
+
+function expandAllToc() {
+    const bookKey = getTocBookKey();
+    let expandedSet = _tocExpandedByBook.get(bookKey);
+    if (!expandedSet) {
+        expandedSet = new Set();
+        _tocExpandedByBook.set(bookKey, expandedSet);
+    }
+    for (const node of _currentTocNodesByIndex) {
+        if (node && node.children.length > 0) {
+            expandedSet.add(node.id);
+        }
+    }
+    el.tocList.querySelectorAll(".toc-toggle-btn").forEach(b => b.classList.add("expanded"));
+    el.tocList.querySelectorAll(".toc-children-list").forEach(c => c.style.display = "block");
+    rebuildTocBtnCache();
     const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
-    highlightActiveToc(curPg, false);
+    highlightActiveToc(curPg, true);
+}
+
+function collapseAllToc() {
+    const bookKey = getTocBookKey();
+    let expandedSet = _tocExpandedByBook.get(bookKey);
+    if (expandedSet) {
+        expandedSet.clear();
+    }
+    el.tocList.querySelectorAll(".toc-toggle-btn").forEach(b => b.classList.remove("expanded"));
+    el.tocList.querySelectorAll(".toc-children-list").forEach(c => c.style.display = "none");
+    rebuildTocBtnCache();
+}
+
+function handleTocFilter() {
+    const q = (el.tocFilterInput && el.tocFilterInput.value || "").trim().toLowerCase();
+    const oldEmpty = el.tocList.querySelector(".toc-search-empty");
+    if (oldEmpty) oldEmpty.remove();
+
+    if (!q) {
+        const bookKey = getTocBookKey();
+        const expandedSet = _tocExpandedByBook.get(bookKey) || new Set();
+        for (const node of _currentTocNodesByIndex) {
+            if (!node) continue;
+            const wrapper = el.tocList.querySelector(`.toc-node-wrapper[data-node-id="${node.id}"]`);
+            if (wrapper) wrapper.style.display = "";
+            const childrenList = el.tocList.querySelector(`#children-${node.id}`);
+            const toggleBtn = el.tocList.querySelector(`.toc-toggle-btn[data-node-id="${node.id}"]`);
+            if (childrenList && toggleBtn) {
+                const isExp = expandedSet.has(node.id);
+                toggleBtn.classList.toggle("expanded", isExp);
+                childrenList.style.display = isExp ? "block" : "none";
+            }
+        }
+        rebuildTocBtnCache();
+        const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+        highlightActiveToc(curPg, false);
+        return;
+    }
+
+    const matches = new Set();
+    const ancestorSet = new Set();
+
+    for (const node of _currentTocNodesByIndex) {
+        if (!node) continue;
+        if (node.item.name && node.item.name.toLowerCase().includes(q)) {
+            matches.add(node.id);
+            let p = node.parent;
+            while (p) {
+                ancestorSet.add(p.id);
+                p = p.parent;
+            }
+        }
+    }
+
+    if (matches.size === 0) {
+        el.tocList.querySelectorAll(".toc-node-wrapper").forEach(w => w.style.display = "none");
+        const emptyDiv = document.createElement("div");
+        emptyDiv.className = "empty-state toc-search-empty";
+        emptyDiv.textContent = "မာတိကာ အချက်အလက် မရှိပါ။";
+        el.tocList.appendChild(emptyDiv);
+        _tocBtnCache = [];
+        _lastTocActiveBtn = null;
+        return;
+    }
+
+    for (const node of _currentTocNodesByIndex) {
+        if (!node) continue;
+        const wrapper = el.tocList.querySelector(`.toc-node-wrapper[data-node-id="${node.id}"]`);
+        if (!wrapper) continue;
+        const isMatch = matches.has(node.id);
+        const isAncestor = ancestorSet.has(node.id);
+        if (isMatch || isAncestor) {
+            wrapper.style.display = "";
+            if (isAncestor) {
+                const childrenList = el.tocList.querySelector(`#children-${node.id}`);
+                const toggleBtn = el.tocList.querySelector(`.toc-toggle-btn[data-node-id="${node.id}"]`);
+                if (childrenList) childrenList.style.display = "block";
+                if (toggleBtn) toggleBtn.classList.add("expanded");
+            }
+        } else {
+            wrapper.style.display = "none";
+        }
+    }
+    rebuildTocBtnCache();
 }
 
 function highlightActiveToc(currentPg, shouldScroll = false) {
@@ -3695,14 +3953,43 @@ function highlightActiveToc(currentPg, shouldScroll = false) {
         if (el.mobileBreadcrumbPage) el.mobileBreadcrumbPage.textContent = `စာ-${toMyanmarNum(currentPg)}`;
     }
 
+    // Auto-expand ancestors if active button is inside a collapsed parent
+    if (activeIndex >= 0 && _currentTocNodesByIndex && _currentTocNodesByIndex[activeIndex]) {
+        const activeNode = _currentTocNodesByIndex[activeIndex];
+        let curr = activeNode.parent;
+        let neededExpand = false;
+        const bookKey = getTocBookKey();
+        const expandedSet = _tocExpandedByBook.get(bookKey) || new Set();
+
+        while (curr) {
+            if (!expandedSet.has(curr.id)) {
+                expandedSet.add(curr.id);
+                neededExpand = true;
+                const pWrapper = el.tocList.querySelector(`.toc-node-wrapper[data-node-id="${curr.id}"]`);
+                if (pWrapper) {
+                    const pBtn = pWrapper.querySelector(`.toc-toggle-btn[data-node-id="${curr.id}"]`);
+                    const pChildren = pWrapper.querySelector(`#children-${curr.id}`);
+                    if (pBtn) pBtn.classList.add("expanded");
+                    if (pChildren) pChildren.style.display = "block";
+                }
+            }
+            curr = curr.parent;
+        }
+        if (neededExpand) {
+            _tocExpandedByBook.set(bookKey, expandedSet);
+            rebuildTocBtnCache();
+        }
+    }
+
     // 3. Highlight the active button in the TOC list.
-    // O(1) DOM writes: only the previously-active and newly-active buttons are
-    // touched. (Old code swept every button and rewrote every badge per page
-    // change.) The lookup itself is a cheap scan over the cached JS array —
-    // no querySelectorAll, no per-button DOM reads.
     let activeBtn = null;
-    for (const entry of _tocBtnCache) {
-        if (entry.page <= currentPg) activeBtn = entry.btn;
+    const foundEntry = _tocBtnCache.find(e => e.index === activeIndex);
+    if (foundEntry) {
+        activeBtn = foundEntry.btn;
+    } else {
+        for (const entry of _tocBtnCache) {
+            if (entry.page <= currentPg) activeBtn = entry.btn;
+        }
     }
 
     if (activeBtn !== _lastTocActiveBtn) {
@@ -6047,7 +6334,13 @@ function setupEventListeners() {
         });
     });
     el.booksFilterInput.addEventListener("input", () => renderBooksTree());
-    el.tocFilterInput.addEventListener("input", () => renderTOC());
+    el.tocFilterInput.addEventListener("input", () => handleTocFilter());
+    if (el.btnTocExpandAll) {
+        el.btnTocExpandAll.addEventListener("click", () => expandAllToc());
+    }
+    if (el.btnTocCollapseAll) {
+        el.btnTocCollapseAll.addEventListener("click", () => collapseAllToc());
+    }
     el.suttaFilterInput.addEventListener("input", () => renderSuttas());
 
     // Font Size Adjustments
