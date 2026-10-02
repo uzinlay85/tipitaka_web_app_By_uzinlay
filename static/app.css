@@ -1810,6 +1810,7 @@ body.hide-notes .note {
 
 .modal-tab-btn {
     flex: 1;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1843,6 +1844,20 @@ body.hide-notes .note {
 .modal-tab-btn .tab-icon {
     font-size: 0.95rem;
     line-height: 1;
+    flex-shrink: 0;
+}
+
+.modal-tab-btn > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+/* Very small phones: hide pill icons so all 4 pills fit without overflow */
+@media (max-width: 380px) {
+    .modal-tab-btn .tab-icon {
+        display: none;
+    }
 }
 
 @media (max-width: 480px) {

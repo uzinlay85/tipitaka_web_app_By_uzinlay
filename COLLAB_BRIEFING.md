@@ -133,6 +133,6 @@
 | Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01, v7.48) |
 | Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | ✅ merged to main (2026-10-01) |
 | Hierarchical Collapsible TOC (L1-L6, accordion, 44px tap, stable rowid order) | Other Agent | `collab/hierarchical-toc` | ✅ merged to main (2026-10-02, v7.49) |
-| Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | 🟡 ready for review |
+| Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | ✅ merged to main (2026-10-02, v7.50) |
 
 
