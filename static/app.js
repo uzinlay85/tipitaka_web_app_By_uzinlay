@@ -3601,7 +3601,7 @@ function getTocLevel(type) {
     if (lower === "chapter") return 1;
     if (lower === "title") return 2;
     if (lower === "subhead") return 3;
-    if (lower === "subsubhead") return 4;
+    if (lower === "subsubhead" || lower === "subsubhead-head") return 4;
     return 1;
 }
 
