@@ -27,16 +27,45 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            def keystorePropsFile = rootProject.file("release-keystore.properties")
+            def appKeystorePropsFile = file("release-keystore.properties")
+            def propsFile = keystorePropsFile.exists() ? keystorePropsFile : (appKeystorePropsFile.exists() ? appKeystorePropsFile : null)
+
+            if (propsFile != null && propsFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(propsFile))
+                def storeFilePath = props['RELEASE_STORE_FILE'] ?: "tipitaka-release.jks"
+                def resolvedFile = file(storeFilePath)
+                if (!resolvedFile.exists()) {
+                    resolvedFile = rootProject.file(storeFilePath)
+                }
+                storeFile = resolvedFile
+                storePassword = props['RELEASE_STORE_PASSWORD']
+                keyAlias = props['RELEASE_KEY_ALIAS']
+                keyPassword = props['RELEASE_KEY_PASSWORD']
+            } else if (System.getenv("RELEASE_STORE_FILE") != null) {
+                storeFile = file(System.getenv("RELEASE_STORE_FILE"))
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            } else {
+                // Graceful fallback to debug signing when release keystore is not yet generated
+                storeFile = signingConfigs.getByName("debug").storeFile
+                storePassword = signingConfigs.getByName("debug").storePassword
+                keyAlias = signingConfigs.getByName("debug").keyAlias
+                keyPassword = signingConfigs.getByName("debug").keyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
-            // Debug-signed APK: fine for GitHub Releases sideloading.
-            // Play Store later needs a real release keystore (see README).
-            // No applicationIdSuffix: keep "top.upanna.tipitaka" stable so a
-            // future release-signed APK is the same app identity.
+            // Debug-signed APK: fine for local development.
         }
         release {
-            // Same debug signing for now; swap in a keystore before Play.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             minifyEnabled = false
         }
     }

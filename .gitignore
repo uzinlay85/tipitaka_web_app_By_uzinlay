@@ -38,8 +38,12 @@ server.log
 static/Zawgyi-One.ttf
 static/*zawgyi*.css
 
-# Android build outputs
+# Android build outputs & keystores
 android/.gradle/
 android/build/
 android/app/build/
 local.properties
+*.jks
+*.keystore
+release-keystore.properties
+android/release-keystore.properties

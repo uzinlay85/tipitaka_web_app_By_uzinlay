@@ -102,6 +102,12 @@
   4. Logic in `app.js`: `setSearchScope(scope, targetMode)` synchronizes scope with reader mode (`state.readerMode`), search history clicks, and dynamic placeholder updates. Retains all existing `.modal-tab-btn` and `data-mode` contracts.
   All local test suites pass (100/100). Branch ready for Muse review & merge (app.js/app.css version bump deferred to Muse for v7.50).
 - 2026-10-02 — Other Agent: `collab/guide-telegram-contact` implemented. Added dedicated Telegram contact and feedback box (`@upanna`, link: `https://t.me/upanna`) in `templates/index.html` (User Guide Modal Section 12) and `README.md` author attribution section. Tests pass (100/100). Branch ready for review & merge.
+- 2026-10-02 — Other Agent (Antigravity): `collab/in-app-updater` implemented. Complete In-App Updater architecture:
+  1. Keystore Security (Step 1): `.gitignore` updated for `*.jks`/`*.keystore`/`release-keystore.properties`; `build.gradle` release signing config with graceful debug fallback; `generate_release_keystore.bat`/`.sh` generator scripts; `release-keystore.properties.example` template.
+  2. Native Android: `FileProvider` configured with `file_paths.xml`; `REQUEST_INSTALL_PACKAGES` permission in `AndroidManifest.xml`; `MainActivity.kt` with `AndroidBridge.checkForUpdates()`, 3.5s delayed startup auto-check (silent offline skip, 24h snooze in `SharedPreferences`), `DownloadManager` download with complete receiver, and `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES` permission flow leading to package install.
+  3. Backend & Cache: `/api/android-update` endpoint in `app.py` with `Cache-Control: public, max-age=300` (Cloudflare CDN cached to prevent rate limits), supporting dynamic `android_release.json` override.
+  4. Web Frontend: `#btnCheckAppUpdate` in User Guide Modal Section 12 calling `window.AndroidBridge.checkForUpdates()` or fallback toast for web users.
+  5. Test suite: `test_updater.py` created (2 tests). All 103 tests pass (103/103).
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -136,5 +142,7 @@
 | Hierarchical Collapsible TOC (L1-L6, accordion, 44px tap, stable rowid order) | Other Agent | `collab/hierarchical-toc` | ✅ merged to main (2026-10-02, v7.49) |
 | Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | ✅ merged to main (2026-10-02, v7.50) |
 | Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
+| In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | 🚀 ready for review & merge |
+
 
 

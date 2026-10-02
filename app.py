@@ -82,6 +82,39 @@ def health():
     """Tiny endpoint used by the Android wrapper to know the server is up."""
     return jsonify({"ok": True})
 
+_ANDROID_RELEASE_FILE = os.path.join(DATA_DIR, "android_release.json")
+
+@app.route("/api/android-update")
+def android_update():
+    """Returns latest Android APK release metadata for in-app updater."""
+    meta = {
+        "versionCode": int(os.environ.get("ANDROID_LATEST_VERSION_CODE", 2)),
+        "versionName": os.environ.get("ANDROID_LATEST_VERSION_NAME", "1.0.1"),
+        "downloadUrl": os.environ.get(
+            "ANDROID_LATEST_DOWNLOAD_URL",
+            "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/v1.0.1/tipitaka-release.apk"
+        ),
+        "changelog": os.environ.get(
+            "ANDROID_LATEST_CHANGELOG",
+            "• အက်ပ်အတွင်း တိုက်ရိုက် အပ်ဒိတ်စစ်ဆေးပြီး ရယူနိုင်သည့် စနစ် (In-App Updater) ထည့်သွင်းထားခြင်း\n• အင်တာနက်မလိုဘဲ အော့ဖ်လိုင်းဖတ်ရှုမှု ပိုမိုကောင်းမွန်စေခြင်း"
+        ),
+        "forceUpdate": False
+    }
+
+    for cand in [_ANDROID_RELEASE_FILE, os.path.join(BASE_DIR, "android_release.json")]:
+        if os.path.exists(cand):
+            try:
+                with open(cand, "r", encoding="utf-8") as f:
+                    file_meta = json.load(f)
+                    meta.update(file_meta)
+                break
+            except Exception:
+                pass
+
+    resp = jsonify(meta)
+    resp.headers["Cache-Control"] = "public, max-age=300"
+    return resp
+
 _STATS_CACHE = None  # (timestamp, dict) — /api/stats changes only on DB rebuild
 
 @app.after_request
@@ -90,6 +123,9 @@ def add_cache_headers(response):
     # HTML shell: always revalidate so new ?v= asset URLs are picked up
     if path == "/":
         response.headers["Cache-Control"] = "no-cache"
+        return response
+    # In-app updater endpoint: retain 5-minute CDN cache
+    if path == "/api/android-update":
         return response
     # 1. Mutable user state: bookmarks, recent read state and annotation sync must never be cached
     if path.startswith("/api/bookmarks") or path.startswith("/api/recent") or path.startswith("/api/sync"):

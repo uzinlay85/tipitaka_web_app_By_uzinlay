@@ -6440,6 +6440,18 @@ function setupEventListeners() {
     el.helpModal.addEventListener("click", (e) => {
         if (e.target === el.helpModal) el.helpModal.classList.remove("open");
     });
+
+    // In-App Updater check button (Android native bridge with Web fallback)
+    const btnCheckAppUpdate = document.getElementById("btnCheckAppUpdate");
+    if (btnCheckAppUpdate) {
+        btnCheckAppUpdate.addEventListener("click", () => {
+            if (window.AndroidBridge && typeof window.AndroidBridge.checkForUpdates === "function") {
+                window.AndroidBridge.checkForUpdates();
+            } else {
+                showAppToast("Web ဗားရှင်းသည် အမြဲတမ်း နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည် (v1.0.0)");
+            }
+        });
+    }
     el.globalSearchInput.addEventListener("input", () => {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(performSearch, 300);
