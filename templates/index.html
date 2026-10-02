@@ -630,29 +630,55 @@
                 </button>
             </div>
 
-            <!-- Search Mode Tabs -->
-            <div class="modal-tabs">
-                <button class="modal-tab-btn active" data-mode="word">
-                    <span>ပါဠိစကားလုံး (Word Index - ၉ သိန်းကျော်)</span>
+            <!-- Search Scope Bar (Tier 1: Pali vs Myanmar Toggle) -->
+            <div class="search-scope-bar">
+                <button type="button" class="search-scope-btn active" id="scopeBtnPali" data-scope="pali">
+                    <span class="scope-icon">☸</span>
+                    <span>ပါဠိတော် ကျမ်းစာများ</span>
                 </button>
-                <button class="modal-tab-btn" data-mode="phrase">
-                    <span>ပါဠိ စာပိုဒ်/စာကြောင်း (Phrase)</span>
+                <button type="button" class="search-scope-btn" id="scopeBtnMM" data-scope="mm">
+                    <span class="scope-icon">🇲🇲</span>
+                    <span>မြန်မာပြန် ကျမ်းစာများ</span>
                 </button>
-                <button class="modal-tab-btn" data-mode="sutta">
-                    <span>ပါဠိ သုတ္တန်များ (Suttas - ၆ ထောင်ကျော်)</span>
-                </button>
-                <button class="modal-tab-btn" data-mode="book">
-                    <span>ပါဠိ ကျမ်းစာအုပ်များ</span>
-                </button>
-                <button class="modal-tab-btn" data-mode="mm_phrase">
-                    <span>မြန်မာပြန် စာပိုဒ်/စာကြောင်း</span>
-                </button>
-                <button class="modal-tab-btn" data-mode="mm_book">
-                    <span>မြန်မာပြန် ကျမ်းစာအုပ်များ</span>
-                </button>
-                <button class="modal-tab-btn" data-mode="mm_toc">
-                    <span>မြန်မာပြန် မာတိကာ (၁ သောင်းကျော်)</span>
-                </button>
+            </div>
+
+            <!-- Search Mode Tabs (Tier 2: Compact Action Pills) -->
+            <div class="search-subtabs-container">
+                <!-- Pali Modes Group -->
+                <div class="modal-tabs-group" id="paliTabsGroup">
+                    <button type="button" class="modal-tab-btn active" data-mode="word" title="ပါဠိစကားလုံး Index (၉ သိန်းကျော်)">
+                        <span class="tab-icon">📝</span>
+                        <span>စကားလုံး</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="phrase" title="ပါဠိ စာပိုဒ်/စာကြောင်း အတွဲလိုက် ရှာဖွေမှု">
+                        <span class="tab-icon">📄</span>
+                        <span>စာပိုဒ်/အတွဲ</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="sutta" title="ပါဠိ သုတ္တန်များ (၆ ထောင်ကျော်)">
+                        <span class="tab-icon">📜</span>
+                        <span>သုတ္တန်</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="book" title="ပါဠိ ကျမ်းစာအုပ် အမည်များ">
+                        <span class="tab-icon">📚</span>
+                        <span>ကျမ်းအမည်</span>
+                    </button>
+                </div>
+
+                <!-- Myanmar Modes Group -->
+                <div class="modal-tabs-group" id="mmTabsGroup" style="display: none;">
+                    <button type="button" class="modal-tab-btn" data-mode="mm_phrase" title="မြန်မာပြန် စာပိုဒ်/စာကြောင်း အတွဲလိုက် ရှာဖွေမှု">
+                        <span class="tab-icon">📄</span>
+                        <span>စာပိုဒ်/အတွဲ</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="mm_book" title="မြန်မာပြန် ကျမ်းစာအုပ် အမည်များ">
+                        <span class="tab-icon">📚</span>
+                        <span>ကျမ်းအမည်</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="mm_toc" title="မြန်မာပြန် မာတိကာ ခေါင်းစဉ်များ (၁ သောင်းကျော်)">
+                        <span class="tab-icon">📑</span>
+                        <span>မာတိကာ</span>
+                    </button>
+                </div>
             </div>
 
             <div class="search-summary" id="searchSummary"></div>

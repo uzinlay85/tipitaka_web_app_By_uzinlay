@@ -95,6 +95,12 @@
   3. UI & CSS: Added `[⊞]` (Expand all) and `[⊟]` (Collapse all) toolbar buttons in `templates/index.html`. Added `.toc-node-wrapper`, `.toc-item-row`, `.toc-toggle-btn` (with 44px min touch target for mobile compliance), `.toc-spacer`, and nested `.toc-children-list` with dashed tree guidelines.
   4. Logic in `app.js`: In-memory per-book expand state (`_tocExpandedByBook`), accordion toggle collapsing siblings at the same level, auto-ancestor-expansion in `highlightActiveToc` when active item is inside a collapsed branch, tree search filter with auto-expanding matching branches and state restoration on clear, O(1) button cache rebuilding.
   All local test suites pass (100/100 across `test_toc_tree`, `test_jump_hang_regression`, `test_export`, `test_audit_fixes`, `test_phrase_search_live`). Branch ready for Muse review & merge (app.js?v= bump deferred to Muse for v7.49).
+- 2026-10-02 — Other Agent: `collab/search-tabs-ui` implemented & verified.
+  1. UI Redesign: Eliminated horizontal dragging/overflowing on search modal tabs by introducing a Two-tier Scope and Action Pills system.
+  2. Tier 1: Prominent scope switcher (`[☸ ပါဠိတော်]` vs `[🇲🇲 မြန်မာပြန်]`).
+  3. Tier 2: Compact action pills per scope (`[📝 စကားလုံး]`, `[📄 စာပိုဒ်/အတွဲ]`, `[📜 သုတ္တန်]`, `[📚 ကျမ်းအမည်]` for Pali; `[📄 စာပိုဒ်/အတွဲ]`, `[📚 ကျမ်းအမည်]`, `[📑 မာတိကာ]` for MM). Zero horizontal dragging even on 320px mobile screens.
+  4. Logic in `app.js`: `setSearchScope(scope, targetMode)` synchronizes scope with reader mode (`state.readerMode`), search history clicks, and dynamic placeholder updates. Retains all existing `.modal-tab-btn` and `data-mode` contracts.
+  All local test suites pass (100/100). Branch ready for Muse review & merge (app.js/app.css version bump deferred to Muse for v7.50).
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -127,5 +133,6 @@
 | Multi-word / phrase search with prefix expansion (Pali + MM) | Other Agent | `collab/phrase-search` | ✅ merged to main (2026-10-01, v7.48) |
 | Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | ✅ merged to main (2026-10-01) |
 | Hierarchical Collapsible TOC (L1-L6, accordion, 44px tap, stable rowid order) | Other Agent | `collab/hierarchical-toc` | ✅ merged to main (2026-10-02, v7.49) |
+| Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | 🟡 ready for review |
 
 

@@ -316,6 +316,10 @@ const el = {
     btnCloseModal: document.getElementById("btnCloseModal"),
     globalSearchInput: document.getElementById("globalSearchInput"),
     btnClearSearch: document.getElementById("btnClearSearch"),
+    scopeBtnPali: document.getElementById("scopeBtnPali"),
+    scopeBtnMM: document.getElementById("scopeBtnMM"),
+    paliTabsGroup: document.getElementById("paliTabsGroup"),
+    mmTabsGroup: document.getElementById("mmTabsGroup"),
     modalTabBtns: document.querySelectorAll(".modal-tab-btn"),
     searchSummary: document.getElementById("searchSummary"),
     searchResultsList: document.getElementById("searchResultsList"),
@@ -4714,8 +4718,47 @@ async function performSearch() {
     }
 }
 
+function setSearchScope(scope, targetMode = null) {
+    state.searchScope = scope;
+    if (el.scopeBtnPali) el.scopeBtnPali.classList.toggle("active", scope === "pali");
+    if (el.scopeBtnMM) el.scopeBtnMM.classList.toggle("active", scope === "mm");
+    if (el.paliTabsGroup) el.paliTabsGroup.style.display = (scope === "pali") ? "flex" : "none";
+    if (el.mmTabsGroup) el.mmTabsGroup.style.display = (scope === "mm") ? "flex" : "none";
+
+    const paliModes = ["word", "phrase", "sutta", "book"];
+    const mmModes = ["mm_phrase", "mm_book", "mm_toc"];
+
+    if (targetMode) {
+        state.searchMode = targetMode;
+    } else {
+        if (scope === "pali" && !paliModes.includes(state.searchMode)) {
+            state.searchMode = "word";
+        } else if (scope === "mm" && !mmModes.includes(state.searchMode)) {
+            state.searchMode = "mm_phrase";
+        }
+    }
+
+    if (el.modalTabBtns) {
+        el.modalTabBtns.forEach(btn => {
+            btn.classList.toggle("active", btn.getAttribute("data-mode") === state.searchMode);
+        });
+    }
+
+    if (el.globalSearchInput) {
+        if (scope === "pali") {
+            el.globalSearchInput.placeholder = "ပါဠိတော် ကျမ်းစာများအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ...";
+        } else {
+            el.globalSearchInput.placeholder = "မြန်မာပြန် ကျမ်းစာများအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ...";
+        }
+    }
+}
+
 function openSearchModal() {
     el.searchModal.classList.add("open");
+    const isMMMode = state.searchMode && state.searchMode.startsWith("mm_");
+    const isMMReader = state.readerMode === "mm";
+    const preferredScope = isMMMode ? "mm" : (state.searchMode && ["word", "phrase", "sutta", "book"].includes(state.searchMode) ? "pali" : (isMMReader ? "mm" : "pali"));
+    setSearchScope(preferredScope, state.searchMode);
     el.globalSearchInput.focus();
 }
 
@@ -5703,9 +5746,8 @@ function renderHistoryModalContent() {
                     openSearchModal();
                     if (el.globalSearchInput) el.globalSearchInput.value = query;
                     state.searchMode = type || "word";
-                    el.modalTabBtns.forEach(btn => {
-                        btn.classList.toggle("active", btn.getAttribute("data-mode") === state.searchMode);
-                    });
+                    const scope = state.searchMode.startsWith("mm_") ? "mm" : "pali";
+                    setSearchScope(scope, state.searchMode);
                     performSearch();
                 }
             });
@@ -6408,6 +6450,22 @@ function setupEventListeners() {
         el.btnClearSearch.style.display = "none";
         performSearch();
     });
+    if (el.scopeBtnPali) {
+        el.scopeBtnPali.addEventListener("click", () => {
+            setSearchScope("pali");
+            if (el.globalSearchInput && el.globalSearchInput.value.trim()) {
+                performSearch();
+            }
+        });
+    }
+    if (el.scopeBtnMM) {
+        el.scopeBtnMM.addEventListener("click", () => {
+            setSearchScope("mm");
+            if (el.globalSearchInput && el.globalSearchInput.value.trim()) {
+                performSearch();
+            }
+        });
+    }
     el.modalTabBtns.forEach(btn => {
         btn.addEventListener("click", () => {
             el.modalTabBtns.forEach(b => b.classList.remove("active"));
