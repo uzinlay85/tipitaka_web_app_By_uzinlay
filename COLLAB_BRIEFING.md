@@ -101,6 +101,7 @@
   3. Tier 2: Compact action pills per scope (`[📝 စကားလုံး]`, `[📄 စာပိုဒ်/အတွဲ]`, `[📜 သုတ္တန်]`, `[📚 ကျမ်းအမည်]` for Pali; `[📄 စာပိုဒ်/အတွဲ]`, `[📚 ကျမ်းအမည်]`, `[📑 မာတိကာ]` for MM). Zero horizontal dragging even on 320px mobile screens.
   4. Logic in `app.js`: `setSearchScope(scope, targetMode)` synchronizes scope with reader mode (`state.readerMode`), search history clicks, and dynamic placeholder updates. Retains all existing `.modal-tab-btn` and `data-mode` contracts.
   All local test suites pass (100/100). Branch ready for Muse review & merge (app.js/app.css version bump deferred to Muse for v7.50).
+- 2026-10-02 — Other Agent: `collab/guide-telegram-contact` implemented. Added dedicated Telegram contact and feedback box (`@upanna`, link: `https://t.me/upanna`) in `templates/index.html` (User Guide Modal Section 12) and `README.md` author attribution section. Tests pass (100/100). Branch ready for review & merge.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -134,5 +135,6 @@
 | Documentation update: README (sec 25 phrase search) + in-app guide card | Other Agent | `collab/phrase-search-docs` | ✅ merged to main (2026-10-01) |
 | Hierarchical Collapsible TOC (L1-L6, accordion, 44px tap, stable rowid order) | Other Agent | `collab/hierarchical-toc` | ✅ merged to main (2026-10-02, v7.49) |
 | Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | ✅ merged to main (2026-10-02, v7.50) |
+| Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
 
 
