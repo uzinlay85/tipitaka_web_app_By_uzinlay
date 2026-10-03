@@ -74,6 +74,6 @@ check("dictionary ignores badge taps", 'closest(".divider-badge")' in JS and
       "badge taps open the inline jump row" in JS)
 
 # --- versions ---
-check("cache-busting version is current", 'app.js?v=7.51' in HTML and 'app.css?v=7.45' in HTML)
+check("cache-busting version is current", 'app.js?v=7.52' in HTML and 'app.css?v=7.46' in HTML)
 
 print("ALL PASS")
