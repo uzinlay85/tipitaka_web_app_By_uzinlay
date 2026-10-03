@@ -4938,3 +4938,21 @@ body.ios-fullscreen-fallback .reader-container {
     cursor: pointer;
     padding: 8px;
 }
+
+/* ============================================================
+   Search Term Highlighting in Reader
+   ============================================================ */
+mark.search-match-highlight {
+    background: #ffeb3b;
+    color: #111111;
+    padding: 1px 4px;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255, 235, 59, 0.75);
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+[data-theme="dark"] mark.search-match-highlight {
+    background: #f59e0b;
+    color: #000000;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.85);
+}
