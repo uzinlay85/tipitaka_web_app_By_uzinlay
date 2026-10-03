@@ -107,7 +107,12 @@
   2. Native Android: `FileProvider` configured with `file_paths.xml`; `REQUEST_INSTALL_PACKAGES` permission in `AndroidManifest.xml`; `MainActivity.kt` with `AndroidBridge.checkForUpdates()`, 3.5s delayed startup auto-check (silent offline skip, 24h snooze in `SharedPreferences`), `DownloadManager` download with complete receiver, and `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES` permission flow leading to package install.
   3. Backend & Cache: `/api/android-update` endpoint in `app.py` with `Cache-Control: public, max-age=300` (Cloudflare CDN cached to prevent rate limits), supporting dynamic `android_release.json` override.
   4. Web Frontend: `#btnCheckAppUpdate` in User Guide Modal Section 12 calling `window.AndroidBridge.checkForUpdates()` or fallback toast for web users.
-  5. Test suite: `test_updater.py` created (2 tests). All 103 tests pass (103/103).
+- 2026-10-03 — Other Agent (Antigravity): `collab/reader-search-dict-enhancements` implemented & verified.
+  1. Search Result Highlight & Auto-Scroll (Issue 1): Added `highlightSearchTermsInContainer(container, query)` using safe DOM `TreeWalker` on text nodes (protecting `<span class="pali-word">` markup), smooth-scrolling to the first match with `block: 'center'`. Amber/yellow glowing highlight defined in `static/app.css` for light and dark themes. Wired into feed, single-page, and split-view panes in `static/app.js`. Handled auto-clearing via `clearPendingSearch()` on next/prev/jump/TOC/bookmark/input navigation.
+  2. Canonical Book Order in Search (Issue 2): Selected `b.rowid AS book_order` in `search_pali_phrase` and sorted results strictly by `(book_order, page)`, accurately displaying books in standard Tipitaka sequence: Mula (1–61) -> Atthakatha (62–114) -> Tika (115–151) -> Anya (152–192) and canonical Nikaya order.
+  3. Morphological Stemmer for Pali Dictionary (Issue 3): Added `get_pali_stem_candidates(clean)` in `app.py` covering enclitic stripping (`-န္တိ`, `-တိ`, `-ပိ`, `-ဉ္စ`, etc.), noun declension rules (`-ဝတော/-မတော` -> `-ဝါ/-ဝန္တ`, `-ဝေ/-ူနံ/-ုနာ/-ူဟိ/-ူသု` -> `-ု/-ူ`, `-ညော/-ရာဇာနော` -> `-ရာဇာ`, `-ိယာ` -> `-ီ`), pronominal plurals, and pronoun stems. Resolves inflected word lookups (e.g. `ဘဂဝတော`, `ဘိက္ခဝေ`, `ဘိက္ခူနံ`, `ရာညော`, `အာယသ္မတော`, `ဒေဝိယာ`) directly to root headwords.
+  4. Prose Punctuation Preservation (Issue 4): Updated `format_chattasangayana_pali()` in `app.py` and `cleanPaliContent()` in `app.js` to preserve pauses in prose by converting Western commas `,` and semicolons `;` to Myanmar pada-thi `၊`, and `?`/`!` to pada-ma `။` (normalizing duplicate punctuation). Gatha verses correctly terminate in `၊` (odd padas) or `။` (even padas).
+  5. Test suite: Created `test_stemmer_and_punc.py` (4 tests). All test suites pass 100% (107/107 across `test_stemmer_and_punc`, `test_jump_hang_regression`, `test_export`, `test_audit_fixes`, `test_phrase_search_live`, `test_toc_tree`, `test_updater`). Ready for Muse review & merge (app.js?v= bump deferred to Muse).
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -143,6 +148,8 @@
 | Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | ✅ merged to main (2026-10-02, v7.50) |
 | Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
 | In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | ✅ merged to main (2026-10-02, v7.51) |
+| Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ready for Muse review & merge |
+
 
 
 

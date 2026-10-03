@@ -232,6 +232,7 @@ PALI_SUFFIXES = (
     'သ္မာ', 'သ္မိံ', 'မှိ', 'မှာ', # -smā, -smiṃ, -mhi, -mhā
     'ဿ', 'ာယ', 'ါယ',         # -ssa, -āya
     'ေန', 'ေသု', 'သု',         # -ena, -esu, -su
+    'ေသံ', 'ေသာနံ', 'ာသံ',     # -esaṃ, -esānaṃ, -āsaṃ
     'ဉ္စ', 'ဉ္စိ', 'ဝါ', 'ပိ', 'တိ', # enclitics: -ñca, -vā, -pi, -ti
     'ာ', 'ါ', 'ေ', 'ိ', 'ီ', 'ု', 'ူ', 'ံ'
 )
@@ -252,6 +253,9 @@ RE_LEAD_WHITESPACE = re.compile(r'^\s+')
 RE_LEAD_ANCHORS_SPACE = re.compile(r'^((?:<a\b[^>]*>.*?</a>)*)\s+')
 RE_COMMA_SPLIT = re.compile(r',(?![^<]*>)\s*')
 RE_COMMA_REMOVE = re.compile(r',(?![^<]*>)')
+RE_COMMA_PROSE = re.compile(r',(?![^<]*>)')
+RE_QUESTION_EXCLAMATION = re.compile(r'[?!](?![^<]*>)')
+RE_SEMICOLON = re.compile(r';(?![^<]*>)')
 RE_PADA_NON_FINAL = re.compile(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
 RE_PADA_CHECK_PUNCT = re.compile(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
 RE_PADA_CHECK_SECTION = re.compile(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
@@ -332,11 +336,24 @@ def format_chattasangayana_pali(html):
             else:
                 p = clean_gatha_quotes(content.strip())
                 if 'gatha2' in cls_name or 'gatha4' in cls_name or 'gathalast' in cls_name:
-                    p = re.sub(r'၊([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
+                    if re.search(r'၊([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                        p = re.sub(r'၊([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', r'။\1', p)
+                    elif not re.search(r'။([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                        p = p + '။'
+                elif 'gatha1' in cls_name or 'gatha3' in cls_name:
+                    if not re.search(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$', p):
+                        p = p + '၊'
                 p = clean_gatha_quotes(p)
                 return f'<p{attrs}><span class="gatha-pada">{p}</span></p>'
         else:
-            cleaned = RE_COMMA_REMOVE.sub('', content)
+            # Prose: preserve pauses as Myanmar pada-thi (၊), convert semicolons to ၊,
+            # and convert Western question/exclamation marks to pada-ma (။)
+            cleaned = RE_COMMA_PROSE.sub('၊', content)
+            cleaned = RE_SEMICOLON.sub('၊', cleaned)
+            cleaned = RE_QUESTION_EXCLAMATION.sub('။', cleaned)
+            cleaned = re.sub(r'၊\s*၊', '၊', cleaned)
+            cleaned = re.sub(r'၊\s*။', '။', cleaned)
+            cleaned = re.sub(r'။\s*။', '။', cleaned)
             return f'<p{attrs}>{cleaned}</p>'
             
     res_html = RE_P_TAG.sub(repl_p, res_html)
@@ -1192,19 +1209,124 @@ def api_match_pali_to_companion():
 
 # ----------------- Dictionary APIs with In-Memory LRU Cache -----------------
 
+def get_pali_stem_candidates(clean):
+    """Generate prioritized dictionary lookup candidates: exact -> enclitics -> declension rules -> suffixes."""
+    candidates = [clean]
+
+    def add_cand(w):
+        if w and len(w) >= 2 and w not in candidates:
+            candidates.append(w)
+
+    # Step 1: Enclitic / Sandhi stripping (-န္တိ, -တိ, -ပိ, -ဉ္စ, -ဝါ, -ခေါ, -ေဝ, -ေယဝ, -ယေဝ)
+    enclitics = ('န္တိ', 'တိ', 'ပိ', 'ဉ္စ', 'ဝါ', 'ခေါ', 'ေဝ', 'ေယဝ', 'ယေဝ')
+    base_words = [clean]
+    for enc in enclitics:
+        if clean.endswith(enc) and len(clean) > len(enc) + 1:
+            base = clean[:-len(enc)]
+            add_cand(base)
+            base_words.append(base)
+            if enc in ('န္တိ', 'ဉ္စ'):
+                add_cand(base + 'ံ')
+
+    # Step 2: Pali Declension Rules (နာမ်ဝိဘတ်ဆင်ပုံ စည်းမျဉ်းများ)
+    for b in list(base_words):
+        # A. -vant / -mant (ဘဂဝတော -> ဘဂဝါ / ဘဂဝန္တ, အာယသ္မတော -> အာယသ္မာ / အာယသ္မန္တ)
+        if b.endswith('ဝတော') and len(b) > 4:
+            stem = b[:-4]
+            add_cand(stem + 'ဝါ')
+            add_cand(stem + 'ဝန္တ')
+            add_cand(stem + 'ဝ')
+        elif b.endswith('ဝတာ') and len(b) > 4:
+            stem = b[:-4]
+            add_cand(stem + 'ဝါ')
+            add_cand(stem + 'ဝန္တ')
+        elif b.endswith('မတော') and len(b) > 4:
+            stem = b[:-4]
+            add_cand(stem + 'မာ')
+            add_cand(stem + 'မန္တ')
+            add_cand(stem + 'မ')
+        elif b.endswith('မတာ') and len(b) > 4:
+            stem = b[:-4]
+            add_cand(stem + 'မာ')
+            add_cand(stem + 'မန္တ')
+
+        # B. -u / -ū masc/neut (ဘိက္ခဝေ -> ဘိက္ခု, ဘိက္ခူနံ -> ဘိက္ခု, ဘိက္ခုနာ -> ဘိက္ခု)
+        if b.endswith('ဝေ') and len(b) > 2:
+            stem = b[:-2]
+            add_cand(stem + 'ု')
+        if b.endswith('ူနံ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+            add_cand(stem + 'ူ')
+        if b.endswith('ုနာ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+        if b.endswith('ူဟိ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+            add_cand(stem + 'ူ')
+        if b.endswith('ူသု') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+            add_cand(stem + 'ူ')
+        if b.endswith('ဝေါ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+
+        # C. Raja forms (ရာညော, ရညော, ရာဇာနော -> ရာဇာ, ရာဇ)
+        if b in ('ရာညော', 'ရညော', 'ရာဇာနော', 'ရာဇိနော'):
+            add_cand('ရာဇာ')
+            add_cand('ရာဇ')
+
+        # D. Feminine -i / -ī (ဒေဝိယာ -> ဒေဝီ, နဒိယာ -> နဒီ)
+        if b.endswith('ိယာ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ီ')
+            add_cand(stem + 'ိ')
+        if b.endswith('ိယော') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ီ')
+            add_cand(stem + 'ိ')
+
+        # E. Pronominal plural (-ေသံ, -ေသာနံ, -ာသံ) e.g. သဗ္ဗေသံ -> သဗ္ဗ
+        if b.endswith('ေသံ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem)
+        if b.endswith('ေသာနံ') and len(b) > 5:
+            stem = b[:-5]
+            add_cand(stem)
+        if b.endswith('ာသံ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem)
+            add_cand(stem + 'ာ')
+
+        # F. Common pronouns
+        prons = {
+            'မေ': ['အဟံ'], 'မယာ': ['အဟံ'], 'မမ': ['အဟံ'], 'မယှံ': ['အဟံ'],
+            'တေ': ['တွံ'], 'တယာ': ['တွံ'], 'တုယှံ': ['တွံ'], 'တဝ': ['တွံ'],
+            'နော': ['အမှ'], 'ဝေါ': ['တုမှ']
+        }
+        if b in prons:
+            for p in prons[b]:
+                add_cand(p)
+
+    # Step 3: Generic Suffixes
+    for b in list(base_words):
+        for s in PALI_SUFFIXES:
+            if b.endswith(s) and len(b) > len(s):
+                stem = b[:-len(s)]
+                add_cand(stem)
+
+    return candidates
+
 @lru_cache(maxsize=16384)
 def _cached_pali_dict_lookup(clean):
-    """Zero-I/O memoized lookup for recurring Pali words."""
+    """Zero-I/O memoized lookup for recurring Pali words with morphological stemmer."""
     conn = sqlite3.connect(DB_PALI_RO_URI, uri=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    candidates = [clean]
-    for s in PALI_SUFFIXES:
-        if clean.endswith(s) and len(clean) > len(s):
-            stem = clean[:-len(s)]
-            if len(stem) >= 2 and stem not in candidates:
-                candidates.append(stem)
+    candidates = get_pali_stem_candidates(clean)
 
     results = []
     matched_word = clean
@@ -1308,7 +1430,7 @@ def search_pali_phrase(cur, query, page=1, limit=20):
         chunk = candidate_list[i:i + chunk_size]
         placeholders = ",".join(["?"] * len(chunk))
         rows = cur.execute(f"""
-            SELECT p.id, p.book_id, b.name as book_name, p.page, p.content
+            SELECT p.id, p.book_id, b.name as book_name, p.page, p.content, b.rowid as book_order
             FROM pages p
             JOIN books b ON p.book_id = b.id
             WHERE p.id IN ({placeholders})
@@ -1331,10 +1453,14 @@ def search_pali_phrase(cur, query, page=1, limit=20):
                     "book_id": p["book_id"],
                     "book_name": p["book_name"],
                     "page": p["page"],
+                    "book_order": p["book_order"],
                     "snippet": snippet
                 })
 
-    matching_pages.sort(key=lambda x: (x["book_id"], x["page"]))
+    # Sort strictly by canonical book order (mula -> attha -> tika -> annya) and page number
+    matching_pages.sort(key=lambda x: (x["book_order"], x["page"]))
+    for m in matching_pages:
+        m.pop("book_order", None)
     total = len(matching_pages)
     offset = (page - 1) * limit
     results = matching_pages[offset:offset + limit]

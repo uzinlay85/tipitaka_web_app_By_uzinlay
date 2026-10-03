@@ -63,7 +63,8 @@ const state = {
     isLoadingMore: false,
     historyActiveTab: "reading",
     historyModeFilter: "all",
-    isFocusMode: false
+    isFocusMode: false,
+    pendingSearchHighlight: null
 };
 
 // Printed-volume labels (ဆဋဌမူ ပုံနှိပ်တွဲ) for books in multi-volume nikayas,
@@ -1569,6 +1570,7 @@ function _jumpInlineSubmit() {
 }
 
 function _jumpGo(page) {
+    clearPendingSearch();
     _trackAction("_jumpGo", page);    page = Math.max(_jumpFirst, Math.min(_jumpLast, Math.round(page)));
     // Prune feed DOM before loading the target page to prevent accumulation
     // across repeated jumps (each jump adds pages; prune keeps window small).
@@ -2201,8 +2203,14 @@ function cleanPaliContent(html) {
             }
         }
         
-        // စကားပြေ (Prose / Bodytext) တွင် မလိုအပ်သော English comma များကို ဖယ်ရှားပါမည်
-        const cleaned = content.replace(/,(?![^<]*>)/g, "");
+        // စကားပြေ (Prose / Bodytext) တွင် မူရင်း English comma, semicolon များကို ပုဒ်ထီး (၊) သို့လည်းကောင်း၊ ? နှင့် ! များကို ပုဒ်မ (။) သို့လည်းကောင်း ပြောင်းလဲပါမည်
+        let cleaned = content
+            .replace(/,(?![^<]*>)/g, "၊")
+            .replace(/;(?![^<]*>)/g, "၊")
+            .replace(/[?!](?![^<]*>)/g, "။")
+            .replace(/၊\s*၊/g, "၊")
+            .replace(/၊\s*။/g, "။")
+            .replace(/။\s*။/g, "။");
         return `<p${attrs}>${cleaned}</p>`;
     });
 
@@ -2215,6 +2223,98 @@ function cleanMMContent(html) {
     let res = cleanPeyala(html);
     res = res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
     return protectMyanmarConjuncts(res);
+}
+
+/* ============================================================
+   Search Match Highlight & Text-Node Walker
+   ============================================================ */
+function highlightSearchTermsInContainer(container, query) {
+    if (!container || !query) return 0;
+    const tokens = query.trim().split(/\s+/).filter(t => t.length > 0);
+    if (tokens.length === 0) return 0;
+
+    const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedTokens = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`(${escapedQuery}|${escapedTokens.join('|')})`, 'gi');
+
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        if (node.parentElement && (
+            node.parentElement.tagName === 'SCRIPT' || 
+            node.parentElement.tagName === 'STYLE' || 
+            node.parentElement.classList.contains('search-match-highlight') ||
+            node.parentElement.classList.contains('paranum')
+        )) {
+            continue;
+        }
+        if (regex.test(node.nodeValue)) {
+            textNodes.push(node);
+        }
+    }
+
+    let matchCount = 0;
+    for (const textNode of textNodes) {
+        const parent = textNode.parentNode;
+        if (!parent) continue;
+        const text = textNode.nodeValue;
+        regex.lastIndex = 0;
+
+        const fragment = document.createDocumentFragment();
+        let lastIdx = 0;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIdx) {
+                fragment.appendChild(document.createTextNode(text.substring(lastIdx, match.index)));
+            }
+            const mark = document.createElement('mark');
+            mark.className = 'search-match-highlight';
+            mark.textContent = match[0];
+            fragment.appendChild(mark);
+            matchCount++;
+            lastIdx = regex.lastIndex;
+        }
+        if (lastIdx < text.length) {
+            fragment.appendChild(document.createTextNode(text.substring(lastIdx)));
+        }
+        parent.replaceChild(fragment, textNode);
+    }
+    return matchCount;
+}
+
+function clearSearchHighlights(container) {
+    if (!container) return;
+    const marks = container.querySelectorAll('mark.search-match-highlight');
+    marks.forEach(mark => {
+        const text = mark.textContent;
+        const parent = mark.parentNode;
+        if (parent) {
+            parent.replaceChild(document.createTextNode(text), mark);
+            parent.normalize();
+        }
+    });
+}
+
+function clearPendingSearch() {
+    state.pendingSearchHighlight = null;
+    clearSearchHighlights(el.paliContent);
+    if (el.splitPaliContent) clearSearchHighlights(el.splitPaliContent);
+    if (el.splitRightContent) clearSearchHighlights(el.splitRightContent);
+    if (el.splitMMContent && el.splitMMContent !== el.splitRightContent) clearSearchHighlights(el.splitMMContent);
+}
+
+function applyPendingSearchHighlight(container) {
+    if (!state.pendingSearchHighlight || !container) return;
+    const hitCount = highlightSearchTermsInContainer(container, state.pendingSearchHighlight);
+    if (hitCount > 0) {
+        const firstHit = container.querySelector("mark.search-match-highlight");
+        if (firstHit) {
+            setTimeout(() => {
+                firstHit.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 120);
+        }
+    }
 }
 
 async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppend = false, isPrepend = false) {
@@ -2313,6 +2413,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     updateBookmarkIconStatus();
                     highlightActiveToc(actualPage);
                     injectAnnotationPins(el.paliContent, bookId, actualPage);
+                    applyPendingSearchHighlight(el.paliContent);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -2444,6 +2545,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 updateBookmarkIconStatus();
                 highlightActiveToc(actualPage);
                 injectAnnotationPins(el.paliContent, bookId, actualPage);
+                applyPendingSearchHighlight(el.paliContent);
             }
         }
 
@@ -2460,7 +2562,10 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
             if (el.splitPaliTotalDisplay) el.splitPaliTotalDisplay.textContent = toMyanmarNum(data.last_page);
             if (el.btnSplitPaliPrev) el.btnSplitPaliPrev.disabled = !data.has_prev;
             if (el.btnSplitPaliNext) el.btnSplitPaliNext.disabled = !data.has_next;
-            if (el.splitPaliContent) el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
+            if (el.splitPaliContent) {
+                el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
+                applyPendingSearchHighlight(el.splitPaliContent);
+            }
             
             // Sync matching Companion page (Attha, Tika, Mula, or MM)
             await syncSplitCompanionPane(bookId, actualPage);
@@ -2604,6 +2709,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     highlightActiveToc(actualPage);
                     debounceRecent(bookId, actualPage);
                     injectAnnotationPins(el.paliContent, bookId, actualPage);
+                    applyPendingSearchHighlight(el.paliContent);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -2733,6 +2839,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 highlightActiveToc(actualPage);
                 debounceRecent(bookId, actualPage);
                 injectAnnotationPins(el.paliContent, bookId, actualPage);
+                applyPendingSearchHighlight(el.paliContent);
             }
         }
 
@@ -2751,7 +2858,10 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
             if (el.splitMMTotalDisplay) el.splitMMTotalDisplay.textContent = toMyanmarNum(data.last_page);
             if (el.btnSplitMMPrev) el.btnSplitMMPrev.disabled = !data.has_prev;
             if (el.btnSplitMMNext) el.btnSplitMMNext.disabled = !data.has_next;
-            if (el.splitMMContent) el.splitMMContent.innerHTML = cleanMMContent(data.content);
+            if (el.splitMMContent) {
+                el.splitMMContent.innerHTML = cleanMMContent(data.content);
+                applyPendingSearchHighlight(el.splitMMContent);
+            }
             if (el.bookTitleDisplay && state.readerMode === "split") {
                 el.bookTitleDisplay.textContent = `${withVolumeLabel(state.paliBookId, state.paliBookName || 'ပါဠိတော်')} ↔ ${withVolumeLabel(data.book_id, data.book_name)}`;
             }
@@ -2958,6 +3068,7 @@ async function loadSplitRightPage(bookId, pageNum, type, matchedPara = null) {
 
                 el.splitRightContent.className = "split-pane-body mm-content";
                 el.splitRightContent.innerHTML = cleanMMContent(data.content);
+                applyPendingSearchHighlight(el.splitRightContent);
 
                 attachSplitViewParagraphListeners();
 
@@ -2988,6 +3099,7 @@ async function loadSplitRightPage(bookId, pageNum, type, matchedPara = null) {
 
                 el.splitRightContent.className = "split-pane-body pali-content";
                 el.splitRightContent.innerHTML = cleanPaliContent(data.content);
+                applyPendingSearchHighlight(el.splitRightContent);
 
                 attachSplitViewParagraphListeners();
 
@@ -3736,6 +3848,7 @@ function attachTocEventListeners() {
 
     el.tocList.querySelectorAll(".toc-item-btn").forEach(btn => {
         btn.addEventListener("click", () => {
+            clearPendingSearch();
             const p = parseInt(btn.getAttribute("data-page"), 10);
             if (state.readerMode === "mm") {
                 loadMMPage(state.mmBookId, p);
@@ -4074,6 +4187,7 @@ function renderSuttas() {
 
     el.suttaList.querySelectorAll(".sutta-item-btn").forEach(btn => {
         btn.addEventListener("click", () => {
+            clearPendingSearch();
             const p = parseInt(btn.getAttribute("data-page"), 10);
             if (state.readerMode === "mm") {
                 loadMMPage(state.mmBookId, p);
@@ -4434,6 +4548,7 @@ function renderBookmarksList() {
     el.bookmarksList.querySelectorAll(".bookmark-item-btn").forEach(item => {
         item.addEventListener("click", async (e) => {
             if (e.target.classList.contains("btn-delete-bm")) return;
+            clearPendingSearch();
             const bid = item.getAttribute("data-id");
             const page = parseInt(item.getAttribute("data-page"), 10);
             await loadPaliBook(bid, page);
@@ -5933,6 +6048,7 @@ function setupEventListeners() {
     
     // Page Navigation
     function prevPage(scrollToBottom = false) {
+        clearPendingSearch();
         _trackAction("prevPage");
         if (state.scrollMode === "feed") {
             const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
@@ -5969,6 +6085,7 @@ function setupEventListeners() {
     }
 
     function nextPage(scrollToBottom = false) {
+        clearPendingSearch();
         _trackAction("nextPage");
         if (state.scrollMode === "feed") {
             const cur = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
@@ -6287,6 +6404,7 @@ function setupEventListeners() {
             // Accept both Myanmar and Arabic digits typed by the user
             const p = fromMyanmarNum(el.pageNumberInput.value);
             if (p > 0) {
+                clearPendingSearch();
                 if (state.readerMode === "mm") loadMMPage(state.mmBookId, p);
                 else loadPaliPage(state.paliBookId, p);
             }
@@ -6418,6 +6536,8 @@ function setupEventListeners() {
             const targetType = item.getAttribute("data-type");
             const bid = item.getAttribute("data-bid");
             const p = parseInt(item.getAttribute("data-page"), 10);
+            const q = el.globalSearchInput ? el.globalSearchInput.value.trim() : "";
+            state.pendingSearchHighlight = q || null;
             closeSearchModal();
             if (targetType === "mm") {
                 setReaderMode("mm");
