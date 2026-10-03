@@ -148,7 +148,7 @@
 | Two-tier Search Scope Tabs (Pali vs MM scope toggle, compact pills, zero horizontal scroll) | Other Agent | `collab/search-tabs-ui` | ✅ merged to main (2026-10-02, v7.50) |
 | Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
 | In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | ✅ merged to main (2026-10-02, v7.51) |
-| Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ready for Muse review & merge |
+| Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ✅ merged to main (2026-10-03, v7.52; Muse fixed TreeWalker lastIndex bug + history clear at merge) |
 
 
 

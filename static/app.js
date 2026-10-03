@@ -2249,6 +2249,9 @@ function highlightSearchTermsInContainer(container, query) {
         )) {
             continue;
         }
+        // /g/ regex keeps lastIndex state between .test() calls: reset before
+        // each test so a previous match never causes this node to be skipped.
+        regex.lastIndex = 0;
         if (regex.test(node.nodeValue)) {
             textNodes.push(node);
         }
@@ -5741,6 +5744,7 @@ function renderHistoryModalContent() {
         el.historyItemsContainer.querySelectorAll(".history-item-card").forEach(card => {
             card.addEventListener("click", async (e) => {
                 if (e.target.closest(".btn-delete-history")) return;
+                clearPendingSearch();
                 const mode = card.getAttribute("data-mode");
                 const bId = card.getAttribute("data-book-id");
                 const page = parseInt(card.getAttribute("data-page"), 10) || 1;
