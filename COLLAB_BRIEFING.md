@@ -189,6 +189,7 @@
 | Pali Stemmer expansion (အရဟတော, သမ္မာသမ္ဗုဒ္ဓဿ, မဟတော, သတ္ထုနော, ပိတရော, etc.) & Stacked Conjunct Click Fix | Other Agent (Antigravity) | `collab/stemmer-conjunct-click-fix` | ✅ merged to main (2026-10-04, v7.54; Muse fixed single-char pronoun lemmas တ/ယ/က dropped by len>=2 guard) |
 | Android Release v1.0.1 (signed APK build, GitHub Release publish, and updater metadata) | Other Agent (Antigravity) | `collab/android-release-v101` | ✅ merged to main (2026-10-04; Muse verified APK manifest versionCode=2 via AXML parse, download 200 OK 44866291 bytes) |
 | Mobile Reader Overhaul (Clean Header, 2x4 Circular Action Sheet, Instant Full-Width Companion Swap) | Other Agent (Antigravity) | main (`eb06901`) | ✅ implemented & pushed to main (2026-10-04, v7.55) |
+| Android Release v1.0.2 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 3) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.2, 44882671 bytes) |
 
 
 
