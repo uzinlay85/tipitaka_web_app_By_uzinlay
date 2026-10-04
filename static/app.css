@@ -5123,6 +5123,13 @@ mark.search-match-highlight {
     body.chrome-hidden .mobile-reader-toolbar {
         transform: translateY(115%);
     }
+    /* Mobile: companion (ယှဉ်တွဲ) system removed — edition switching only.
+       The side-by-side split buttons and the ယှဉ်တွဲ mode stay desktop-only.
+       (setReaderMode already redirects mobile split → edition switcher.) */
+    .comp-btn-split,
+    .mobile-mode-btn[data-mode="split"] {
+        display: none !important;
+    }
 }
 
 .reader-toolbar-item {
