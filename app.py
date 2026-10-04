@@ -257,7 +257,7 @@ RE_COMMA_PROSE = re.compile(r',(?![^<]*>)')
 RE_QUESTION_EXCLAMATION = re.compile(r'[?!](?![^<]*>)')
 RE_SEMICOLON = re.compile(r';(?![^<]*>)')
 RE_VOCATIVES_BEFORE = re.compile(
-    r'[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊,\s”’"\'\)\]}}]|$)'
+    r'[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊။,\s”’"\'\)\]}}]|$)'
 )
 RE_VOCATIVES_AFTER = re.compile(
     r'(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)((?:<[^>]+>)*)\s*[၊,]'
@@ -1265,7 +1265,44 @@ def get_pali_stem_candidates(clean):
             add_cand(stem + 'မာ')
             add_cand(stem + 'မန္တ')
 
-        # B. -u / -ū masc/neut (ဘိက္ခဝေ -> ဘိက္ခု, ဘိက္ခူနံ -> ဘိက္ခု, ဘိက္ခုနာ -> ဘိက္ခု)
+        # B. Special NT & Araha / Maha (အရဟတော, မဟတော, participles, ablative -တော)
+        if b in ('အရဟတော', 'အရဟတံ', 'အရဟတေ'):
+            add_cand('အရဟန္တ')
+            add_cand('အရဟံ')
+            add_cand('အရဟ')
+            add_cand('အရဟာ')
+        elif b in ('မဟတော', 'မဟတာ', 'မဟတံ', 'မဟတေ'):
+            add_cand('မဟန္တ')
+            add_cand('မဟာ')
+            add_cand('မဟ')
+        elif b.endswith('တော') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem)
+            add_cand(stem + 'န္တ')
+            add_cand(stem + 'ံ')
+            add_cand(stem + 'ာ')
+        elif b.endswith('တာ') and len(b) > 2:
+            stem = b[:-2]
+            add_cand(stem)
+            add_cand(stem + 'န္တ')
+            add_cand(stem + 'ံ')
+
+        # C. Kinship & Agent nouns in -u / -ar (သတ္ထုနော, သတ္ထာရံ -> သတ္ထု, သတ္ထာ; ပိတရော, ပိတုနော -> ပိတု; မာတရော, မာတုနော -> မာတု)
+        for suff in ('ာရော', 'ာရံ', 'ာရာ', 'ုနော', 'ရော', 'ရံ'):
+            if b.endswith(suff) and len(b) > len(suff) + 1:
+                stem = b[:-len(suff)]
+                add_cand(stem + 'ု')
+                add_cand(stem + 'ာ')
+
+        # D. Consonant stems (ဗြဟ္မာ, ဗြဟ္မ, အတ္တာ, အတ္တ)
+        if b.startswith('ဗြဟ္မ') or b.startswith('ဗြဟ္မာ'):
+            add_cand('ဗြဟ္မာ')
+            add_cand('ဗြဟ္မ')
+        if b in ('အတ္တနော', 'အတ္တနာ', 'အတ္တနိ', 'အတ္တာနံ'):
+            add_cand('အတ္တာ')
+            add_cand('အတ္တ')
+
+        # E. -u / -ū masc/neut (ဘိက္ခဝေ -> ဘိက္ခု, ဘိက္ခူနံ -> ဘိက္ခု, ဘိက္ခုနာ -> ဘိက္ခု)
         if b.endswith('ဝေ') and len(b) > 2:
             stem = b[:-2]
             add_cand(stem + 'ု')
@@ -1288,12 +1325,12 @@ def get_pali_stem_candidates(clean):
             stem = b[:-3]
             add_cand(stem + 'ု')
 
-        # C. Raja forms (ရာညော, ရညော, ရာဇာနော -> ရာဇာ, ရာဇ)
+        # F. Raja forms (ရာညော, ရညော, ရာဇာနော -> ရာဇာ, ရာဇ)
         if b in ('ရာညော', 'ရညော', 'ရာဇာနော', 'ရာဇိနော'):
             add_cand('ရာဇာ')
             add_cand('ရာဇ')
 
-        # D. Feminine -i / -ī (ဒေဝိယာ -> ဒေဝီ, နဒိယာ -> နဒီ)
+        # G. Feminine -i / -ī and -u / -ū (ဒေဝိယာ -> ဒေဝီ, ဝဓုယာ -> ဝဓူ, ယာဂုယာ -> ယာဂု)
         if b.endswith('ိယာ') and len(b) > 3:
             stem = b[:-3]
             add_cand(stem + 'ီ')
@@ -1302,8 +1339,12 @@ def get_pali_stem_candidates(clean):
             stem = b[:-3]
             add_cand(stem + 'ီ')
             add_cand(stem + 'ိ')
+        if b.endswith('ုယာ') and len(b) > 3:
+            stem = b[:-3]
+            add_cand(stem + 'ု')
+            add_cand(stem + 'ူ')
 
-        # E. Pronominal plural (-ေသံ, -ေသာနံ, -ာသံ) e.g. သဗ္ဗေသံ -> သဗ္ဗ
+        # H. Pronominal plural (-ေသံ, -ေသာနံ, -ာသံ) e.g. သဗ္ဗေသံ -> သဗ္ဗ
         if b.endswith('ေသံ') and len(b) > 3:
             stem = b[:-3]
             add_cand(stem)
@@ -1315,15 +1356,23 @@ def get_pali_stem_candidates(clean):
             add_cand(stem)
             add_cand(stem + 'ာ')
 
-        # F. Common pronouns
+        # I. Common pronouns & absolutive roots
         prons = {
             'မေ': ['အဟံ'], 'မယာ': ['အဟံ'], 'မမ': ['အဟံ'], 'မယှံ': ['အဟံ'],
-            'တေ': ['တွံ'], 'တယာ': ['တွံ'], 'တုယှံ': ['တွံ'], 'တဝ': ['တွံ'],
-            'နော': ['အမှ'], 'ဝေါ': ['တုမှ']
+            'တေ': ['တွံ', 'တ'], 'တယာ': ['တွံ'], 'တုယှံ': ['တွံ'], 'တဝ': ['တွံ'],
+            'နော': ['အမှ'], 'ဝေါ': ['တုမှ'],
+            'ဉာတွာ': ['ဇာနာတိ', 'ဉာ']
         }
         if b in prons:
             for p in prons[b]:
                 add_cand(p)
+        if b in ('တဿ', 'တဿာ', 'တေသံ', 'တာသံ', 'တသ္မိံ', 'တမှိ', 'တသ္မာ', 'တေဟိ', 'တာဟိ', 'တေန', 'တာယ'):
+            add_cand('တ')
+        if b in ('ယဿ', 'ယဿာ', 'ယေသံ', 'ယာသံ', 'ယသ္မိံ', 'ယမှိ', 'ယသ္မာ', 'ယေဟိ', 'ယာဟိ', 'ယေန', 'ယာယ'):
+            add_cand('ယ')
+        if b in ('ကဿ', 'ကဿာ', 'ကေသံ', 'ကာသံ', 'ကသ္မိံ', 'ကမှိ', 'ကသ္မာ', 'ကေဟိ', 'ကာဟိ', 'ကေန', 'ကာယ'):
+            add_cand('ကိံ')
+            add_cand('က')
 
     # Step 3: Generic Suffixes
     for b in list(base_words):

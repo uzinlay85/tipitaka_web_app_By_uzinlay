@@ -23,16 +23,27 @@ class TestStemmerPuncSearch(unittest.TestCase):
             'ဒေဝိယာ': 'ဒေဝီ',
             'သဗ္ဗေသံ': 'သဗ္ဗ',
             'ဗုဒ္ဓဿ': 'ဗုဒ္ဓ',
+            'အရဟတော': 'အရဟန္တ',
+            'သမ္မာသမ္ဗုဒ္ဓဿ': 'သမ္မာသမ္ဗုဒ္ဓ',
+            'မဟတော': 'မဟန္တ',
+            'သတ္ထုနော': 'သတ္ထု',
+            'ပိတရော': 'ပိတု',
+            'မာတရော': 'မာတု',
+            'ဗြဟ္မုနော': 'ဗြဟ္မာ',
+            'ဝဓုယာ': 'ဝဓူ',
+            'ဉာတွာ': 'ဇာနာတိ',
         }
         for inflected, expected_stem in cases.items():
             cands = appmod.get_pali_stem_candidates(inflected)
             self.assertIn(expected_stem, cands, f"Expected {expected_stem} in candidates for {inflected}, got {cands}")
 
     def test_dict_lookup_all_target_inflections(self):
-        # 6 user target words + 4 existing words
+        # User target words + formula words + kinship + participles
         test_words = [
             'ဘဂဝတော', 'ဘိက္ခဝေ', 'ဘိက္ခူနံ', 'ရာညော', 'အာယသ္မတော', 'ဒေဝိယာ',
-            'ဗုဒ္ဓဿ', 'ဒိသွာ', 'ကတွာ', 'အရဟံ'
+            'ဗုဒ္ဓဿ', 'ဒိသွာ', 'ကတွာ', 'အရဟံ',
+            'အရဟတော', 'သမ္မာသမ္ဗုဒ္ဓဿ', 'မဟတော', 'သတ္ထုနော', 'ပိတရော', 'မာတရော',
+            'ဗြဟ္မုနော', 'ဝဓုယာ', 'ဉာတွာ'
         ]
         for w in test_words:
             resp = self.client.get(f"/api/dictionary/lookup?word={w}")
