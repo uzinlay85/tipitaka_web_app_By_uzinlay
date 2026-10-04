@@ -164,6 +164,7 @@
 | In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | ✅ merged to main (2026-10-02, v7.51) |
 | Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ✅ merged to main (2026-10-03, v7.52; Muse fixed TreeWalker lastIndex bug + history clear at merge) |
 | Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ✅ merged to main (2026-10-04, v7.53; Muse verified: 1000 DB pages idempotent, anchors intact, JS↔PY parity) |
+| Documentation update: README (sec 25 highlights, book order, stemmer) + in-app guide cards (sec 9) | Other Agent (Antigravity) | `collab/docs-reader-punc-update` | ✅ merged to main (2026-10-04; docs-only, no version bump; Muse fixed README highlight class name at merge) |
 
 
 
