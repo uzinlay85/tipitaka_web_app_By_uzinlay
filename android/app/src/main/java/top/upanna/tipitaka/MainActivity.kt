@@ -162,12 +162,14 @@ class MainActivity : AppCompatActivity() {
             try { File(dbDir, "server_stages.log").delete() } catch (_: Exception) { }
             // Blocking call on this bg thread; Flask serves 127.0.0.1:PORT.
             // Any startup failure is captured (never swallowed) and rethrown
-            // from waitForServer() so the real cause reaches the UI + logcat.
+            val currentVerName = try {
+                packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+            } catch (_: Exception) { "" }
             serverError.set(null)
             Thread {
                 try {
                     Python.getInstance().getModule("bootstrap")
-                        .callAttr("run_server", dbDir.absolutePath, PORT, SYNC_UPSTREAM)
+                        .callAttr("run_server", dbDir.absolutePath, PORT, SYNC_UPSTREAM, currentVerName)
                 } catch (e: Throwable) {
                     Log.e("Tipitaka", "Flask server failed to start", e)
                     serverError.set(e)
