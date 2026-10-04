@@ -163,7 +163,7 @@
 | Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
 | In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | ✅ merged to main (2026-10-02, v7.51) |
 | Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ✅ merged to main (2026-10-03, v7.52; Muse fixed TreeWalker lastIndex bug + history clear at merge) |
-| Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ready for Muse review & merge |
+| Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ✅ merged to main (2026-10-04, v7.53; Muse verified: 1000 DB pages idempotent, anchors intact, JS↔PY parity) |
 
 
 
