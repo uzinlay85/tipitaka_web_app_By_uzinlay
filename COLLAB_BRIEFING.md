@@ -22,13 +22,12 @@
 - **Deploy (web):** `cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka` (user လုပ်တယ်)
 - **Deploy (app):** Windows PC မှာ `C:\Users\zin\Downloads\Ai_WebCodes\Selfhosted_Me\Tipitaka_android` (fresh clone — uncommitted changes ရှိတဲ့ `Tipitaka_app` အဟောင်းမဟုတ်) → `git status` clean စစ် → `git pull` → `cd android` → `gradlew.bat assembleDebug` → APK ကို အပေါ်ကနေ install (**uninstall မလုပ်** — DB ~150MB ပျက်မယ်)
 
-## 2. လက်ရှိအခြေအနေ (2026-09-30 ~19:40 +0630)
+## 2. လက်ရှိအခြေအနေ (2026-10-04 ~14:25 +0630)
 
-- GitHub main: **`0b2b432`** — `app.js?v=7.45`, `app.css?v=7.41`
-- Live site (`https://tipi.upanna.top/`): **v7.45 deployed + verified** ✅ (HTML asset tag, versioned JS byte-identical 6/6, `/api/health|stats|page|search` → 200)
-- **Backup (အသစ်):** `backup_db.sh` (repo- versioned, executable) + `VPS_DEPLOYMENT_GUIDE.md` အပိုင်း (၆)။ VPS မှာ ပထမ manual backup အောင်မြင် (`sync_20260930_193330.db`)။ ⏳ နေ့စဉ် cron (`0 2 * * * /opt/tipitaka/backup_db.sh`) — user side, pending
-- **Android APK:** splash version-overlay fix pushed (`179acef`) ⏳ rebuild + reinstall pending (user's Windows PC side)။ Web v7.42–v7.45 changes တွေက APK rebuild မလုပ်မချင်း app ထဲ မရောက်ဘူး
-- ⚠️ **သတိ:** `/static/app.js` (version query မပါ) ကို တိုက်ရိုက်ခေါ်ရင် Cloudflare edge တချို့က v7.43 အဟောင်း ပြန်ပေးတယ် — edge stale cache (ဒီနေ့ v7.43 verify တုန်းက fetch ခဲ့လို့), VPS ပြဿနာ မဟုတ်။ Site က `?v=7.45` နဲ့ပဲ ခေါ်လို့ user ထိခိုက်မှုမရှိ; action မလို
+- GitHub main: **`eb06901`** — `app.js?v=7.55`, `app.css?v=7.55`
+- Live site (`https://tipi.upanna.top/`): User pulled `eb06901` to VPS ✅
+- **Mobile Reader Overhaul:** Clean Header + 2x4 Circular Action Sheet + Instant Full-Width Swap (Desktop split view intact)
+- **Android APK:** v1.0.1 (versionCode: 2) published on GitHub Releases (`android-v1.0.1`), `android_release.json` synced to VPS `/api/android-update`.
 
 ## 3. ဖြေရှင်းပြီးသား: Jump Sheet hang (desktop Chrome)
 
@@ -141,6 +140,14 @@
   2. Created Git tag `android-v1.0.1` and pushed to GitHub.
   3. Created GitHub Release `android-v1.0.1` ("Tipitaka Android v1.0.1 (Authentic Punctuation & Stemmer)") and uploaded `app-release.apk` to release assets. Download URL: `https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.1/app-release.apk` (verified 200 OK, Content-Length: 44,866,291).
   4. Added `android_release.json` (versionCode: 2, versionName: "1.0.1", downloadUrl, Burmese changelog) so `/api/android-update` serves the new version automatically once pulled to VPS.
+- 2026-10-04 — Other Agent (Antigravity): Mobile Reader UI overhaul & Instant Full-Width Swap implemented & tested:
+  1. Clean Mobile Header (APK reference Image 4): Left `[←]` back button (returns to Home catalog), center `Book • Chapter` (opens TOC drawer), right `[စာ-၁]` page badge (toggles jump inline row) + `[...]` action trigger.
+  2. Reader Action Sheet (APK reference Image 5): Smooth slide-up 2x4 circular gradient grid:
+     - Row 1: ⚙️ အပြင်အဆင် (with inline collapsible quick settings: font size +/- slider, paper/day/night theme, notes visibility toggle), 🔖 စာမှတ် (dynamic toggle & status), 📋 ကော်ပီကူး (clean page text extraction to clipboard), 🔍 ကျမ်းတွင်းရှာ (scoped in-book search modal).
+     - Row 2: 🔄 တွဲဖက်ကျမ်း (instant full-width swap to Atthakatha/Tika, or volume picker sheet when multiple exist), 🇲🇲 မြန်မာပြန် (instant full-width swap to Myanmar translation or back to Pali), 📖 အဘိဓာန် (opens dictionary sidebar/drawer), ☰ မာတိကာ (opens TOC drawer).
+  3. Instant Full-Width Swap: Eliminates cramped 180px split view on mobile phones (<= 768px). When swapped, displays a floating quick-swap pill (`[ ☸️ မူလပါဠိသို့ ပြန်ကူးရန် ↩ ]`) for 1-tap return to exact origin page.
+  4. Desktop Safety: Desktop 50/50 split view and header controls remain 100% untouched and fully functional.
+  5. Verified: Flask render HTTP 200 (124KB), `node --check` syntax pass, match API endpoints HTTP 200, test suites pass (`test_stemmer_and_punc`, `test_toc_tree`). Bumped `app.js?v=7.55` and `app.css?v=7.55`.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -181,6 +188,7 @@
 | Documentation update: README (sec 25 highlights, book order, stemmer) + in-app guide cards (sec 9) | Other Agent (Antigravity) | `collab/docs-reader-punc-update` | ✅ merged to main (2026-10-04; docs-only, no version bump; Muse fixed README highlight class name at merge) |
 | Pali Stemmer expansion (အရဟတော, သမ္မာသမ္ဗုဒ္ဓဿ, မဟတော, သတ္ထုနော, ပိတရော, etc.) & Stacked Conjunct Click Fix | Other Agent (Antigravity) | `collab/stemmer-conjunct-click-fix` | ✅ merged to main (2026-10-04, v7.54; Muse fixed single-char pronoun lemmas တ/ယ/က dropped by len>=2 guard) |
 | Android Release v1.0.1 (signed APK build, GitHub Release publish, and updater metadata) | Other Agent (Antigravity) | `collab/android-release-v101` | ✅ merged to main (2026-10-04; Muse verified APK manifest versionCode=2 via AXML parse, download 200 OK 44866291 bytes) |
+| Mobile Reader Overhaul (Clean Header, 2x4 Circular Action Sheet, Instant Full-Width Companion Swap) | Other Agent (Antigravity) | main (`eb06901`) | ✅ implemented & pushed to main (2026-10-04, v7.55) |
 
 
 
