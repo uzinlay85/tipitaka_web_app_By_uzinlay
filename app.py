@@ -1228,8 +1228,10 @@ def get_pali_stem_candidates(clean):
     """Generate prioritized dictionary lookup candidates: exact -> enclitics -> declension rules -> suffixes."""
     candidates = [clean]
 
-    def add_cand(w):
-        if w and len(w) >= 2 and w not in candidates:
+    def add_cand(w, force=False):
+        # force=True: explicit closed-class lexical mappings (e.g. pronoun
+        # lemmas တ/ယ/က) may be single characters; heuristic stripping stays >= 2
+        if w and (len(w) >= 2 or force) and w not in candidates:
             candidates.append(w)
 
     # Step 1: Enclitic / Sandhi stripping (-န္တိ, -တိ, -ပိ, -ဉ္စ, -ဝါ, -ခေါ, -ေဝ, -ေယဝ, -ယေဝ)
@@ -1365,14 +1367,14 @@ def get_pali_stem_candidates(clean):
         }
         if b in prons:
             for p in prons[b]:
-                add_cand(p)
+                add_cand(p, force=len(p) < 2)
         if b in ('တဿ', 'တဿာ', 'တေသံ', 'တာသံ', 'တသ္မိံ', 'တမှိ', 'တသ္မာ', 'တေဟိ', 'တာဟိ', 'တေန', 'တာယ'):
-            add_cand('တ')
+            add_cand('တ', force=True)
         if b in ('ယဿ', 'ယဿာ', 'ယေသံ', 'ယာသံ', 'ယသ္မိံ', 'ယမှိ', 'ယသ္မာ', 'ယေဟိ', 'ယာဟိ', 'ယေန', 'ယာယ'):
-            add_cand('ယ')
+            add_cand('ယ', force=True)
         if b in ('ကဿ', 'ကဿာ', 'ကေသံ', 'ကာသံ', 'ကသ္မိံ', 'ကမှိ', 'ကသ္မာ', 'ကေဟိ', 'ကာဟိ', 'ကေန', 'ကာယ'):
             add_cand('ကိံ')
-            add_cand('က')
+            add_cand('က', force=True)
 
     # Step 3: Generic Suffixes
     for b in list(base_words):

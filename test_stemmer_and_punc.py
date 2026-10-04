@@ -32,6 +32,9 @@ class TestStemmerPuncSearch(unittest.TestCase):
             'ဗြဟ္မုနော': 'ဗြဟ္မာ',
             'ဝဓုယာ': 'ဝဓူ',
             'ဉာတွာ': 'ဇာနာတိ',
+            'တဿ': 'တ',
+            'ယေသံ': 'ယ',
+            'ကဿ': 'ကိံ',
         }
         for inflected, expected_stem in cases.items():
             cands = appmod.get_pali_stem_candidates(inflected)
