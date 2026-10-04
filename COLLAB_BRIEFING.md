@@ -190,12 +190,30 @@
 | Android Release v1.0.1 (signed APK build, GitHub Release publish, and updater metadata) | Other Agent (Antigravity) | `collab/android-release-v101` | ✅ merged to main (2026-10-04; Muse verified APK manifest versionCode=2 via AXML parse, download 200 OK 44866291 bytes) |
 | Mobile Reader Overhaul (Clean Header, 2x4 Circular Action Sheet, Instant Full-Width Companion Swap) | Other Agent (Antigravity) | main (`eb06901`) | ✅ implemented & pushed to main (2026-10-04, v7.55) |
 | Android Release v1.0.2 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 3) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.2, 44882671 bytes) |
-| App version display fix (app.py APP_VERSION sync with Android versionName) | Other Agent (Antigravity) | collab/app-version-sync | ⏳ ready to implement |
+| App version display fix (app.py APP_VERSION dynamic sync with Android runtime & release metadata) | Other Agent (Antigravity) | `collab/app-version-sync` | ⏳ ready for Muse review & merge |
+| Mobile Reader Redesign (Option A: 4-Item Toolbar, Unified Edition Switcher, Scroll Auto-Hide) | Other Agent (Antigravity) | `collab/mobile-reader-toolbar` | ⏳ ready for Muse review & merge |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
-  2. Note for Muse on About Dialog version: Help modal Section 12 displays `Version 1.0.0` because `app.py:32` has hardcoded `APP_VERSION = "1.0.0"`. `render_template` passes `app_version=APP_VERSION`. We will bump `APP_VERSION` to sync with the current release in `collab/app-version-sync`.
+  2. Note for Muse on About Dialog version: Help modal Section 12 displays `Version 1.0.0` because `app.py:32` has hardcoded `APP_VERSION = "1.0.0"`. `render_template` passes `app_version=APP_VERSION`.
   3. Reader UI vs Catalog UI: User verified that the new 2x4 Action Sheet, Clean Header, and Instant Full-Width Swap are scoped to the Reader Screen (`state.appView === 'reader'`), accessed upon opening any book from the catalog.
+- 2026-10-04 — Other Agent (Antigravity): `collab/app-version-sync` implemented & verified:
+  1. Dynamic APP_VERSION in `app.py`: Resolves `os.environ.get("ANDROID_VERSION_NAME")` (injected by Android runtime) -> `android_release.json` ("versionName") -> fallback `"1.0.2"`.
+  2. Android Runtime Injection: `MainActivity.kt` queries `packageManager.getPackageInfo().versionName` and passes to `bootstrap.py:run_server(..., currentVerName)`. `bootstrap.py` injects `os.environ["ANDROID_VERSION_NAME"]` before importing Flask app.
+  3. Zero desync guarantee: On Android, About modal will ALWAYS match installed APK versionName automatically. On Web/VPS, it always matches `android_release.json`.
+  4. Tests: 42/42 tests pass in `test_audit_fixes.py` (including app version resolution), 5/5 in `test_toc_tree`, 5/5 in `test_stemmer_and_punc`. Branch pushed and ready for Muse review & merge.
+- 2026-10-04 — Other Agent (Antigravity): `collab/mobile-reader-toolbar` (Option A Redesign) implemented & verified:
+  1. Clean Minimal Header: Removed redundant `[...]` button from `.mobile-breadcrumb-wrapper`; header is strictly `[← Home Back]` | `[Book • Chapter]` | `[စာ-၁ Badge]`.
+  2. Option A Mobile Reader Toolbar: Dedicated 4-action bottom toolbar active exclusively in reader view on mobile (`<= 768px`):
+     - `[☸️ ပါဠိ]` / `[🇲🇲 မြန်မာ]` / `[📖 အဋ္ဌ]` / `[📜 ဋီကာ]`: Dynamic edition icon & label reflecting active canonical edition.
+     - `[🔍 ရှာရန်]`: Scoped in-book search trigger.
+     - `[🔖 စာမှတ်]`: 1-tap bookmark toggle with dynamic icon fill state and Burmese toast.
+     - `[⋯ အခြား]`: Opens secondary sheet.
+  3. Unified Edition Switcher ("ကျမ်းရွေး"): Single unified bottom sheet replacing separate "တွဲဖက်ကျမ်း" and "မြန်မာပြန်" buttons and completely eliminating the floating return pill. Instant synchronous render with active indicator `[✓ ဖတ်ရှုနေဆဲ]`, progressive target page matching via `/api/match/pali_to_companion` and `/api/pali/companions/...`.
+  4. Reader More Sheet: Clean vertical sheet featuring Quick Settings Hub at top (Font size +/-, Theme paper/day/night, Notes toggle) followed by actions: 📖 အဘိဓာန်, 📋 ကော်ပီ, ☰ မာတိကာ, 🏠 ပင်မ စာရင်းသို့.
+  5. Scroll-Based Auto-Hiding Chrome: Scrolling down smoothly slides header and toolbar out of view (`transform: translateY(-115% / +115%)`) for 100% immersive reading. Scrolling up smoothly restores them. 10px jitter threshold, top (<60px) reveal, and absolute suppression whenever any sheet, modal, or dictionary drawer is active.
+  6. Verification: Node syntax check pass (`node --check static/app.js`), test suites pass (24/24 export, 42/42 audit fixes, 5/5 stemmer, 5/5 toc). Branch ready for Muse review. Version bump deferred to Muse per Rule 4.
+
 
 
 

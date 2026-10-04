@@ -450,13 +450,6 @@
                     <button class="breadcrumb-page-badge" id="btnMobilePageBadge" title="စာမျက်နှာ ရွေးချယ်ရန် နှိပ်ပါ">
                         <span id="mobileBreadcrumbPage">စာ-၁</span>
                     </button>
-                    <button class="mobile-header-more-btn" id="btnMobileHeaderMore" title="လုပ်ဆောင်ချက်များ (Actions)" aria-label="လုပ်ဆောင်ချက်များ">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="5" r="1.5" fill="currentColor"></circle>
-                            <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
-                            <circle cx="12" cy="19" r="1.5" fill="currentColor"></circle>
-                        </svg>
-                    </button>
                 </div>
             </div>
 
@@ -1202,6 +1195,48 @@
         </button>
     </nav>
 
+    <!-- Mobile Dedicated Reader Toolbar (Option A: 4 Actions on Mobile <= 768px when in reader view) -->
+    <nav class="mobile-reader-toolbar" id="mobileReaderToolbar" style="display:none;" aria-label="စာဖတ် လုပ်ဆောင်ချက်များ">
+        <!-- 1. Unified Edition Switcher / ကျမ်းရွေး (Dynamic: ☸️ ပါဠိ / 🇲🇲 မြန်မာ / 📖 အဋ္ဌ / 📜 ဋီကာ) -->
+        <button class="reader-toolbar-item" id="btnReaderEdition" title="ကျမ်းစာနှင့် ဘာသာပြန် ရွေးချယ်ရန်">
+            <span class="reader-toolbar-icon" id="toolbarEditionIcon">☸️</span>
+            <span class="reader-toolbar-label" id="toolbarEditionLabel">ပါဠိ</span>
+        </button>
+
+        <!-- 2. In-Book Search / ရှာရန် -->
+        <button class="reader-toolbar-item" id="btnReaderSearch" title="ကျမ်းစာအုပ်အတွင်း ရှာဖွေရန်">
+            <span class="reader-toolbar-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label">ရှာရန်</span>
+        </button>
+
+        <!-- 3. Bookmark / စာမှတ် -->
+        <button class="reader-toolbar-item" id="btnReaderBookmark" title="စာမျက်နှာ မှတ်သားရန်">
+            <span class="reader-toolbar-icon" id="toolbarBookmarkIconBox">
+                <svg id="toolbarBookmarkIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label" id="toolbarBookmarkLabel">စာမှတ်</span>
+        </button>
+
+        <!-- 4. More / အခြား (Settings Hub, Dict, Copy, TOC, Home) -->
+        <button class="reader-toolbar-item" id="btnReaderMore" title="အပြင်အဆင်နှင့် အခြား လုပ်ဆောင်ချက်များ">
+            <span class="reader-toolbar-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1.5"></circle>
+                    <circle cx="6" cy="12" r="1.5"></circle>
+                    <circle cx="18" cy="12" r="1.5"></circle>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label">အခြား</span>
+        </button>
+    </nav>
+
     <!-- Floating Exit Focus Mode Button (Minimal, subtle, non-intrusive) -->
     <button class="floating-exit-focus-btn" id="btnExitFocusMode" title="ပုံမှန်မြင်ကွင်းသို့ ပြန်သွားရန် (Exit Focus Mode)">
         <span class="focus-exit-icon">✕</span>
@@ -1248,118 +1283,40 @@
         </div>
     </div>
 
-    <!-- Reader Action Sheet Modal (APK Style 2x4 Grid) -->
-    <div class="reader-action-sheet-backdrop" id="readerActionSheetBackdrop" style="display:none;">
-        <div class="reader-action-sheet" id="readerActionSheet">
+    <!-- Unified Edition Switcher Modal (ကျမ်းရွေး / ဘာသာပြန် ရွေးချယ်မှု) -->
+    <div class="edition-switcher-backdrop" id="editionSwitcherBackdrop" style="display:none;">
+        <div class="edition-switcher-sheet" id="editionSwitcherSheet">
             <div class="action-sheet-handle"></div>
-            <div class="action-sheet-header">
-                <div class="action-sheet-title-box">
-                    <span class="action-sheet-title">⚡ လုပ်ဆောင်ချက်များ</span>
-                    <span class="action-sheet-subtitle" id="actionSheetBookSubtitle">ပါရာဇိကပါဠိ</span>
+            <div class="edition-switcher-header">
+                <div class="edition-switcher-title-box">
+                    <span class="edition-switcher-title">✨ ကျမ်းစာနှင့် ဘာသာပြန် ရွေးချယ်ရန်</span>
+                    <span class="edition-switcher-subtitle" id="editionSwitcherSubtitle">ပါရာဇိကပါဠိ • စာမျက်နှာ ၁</span>
                 </div>
-                <button class="action-sheet-close-btn" id="btnCloseActionSheet" aria-label="ပိတ်ရန်">✕</button>
+                <button class="action-sheet-close-btn" id="btnCloseEditionSwitcher" aria-label="ပိတ်ရန်">✕</button>
+            </div>
+            <div class="edition-switcher-list" id="editionSwitcherList">
+                <!-- Dynamically populated: Mūla Pali, Myanmar translation, Atthakatha, Tika -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Reader More Sheet Modal (အပြင်အဆင်နှင့် အခြား လုပ်ဆောင်ချက်များ) -->
+    <div class="reader-more-backdrop" id="readerMoreBackdrop" style="display:none;">
+        <div class="reader-more-sheet" id="readerMoreSheet">
+            <div class="action-sheet-handle"></div>
+            <div class="reader-more-header">
+                <span class="reader-more-title">⚙️ အပြင်အဆင်နှင့် လုပ်ဆောင်ချက်များ</span>
+                <button class="action-sheet-close-btn" id="btnCloseReaderMore" aria-label="ပိတ်ရန်">✕</button>
             </div>
             
-            <div class="action-sheet-grid">
-                <!-- 1. Settings / အပြင်အဆင် -->
-                <button type="button" class="action-sheet-btn" id="btnActionSettings" title="အပြင်အဆင် (Font, Theme)">
-                    <div class="action-icon-circle circle-gear">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text">အပြင်အဆင်</span>
-                </button>
-
-                <!-- 2. Bookmark / စာမှတ် -->
-                <button type="button" class="action-sheet-btn" id="btnActionBookmark" title="စာမျက်နှာ မှတ်သားရန်">
-                    <div class="action-icon-circle circle-bookmark">
-                        <svg id="actionBookmarkIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text" id="actionBookmarkLabel">စာမှတ်</span>
-                </button>
-
-                <!-- 3. Copy / ကော်ပီကူး -->
-                <button type="button" class="action-sheet-btn" id="btnActionCopy" title="စာမျက်နှာ စာသား ကော်ပီကူးရန်">
-                    <div class="action-icon-circle circle-copy">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text">ကော်ပီကူး</span>
-                </button>
-
-                <!-- 4. In-Book Search / ကျမ်းတွင်းရှာ -->
-                <button type="button" class="action-sheet-btn" id="btnActionSearch" title="ကျမ်းစာအုပ်အတွင်း ရှာဖွေရန်">
-                    <div class="action-icon-circle circle-search">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text">ကျမ်းတွင်းရှာ</span>
-                </button>
-
-                <!-- 5. Companion Switch / တွဲဖက်ကျမ်းကူး (အဋ္ဌကထာ/ဋီကာ/ပါဠိ) -->
-                <button type="button" class="action-sheet-btn" id="btnActionCompanion" title="အဋ္ဌကထာ / ဋီကာ / ပါဠိ ကူးပြောင်းရန်">
-                    <div class="action-icon-circle circle-companion">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="17 1 21 5 17 9"></polyline>
-                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                            <polyline points="7 23 3 19 7 15"></polyline>
-                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text" id="actionCompanionLabel">တွဲဖက်ကျမ်း</span>
-                </button>
-
-                <!-- 6. Myanmar Translation Switch / မြန်မာပြန်သို့ (သို့မဟုတ် ပါဠိတော်သို့) -->
-                <button type="button" class="action-sheet-btn" id="btnActionMM" title="မြန်မာပြန် ကျမ်းစာသို့ ကူးပြောင်းရန်">
-                    <div class="action-icon-circle circle-mm">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text" id="actionMMLabel">မြန်မာပြန်</span>
-                </button>
-
-                <!-- 7. Dictionary / အဘိဓာန် -->
-                <button type="button" class="action-sheet-btn" id="btnActionDict" title="ပါဠိ-မြန်မာ အဘိဓာန် ရှာဖွေရန်">
-                    <div class="action-icon-circle circle-dict">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text">အဘိဓာန်</span>
-                </button>
-
-                <!-- 8. TOC Drawer / မာတိကာ -->
-                <button type="button" class="action-sheet-btn" id="btnActionTOC" title="အခန်းနှင့် မာတိကာ ဖွင့်လှစ်ရန်">
-                    <div class="action-icon-circle circle-toc">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </div>
-                    <span class="action-btn-text">မာတိကာ</span>
-                </button>
-            </div>
-
-            <!-- Inline Quick Settings Panel (Revealed when "အပြင်အဆင်" is tapped) -->
-            <div class="action-sheet-quick-settings" id="actionQuickSettings" style="display:none;">
+            <!-- Quick Settings Hub ("Aa" Hub at the top) -->
+            <div class="reader-more-quick-settings">
                 <div class="quick-settings-row">
                     <span class="qs-label">စာလုံးအရွယ်အစား</span>
                     <div class="qs-font-controls">
-                        <button type="button" class="qs-btn" id="btnQsFontDec" title="စာလုံး လျှော့ရန်">A-</button>
-                        <span class="qs-font-display" id="qsFontDisplay">100%</span>
-                        <button type="button" class="qs-btn" id="btnQsFontInc" title="စာလုံး တိုးရန်">A+</button>
+                        <button type="button" class="qs-btn" id="btnMoreFontDec" title="စာလုံး လျှော့ရန်">A-</button>
+                        <span class="qs-font-display" id="moreFontDisplay">100%</span>
+                        <button type="button" class="qs-btn" id="btnMoreFontInc" title="စာလုံး တိုးရန်">A+</button>
                     </div>
                 </div>
                 <div class="quick-settings-row">
@@ -1372,30 +1329,66 @@
                 </div>
                 <div class="quick-settings-row">
                     <span class="qs-label">စာမျက်နှာ မှတ်စုများ</span>
-                    <button type="button" class="qs-toggle-btn" id="btnQsToggleNotes">
-                        <span id="qsNotesStateText">အောက်ခြေမှတ်စု ဝှက်မည်</span>
+                    <button type="button" class="qs-toggle-btn" id="btnMoreToggleNotes">
+                        <span id="moreNotesStateText">အောက်ခြေမှတ်စု ဝှက်မည်</span>
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Floating Quick-Swap Pill (Instant Full-Width Return / Swap) -->
-    <div class="floating-swap-pill" id="floatingSwapPill" style="display:none;" title="မူလဖတ်လက်စသို့ ပြန်ကူးရန်">
-        <span class="swap-pill-icon" id="swapPillIcon">☸️</span>
-        <span class="swap-pill-text" id="swapPillText">ပါဠိသို့ ပြန်ကူးရန်</span>
-        <span class="swap-pill-arrow">↩</span>
-    </div>
+            <!-- Vertical Action List -->
+            <div class="reader-more-action-list">
+                <button type="button" class="reader-more-action-item" id="btnMoreDict">
+                    <div class="more-item-icon circle-dict">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                    </div>
+                    <div class="more-item-text">
+                        <span class="more-item-title">ပါဠိ-မြန်မာ အဘိဓာန်</span>
+                        <span class="more-item-desc">ဝေါဟာရ အဓိပ္ပာယ်များ ရှာဖွေဖတ်ရှုရန်</span>
+                    </div>
+                </button>
 
-    <!-- Companion Volume Picker Modal (When multiple commentary / tika volumes exist) -->
-    <div class="companion-picker-modal-backdrop" id="companionPickerBackdrop" style="display:none;">
-        <div class="companion-picker-modal" id="companionPickerModal">
-            <div class="companion-picker-header">
-                <span class="companion-picker-title">✨ တွဲဖက်လေ့လာနိုင်သော ကျမ်းစာများ</span>
-                <button class="action-sheet-close-btn" id="btnCloseCompanionPicker" aria-label="ပိတ်ရန်">✕</button>
-            </div>
-            <div class="companion-picker-list" id="companionPickerList">
-                <!-- Companion items rendered here -->
+                <button type="button" class="reader-more-action-item" id="btnMoreCopy">
+                    <div class="more-item-icon circle-copy">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </div>
+                    <div class="more-item-text">
+                        <span class="more-item-title">စာမျက်နှာ ကော်ပီကူးရန်</span>
+                        <span class="more-item-desc">လက်ရှိ စာမျက်နှာ စာသားအားလုံး ကူးယူမည်</span>
+                    </div>
+                </button>
+
+                <button type="button" class="reader-more-action-item" id="btnMoreTOC">
+                    <div class="more-item-icon circle-toc">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </div>
+                    <div class="more-item-text">
+                        <span class="more-item-title">မာတိကာနှင့် အခန်းများ</span>
+                        <span class="more-item-desc">ကျမ်းစာ၏ အခန်းကဏ္ဍများကို ကြည့်ရှုရန်</span>
+                    </div>
+                </button>
+
+                <button type="button" class="reader-more-action-item" id="btnMoreHome">
+                    <div class="more-item-icon circle-home">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </div>
+                    <div class="more-item-text">
+                        <span class="more-item-title">ပင်မ ကျမ်းစာအုပ် စာရင်းသို့</span>
+                        <span class="more-item-desc">ကျမ်းစာရွေးချယ်ရာ မူလမျက်နှာပြင်သို့ ပြန်သွားမည်</span>
+                    </div>
+                </button>
             </div>
         </div>
     </div>
