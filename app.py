@@ -256,6 +256,15 @@ RE_COMMA_REMOVE = re.compile(r',(?![^<]*>)')
 RE_COMMA_PROSE = re.compile(r',(?![^<]*>)')
 RE_QUESTION_EXCLAMATION = re.compile(r'[?!](?![^<]*>)')
 RE_SEMICOLON = re.compile(r';(?![^<]*>)')
+RE_VOCATIVES_BEFORE = re.compile(
+    r'[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊,\s”’"\'\)\]}}]|$)'
+)
+RE_VOCATIVES_AFTER = re.compile(
+    r'(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)((?:<[^>]+>)*)\s*[၊,]'
+)
+RE_PARTICLES = re.compile(
+    r'(^|[\s"\'“‘\(])(န|နော|မာ|စ|ဝါ|ဟိ|တု|ပန|ခေါ|ဝတ|ဟန္ဒ)((?:<[^>]+>)*)\s*[၊,]'
+)
 RE_PADA_NON_FINAL = re.compile(r'[၊။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
 RE_PADA_CHECK_PUNCT = re.compile(r'[၊]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
 RE_PADA_CHECK_SECTION = re.compile(r'[။]([’"”’\'\s]*(?:<[^>]+>[’"”’\'\s]*)*)$')
@@ -346,14 +355,20 @@ def format_chattasangayana_pali(html):
                 p = clean_gatha_quotes(p)
                 return f'<p{attrs}><span class="gatha-pada">{p}</span></p>'
         else:
-            # Prose: preserve pauses as Myanmar pada-thi (၊), convert semicolons to ၊,
-            # and convert Western question/exclamation marks to pada-ma (။)
+            # Prose: preserve legitimate pauses as Myanmar pada-thi (၊),
+            # convert semicolons to ၊, convert ?/! to pada-ma (။),
+            # and strip unwanted Western commas around vocatives & short particles
+            # matching printed Chaṭṭha Saṅgāyana standard.
             cleaned = RE_COMMA_PROSE.sub('၊', content)
             cleaned = RE_SEMICOLON.sub('၊', cleaned)
             cleaned = RE_QUESTION_EXCLAMATION.sub('။', cleaned)
+            cleaned = RE_VOCATIVES_BEFORE.sub(r' \1\2', cleaned)
+            cleaned = RE_VOCATIVES_AFTER.sub(r'\1\2 ', cleaned)
+            cleaned = RE_PARTICLES.sub(r'\1\2\3 ', cleaned)
             cleaned = re.sub(r'၊\s*၊', '၊', cleaned)
             cleaned = re.sub(r'၊\s*။', '။', cleaned)
             cleaned = re.sub(r'။\s*။', '။', cleaned)
+            cleaned = RE_MULTI_SPACES.sub(' ', cleaned)
             return f'<p{attrs}>{cleaned}</p>'
             
     res_html = RE_P_TAG.sub(repl_p, res_html)

@@ -2149,6 +2149,10 @@ function cleanGathaQuotes(text) {
     return res;
 }
 
+const PALI_VOCATIVES_BEFORE_RE = /[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊,\s”’"\'\)\]}}]|$)/g;
+const PALI_VOCATIVES_AFTER_RE = /(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)((?:<[^>]+>)*)\s*[၊,]/g;
+const PALI_PARTICLES_RE = /(^|[\s"\'“‘\(])(န|နော|မာ|စ|ဝါ|ဟိ|တု|ပန|ခေါ|ဝတ|ဟန္ဒ)((?:<[^>]+>)*)\s*[၊,]/g;
+
 function cleanPaliContent(html) {
     if (!html) return "";
     // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
@@ -2203,14 +2207,19 @@ function cleanPaliContent(html) {
             }
         }
         
-        // စကားပြေ (Prose / Bodytext) တွင် မူရင်း English comma, semicolon များကို ပုဒ်ထီး (၊) သို့လည်းကောင်း၊ ? နှင့် ! များကို ပုဒ်မ (။) သို့လည်းကောင်း ပြောင်းလဲပါမည်
+        // စကားပြေ (Prose / Bodytext) တွင် မူရင်း English comma, semicolon များကို ပုဒ်ထီး (၊) သို့လည်းကောင်း၊ ? နှင့် ! များကို ပုဒ်မ (။) သို့လည်းကောင်း ပြောင်းလဲပြီးနောက်၊
+        // ဆဋ္ဌသံဂါယနာ မူရင်းစာအုပ်စံနှုန်းအတိုင်း အာလပနများနှင့် နိပါတ်ပုဒ်ငယ်များရှိ Western comma အပိုများကို သန့်စင်ပါမည်
         let cleaned = content
             .replace(/,(?![^<]*>)/g, "၊")
             .replace(/;(?![^<]*>)/g, "၊")
             .replace(/[?!](?![^<]*>)/g, "။")
+            .replace(PALI_VOCATIVES_BEFORE_RE, " $1$2")
+            .replace(PALI_VOCATIVES_AFTER_RE, "$1$2 ")
+            .replace(PALI_PARTICLES_RE, "$1$2$3 ")
             .replace(/၊\s*၊/g, "၊")
             .replace(/၊\s*။/g, "။")
-            .replace(/။\s*။/g, "။");
+            .replace(/။\s*။/g, "။")
+            .replace(/[ \t]{2,}/g, " ");
         return `<p${attrs}>${cleaned}</p>`;
     });
 
