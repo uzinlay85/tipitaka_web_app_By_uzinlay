@@ -194,7 +194,16 @@ print("== app version resolution ==")
 r_index = client.get("/")
 check("index 200", r_index.status_code == 200)
 check("app_version in html", f"Version {appmod.APP_VERSION}" in r_index.get_data(as_text=True))
-check("app_version matches release json or default", appmod.APP_VERSION in ("1.0.2", "1.0.3"))
+_rel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "android_release.json")
+_expected_ver = None
+try:
+    with open(_rel_path, encoding="utf-8") as _rf:
+        _expected_ver = json.load(_rf).get("versionName")
+except Exception:
+    pass
+# Priority: ANDROID_VERSION_NAME env (Android runtime) > android_release.json > "1.0.2" fallback
+_env_ver = os.environ.get("ANDROID_VERSION_NAME")
+check("app_version matches env/json/fallback", appmod.APP_VERSION == ((_env_ver or _expected_ver or "1.0.2").strip()))
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
