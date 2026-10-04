@@ -1918,7 +1918,7 @@ function setReaderMode(mode) {
 
     if (mode === "split") {
         if (window.innerWidth <= 768) {
-            handleCompanionSwap();
+            openEditionSwitcher();
             return;
         }
         el.readerPaper.style.display = "none";
@@ -2121,16 +2121,31 @@ function attachSwitcherItemHandlers() {
             closeEditionSwitcher();
 
             if (type === "mm") {
-                state.swapOrigin = {
-                    mode: "pali",
-                    bookId: state.paliBookId,
-                    page: state.paliPage,
-                    bookName: state.paliBookName || "ပါဠိတော်"
-                };
+                if (!state.swapOrigin || state.swapOrigin.mode !== "pali") {
+                    state.swapOrigin = {
+                        mode: "pali",
+                        bookId: state.paliBookId,
+                        page: state.paliPage,
+                        bookName: state.paliBookName || "ပါဠိတော်"
+                    };
+                }
                 setReaderMode("mm");
                 await loadMMBook(bookId, page);
                 showScrollToast(`🇲🇲 မြန်မာပြန် (စာမျက်နှာ ${toMyanmarNum(page)}) သို့ ကူးပြောင်းထားပါသည်`);
             } else {
+                // Preserve the Pali home book before leaving it for a companion,
+                // so the switcher can always offer "မူလပါဠိ" as the return target.
+                if (!state.swapOrigin || state.swapOrigin.mode !== "pali") {
+                    state.swapOrigin = {
+                        mode: "pali",
+                        bookId: state.paliBookId,
+                        page: state.paliPage,
+                        bookName: state.paliBookName || "ပါဠိတော်"
+                    };
+                }
+                if (bookId === state.swapOrigin.bookId) {
+                    state.swapOrigin = null; // back home: clear the origin
+                }
                 if (state.readerMode === "mm") {
                     setReaderMode("pali");
                 }
@@ -2346,7 +2361,7 @@ function setupScrollAutoHiding() {
 
 // Copy Current Page / Selected Text
 async function copyCurrentPageText() {
-    closeReaderActionSheet();
+    closeReaderMoreSheet();
     let text = "";
     const sel = window.getSelection();
     if (sel && sel.toString().trim()) {

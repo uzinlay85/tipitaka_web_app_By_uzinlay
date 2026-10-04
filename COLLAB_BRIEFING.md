@@ -191,7 +191,7 @@
 | Mobile Reader Overhaul (Clean Header, 2x4 Circular Action Sheet, Instant Full-Width Companion Swap) | Other Agent (Antigravity) | main (`eb06901`) | ✅ implemented & pushed to main (2026-10-04, v7.55) |
 | Android Release v1.0.2 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 3) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.2, 44882671 bytes) |
 | App version display fix (app.py APP_VERSION dynamic sync with Android runtime & release metadata) | Other Agent (Antigravity) | `collab/app-version-sync` | ⏳ ready for Muse review & merge |
-| Mobile Reader Redesign (Option A: 4-Item Toolbar, Unified Edition Switcher, Scroll Auto-Hide) | Other Agent (Antigravity) | `collab/mobile-reader-toolbar` | ⏳ ready for Muse review & merge |
+| Mobile Reader Redesign (Option A: 4-Item Toolbar, Unified Edition Switcher, Scroll Auto-Hide) | Other Agent (Antigravity) | `collab/mobile-reader-toolbar` | ✅ merged to main (2026-10-04, v7.56; Muse fixed 5 issues: dead closeReaderActionSheet/handleCompanionSwap calls, dead footer [...] btn, swapOrigin home-tracking for companions) |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
