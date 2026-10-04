@@ -190,6 +190,13 @@
 | Android Release v1.0.1 (signed APK build, GitHub Release publish, and updater metadata) | Other Agent (Antigravity) | `collab/android-release-v101` | ✅ merged to main (2026-10-04; Muse verified APK manifest versionCode=2 via AXML parse, download 200 OK 44866291 bytes) |
 | Mobile Reader Overhaul (Clean Header, 2x4 Circular Action Sheet, Instant Full-Width Companion Swap) | Other Agent (Antigravity) | main (`eb06901`) | ✅ implemented & pushed to main (2026-10-04, v7.55) |
 | Android Release v1.0.2 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 3) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.2, 44882671 bytes) |
+| App version display fix (app.py APP_VERSION sync with Android versionName) | Other Agent (Antigravity) | collab/app-version-sync | ⏳ ready to implement |
+
+- 2026-10-04 — User Phone Test & Verification (v1.0.2):
+  1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
+  2. Note for Muse on About Dialog version: Help modal Section 12 displays `Version 1.0.0` because `app.py:32` has hardcoded `APP_VERSION = "1.0.0"`. `render_template` passes `app_version=APP_VERSION`. We will bump `APP_VERSION` to sync with the current release in `collab/app-version-sync`.
+  3. Reader UI vs Catalog UI: User verified that the new 2x4 Action Sheet, Clean Header, and Instant Full-Width Swap are scoped to the Reader Screen (`state.appView === 'reader'`), accessed upon opening any book from the catalog.
+
 
 
 
