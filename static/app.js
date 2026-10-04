@@ -64,7 +64,9 @@ const state = {
     historyActiveTab: "reading",
     historyModeFilter: "all",
     isFocusMode: false,
-    pendingSearchHighlight: null
+    pendingSearchHighlight: null,
+    swapOrigin: null,
+    isActionSheetOpen: false
 };
 
 // Printed-volume labels (ဆဋဌမူ ပုံနှိပ်တွဲ) for books in multi-volume nikayas,
@@ -373,7 +375,43 @@ const el = {
     historyReadingBadge: document.getElementById("historyReadingBadge"),
     historySearchBadge: document.getElementById("historySearchBadge"),
     historyFilterPills: document.getElementById("historyFilterPills"),
-    historyItemsContainer: document.getElementById("historyItemsContainer")
+    historyItemsContainer: document.getElementById("historyItemsContainer"),
+
+    // Mobile Reader Header & Action Sheet Elements
+    mobileBreadcrumbWrapper: document.getElementById("mobileBreadcrumbWrapper"),
+    btnMobileBackHome: document.getElementById("btnMobileBackHome"),
+    btnMobilePageBadge: document.getElementById("btnMobilePageBadge"),
+    btnMobileHeaderMore: document.getElementById("btnMobileHeaderMore"),
+    btnFooterActionSheet: document.getElementById("btnFooterActionSheet"),
+    readerActionSheetBackdrop: document.getElementById("readerActionSheetBackdrop"),
+    readerActionSheet: document.getElementById("readerActionSheet"),
+    btnCloseActionSheet: document.getElementById("btnCloseActionSheet"),
+    actionSheetBookSubtitle: document.getElementById("actionSheetBookSubtitle"),
+    btnActionSettings: document.getElementById("btnActionSettings"),
+    btnActionBookmark: document.getElementById("btnActionBookmark"),
+    actionBookmarkIcon: document.getElementById("actionBookmarkIcon"),
+    actionBookmarkLabel: document.getElementById("actionBookmarkLabel"),
+    btnActionCopy: document.getElementById("btnActionCopy"),
+    btnActionSearch: document.getElementById("btnActionSearch"),
+    btnActionCompanion: document.getElementById("btnActionCompanion"),
+    actionCompanionLabel: document.getElementById("actionCompanionLabel"),
+    btnActionMM: document.getElementById("btnActionMM"),
+    actionMMLabel: document.getElementById("actionMMLabel"),
+    btnActionDict: document.getElementById("btnActionDict"),
+    btnActionTOC: document.getElementById("btnActionTOC"),
+    actionQuickSettings: document.getElementById("actionQuickSettings"),
+    btnQsFontDec: document.getElementById("btnQsFontDec"),
+    btnQsFontInc: document.getElementById("btnQsFontInc"),
+    qsFontDisplay: document.getElementById("qsFontDisplay"),
+    btnQsToggleNotes: document.getElementById("btnQsToggleNotes"),
+    qsNotesStateText: document.getElementById("qsNotesStateText"),
+    floatingSwapPill: document.getElementById("floatingSwapPill"),
+    swapPillIcon: document.getElementById("swapPillIcon"),
+    swapPillText: document.getElementById("swapPillText"),
+    companionPickerBackdrop: document.getElementById("companionPickerBackdrop"),
+    companionPickerModal: document.getElementById("companionPickerModal"),
+    btnCloseCompanionPicker: document.getElementById("btnCloseCompanionPicker"),
+    companionPickerList: document.getElementById("companionPickerList")
 };
 
 
@@ -1878,6 +1916,10 @@ function setReaderMode(mode) {
     });
 
     if (mode === "split") {
+        if (window.innerWidth <= 768) {
+            handleCompanionSwap();
+            return;
+        }
         el.readerPaper.style.display = "none";
         el.splitViewContainer.style.display = "flex";
         el.paliBasketFilter.style.display = "flex";
@@ -1946,6 +1988,354 @@ function handleCrossLink() {
             state.paliPage = state.matchingPali.page;
         }
         setReaderMode("pali");
+    }
+}
+
+// ============================================================
+// Mobile Reader Action Sheet (2x4 Grid) & Instant Full-Width Swap
+// ============================================================
+
+function openReaderActionSheet() {
+    if (!el.readerActionSheetBackdrop) return;
+    
+    // Dynamic book subtitle
+    if (el.actionSheetBookSubtitle) {
+        const curName = (state.readerMode === "mm")
+            ? (state.mmBookName || "မြန်မာပြန်")
+            : (state.paliBookName || "ပါဠိတော်");
+        const curId = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
+        el.actionSheetBookSubtitle.textContent = withVolumeLabel(curId, curName);
+    }
+
+    // Dynamic labels based on reader mode
+    if (el.actionMMLabel) {
+        el.actionMMLabel.textContent = (state.readerMode === "mm") ? "ပါဠိတော်" : "မြန်မာပြန်";
+    }
+    if (el.actionCompanionLabel) {
+        el.actionCompanionLabel.textContent = (state.readerMode === "mm") ? "ပါဠိတွဲဖက်" : "တွဲဖက်ကျမ်း";
+    }
+
+    // Dynamic Bookmark status
+    const curBookId = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
+    const curPage = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+    const isBookmarked = BookmarkManager.isBookmarked(curBookId, curPage);
+    if (el.actionBookmarkIcon) {
+        el.actionBookmarkIcon.setAttribute("fill", isBookmarked ? "currentColor" : "none");
+    }
+    if (el.actionBookmarkLabel) {
+        el.actionBookmarkLabel.textContent = isBookmarked ? "မှတ်ပြီး" : "စာမှတ်";
+    }
+
+    // Reset quick settings panel
+    if (el.actionQuickSettings) {
+        el.actionQuickSettings.style.display = "none";
+    }
+
+    el.readerActionSheetBackdrop.style.display = "flex";
+    requestAnimationFrame(() => {
+        el.readerActionSheetBackdrop.classList.add("active");
+    });
+    state.isActionSheetOpen = true;
+}
+
+function closeReaderActionSheet() {
+    if (!el.readerActionSheetBackdrop) return;
+    el.readerActionSheetBackdrop.classList.remove("active");
+    setTimeout(() => {
+        if (!el.readerActionSheetBackdrop.classList.contains("active")) {
+            el.readerActionSheetBackdrop.style.display = "none";
+        }
+    }, 240);
+    state.isActionSheetOpen = false;
+}
+
+function toggleActionQuickSettings() {
+    if (!el.actionQuickSettings) return;
+    const isHidden = (el.actionQuickSettings.style.display === "none");
+    if (isHidden) {
+        el.actionQuickSettings.style.display = "flex";
+        if (el.qsFontDisplay) {
+            el.qsFontDisplay.textContent = `${state.fontSize}%`;
+        }
+        if (el.qsNotesStateText) {
+            el.qsNotesStateText.textContent = state.showNotes ? "အောက်ခြေမှတ်စု ဝှက်မည်" : "အောက်ခြေမှတ်စု ပြမည်";
+        }
+        document.querySelectorAll(".qs-theme-btn").forEach(btn => {
+            btn.classList.toggle("active", btn.getAttribute("data-theme") === state.theme);
+        });
+    } else {
+        el.actionQuickSettings.style.display = "none";
+    }
+}
+
+// Instant Full-Width Swap: Pali ↔ Myanmar Translation
+async function handleMMSwap() {
+    closeReaderActionSheet();
+
+    if (state.readerMode === "pali") {
+        state.swapOrigin = {
+            mode: "pali",
+            bookId: state.paliBookId,
+            page: state.paliPage,
+            bookName: state.paliBookName || "ပါဠိတော်"
+        };
+
+        let targetMMBook = null;
+        let targetMMPage = 1;
+
+        if (state.matchingMM && state.matchingMM.book_id) {
+            targetMMBook = state.matchingMM.book_id;
+            targetMMPage = state.matchingMM.page || 1;
+        } else {
+            try {
+                const res = await fetch(`/api/match/pali_to_companion?source_book=${encodeURIComponent(state.paliBookId)}&source_page=${state.paliPage}&target_type=mm`);
+                if (res.ok) {
+                    const match = await res.json();
+                    if (match && match.target_book) {
+                        targetMMBook = match.target_book;
+                        targetMMPage = match.target_page || 1;
+                    }
+                }
+            } catch (e) {
+                console.error("MM match error:", e);
+            }
+        }
+
+        if (!targetMMBook) targetMMBook = state.mmBookId || "01_vinaya_01";
+
+        state.mmBookId = targetMMBook;
+        state.mmPage = targetMMPage;
+        setReaderMode("mm");
+        await loadMMBook(targetMMBook, targetMMPage);
+
+        showFloatingSwapPill("☸️ မူလပါဠိသို့ ပြန်ကူးရန်", "pali");
+        showScrollToast("🇲🇲 မြန်မာပြန်သို့ ကူးပြောင်းဖတ်ရှုနေပါသည်");
+    } else {
+        // Swap back to Pali
+        let targetPaliBook = null;
+        let targetPaliPage = 1;
+
+        if (state.swapOrigin && state.swapOrigin.mode === "pali") {
+            targetPaliBook = state.swapOrigin.bookId;
+            targetPaliPage = state.swapOrigin.page;
+        } else if (state.matchingPali && state.matchingPali.book_id) {
+            targetPaliBook = state.matchingPali.book_id;
+            targetPaliPage = state.matchingPali.page || 1;
+        } else {
+            targetPaliBook = state.paliBookId || "mula_vi_01";
+            targetPaliPage = state.paliPage || 1;
+        }
+
+        state.paliBookId = targetPaliBook;
+        state.paliPage = targetPaliPage;
+        setReaderMode("pali");
+        await loadPaliBook(targetPaliBook, targetPaliPage);
+
+        showFloatingSwapPill("🇲🇲 မြန်မာပြန်သို့ ပြန်ကူးရန်", "mm");
+        showScrollToast("☸️ ပါဠိတော်သို့ ပြန်လည်ရောက်ရှိပါပြီ");
+    }
+}
+
+// Instant Full-Width Swap: Pali ↔ Atthakatha / Tika
+async function handleCompanionSwap() {
+    closeReaderActionSheet();
+
+    // If already at companion book with return origin saved, swap back immediately
+    if (state.swapOrigin && state.swapOrigin.mode === "pali" && state.paliBookId !== state.swapOrigin.bookId) {
+        const orig = state.swapOrigin;
+        state.swapOrigin = null;
+        await loadPaliBook(orig.bookId, orig.page);
+        hideFloatingSwapPill();
+        showScrollToast(`☸️ မူလ ${orig.bookName} သို့ ပြန်ရောက်ပါပြီ`);
+        return;
+    }
+
+    // 1. Ensure companion data loaded
+    if (!state.companionData || (state.companionData.current && state.companionData.current.id !== state.paliBookId)) {
+        try {
+            const res = await fetch(`/api/pali/companions/${state.paliBookId}`);
+            if (res.ok) state.companionData = await res.json();
+        } catch (e) {
+            console.error("Failed to fetch companions:", e);
+        }
+    }
+
+    const comp = state.companionData;
+    const candidates = [];
+    if (comp) {
+        if (comp.attha && comp.attha.length > 0) {
+            comp.attha.forEach(b => candidates.push({ ...b, type: "attha", icon: "📖", typeLabel: "အဋ္ဌကထာ" }));
+        }
+        if (comp.tika && comp.tika.length > 0) {
+            comp.tika.forEach(b => candidates.push({ ...b, type: "tika", icon: "📜", typeLabel: "ဋီကာ" }));
+        }
+        if (comp.mula && comp.mula.length > 0) {
+            comp.mula.forEach(b => candidates.push({ ...b, type: "mula", icon: "☸️", typeLabel: "မူလပါဠိ" }));
+        }
+    }
+
+    if (candidates.length === 0) {
+        showScrollToast("ဤကျမ်းစာအတွက် တွဲဖက်ကျမ်းစာ မရှိသေးပါ");
+        return;
+    }
+
+    if (candidates.length === 1) {
+        await performCompanionSwapToBook(candidates[0]);
+    } else {
+        openCompanionPicker(candidates);
+    }
+}
+
+function openCompanionPicker(candidates) {
+    if (!el.companionPickerModal || !el.companionPickerList) return;
+
+    let html = "";
+    candidates.forEach((b, idx) => {
+        html += `
+            <div class="companion-picker-item" data-idx="${idx}">
+                <div class="companion-picker-item-left">
+                    <span class="companion-picker-item-icon">${b.icon || '📖'}</span>
+                    <span class="companion-picker-item-title">${escapeHtml(b.name)}</span>
+                </div>
+                <span class="companion-picker-item-tag">${b.typeLabel || 'တွဲဖက်'}</span>
+            </div>
+        `;
+    });
+    el.companionPickerList.innerHTML = html;
+
+    el.companionPickerList.querySelectorAll(".companion-picker-item").forEach(item => {
+        item.addEventListener("click", async () => {
+            const idx = parseInt(item.getAttribute("data-idx"), 10);
+            const chosen = candidates[idx];
+            closeCompanionPicker();
+            if (chosen) await performCompanionSwapToBook(chosen);
+        });
+    });
+
+    el.companionPickerBackdrop.style.display = "flex";
+    requestAnimationFrame(() => {
+        el.companionPickerBackdrop.classList.add("active");
+    });
+}
+
+function closeCompanionPicker() {
+    if (!el.companionPickerBackdrop) return;
+    el.companionPickerBackdrop.classList.remove("active");
+    setTimeout(() => {
+        if (!el.companionPickerBackdrop.classList.contains("active")) {
+            el.companionPickerBackdrop.style.display = "none";
+        }
+    }, 220);
+}
+
+async function performCompanionSwapToBook(targetComp) {
+    state.swapOrigin = {
+        mode: "pali",
+        bookId: state.paliBookId,
+        page: state.paliPage,
+        bookName: state.paliBookName || "ပါဠိတော်"
+    };
+
+    let targetPage = 1;
+    try {
+        const url = `/api/match/pali_to_companion?source_book=${encodeURIComponent(state.paliBookId)}&source_page=${state.paliPage}&target_type=pali&target_book=${encodeURIComponent(targetComp.id)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const match = await res.json();
+            if (match && match.target_page) targetPage = match.target_page;
+        }
+    } catch (e) {
+        console.error("Match error:", e);
+    }
+
+    setReaderMode("pali");
+    await loadPaliBook(targetComp.id, targetPage);
+
+    showFloatingSwapPill("☸️ မူလပါဠိသို့ ပြန်ကူးရန်", "origin");
+    showScrollToast(`📖 ${targetComp.name} (စာမျက်နှာ ${toMyanmarNum(targetPage)}) သို့ ကူးပြောင်းထားပါသည်`);
+}
+
+// Floating Quick-Swap Pill
+function showFloatingSwapPill(labelText, targetAction) {
+    if (!el.floatingSwapPill) return;
+    if (el.swapPillText) el.swapPillText.textContent = labelText;
+    if (el.swapPillIcon) {
+        el.swapPillIcon.textContent = (targetAction === "pali" || targetAction === "origin") ? "☸️" : "🇲🇲";
+    }
+    el.floatingSwapPill.setAttribute("data-target", targetAction);
+    el.floatingSwapPill.style.display = "inline-flex";
+}
+
+function hideFloatingSwapPill() {
+    if (!el.floatingSwapPill) return;
+    el.floatingSwapPill.style.display = "none";
+}
+
+async function handleFloatingSwapPillClick() {
+    const target = el.floatingSwapPill ? el.floatingSwapPill.getAttribute("data-target") : "origin";
+    if (target === "pali" || target === "origin") {
+        if (state.swapOrigin && state.swapOrigin.mode === "pali") {
+            const orig = state.swapOrigin;
+            state.swapOrigin = null;
+            if (state.readerMode === "mm") {
+                setReaderMode("pali");
+            }
+            await loadPaliBook(orig.bookId, orig.page);
+            hideFloatingSwapPill();
+            showScrollToast(`☸️ မူလ ${orig.bookName} သို့ ပြန်ရောက်ပါပြီ`);
+        } else {
+            await handleMMSwap();
+        }
+    } else if (target === "mm") {
+        await handleMMSwap();
+    }
+}
+
+// Copy Current Page / Selected Text
+async function copyCurrentPageText() {
+    closeReaderActionSheet();
+    let text = "";
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim()) {
+        text = sel.toString().trim();
+    } else if (el.paliContent) {
+        const clone = el.paliContent.cloneNode(true);
+        clone.querySelectorAll(".note, .hangnum, .page-divider").forEach(node => node.remove());
+        text = clone.innerText.trim();
+    }
+
+    if (!text) {
+        showScrollToast("ကူးယူရန် စာသား မရှိပါ");
+        return;
+    }
+
+    let success = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            success = true;
+        } catch (e) {
+            console.warn("clipboard writeText failed:", e);
+        }
+    }
+    if (!success) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand("copy");
+            success = true;
+        } catch (e) {}
+        document.body.removeChild(ta);
+    }
+
+    if (success) {
+        showScrollToast("📋 စာမျက်နှာ စာသားများကို ကော်ပီကူးယူပြီးပါပြီ");
+    } else {
+        showScrollToast("စာသား ကူးယူမှု မအောင်မြင်ပါ");
     }
 }
 
@@ -3461,6 +3851,8 @@ function setAppView(view) {
     if (isHome) {
         document.body.classList.add("view-home");
         document.body.classList.remove("view-reader");
+        if (typeof hideFloatingSwapPill === "function") hideFloatingSwapPill();
+        if (typeof closeReaderActionSheet === "function") closeReaderActionSheet();
         if (el.homePage) el.homePage.style.display = "flex";
         if (el.readerContainer) el.readerContainer.style.display = "none";
         if (el.splitViewContainer) el.splitViewContainer.style.display = "none";
@@ -3471,6 +3863,10 @@ function setAppView(view) {
         document.body.classList.remove("view-home");
         document.body.classList.add("view-reader");
         if (el.homePage) el.homePage.style.display = "none";
+        if (state.swapOrigin && typeof showFloatingSwapPill === "function") {
+            const label = (state.readerMode === "mm") ? "☸️ မူလပါဠိသို့ ပြန်ကူးရန်" : "🇲🇲 မြန်မာပြန်သို့ ပြန်ကူးရန်";
+            showFloatingSwapPill(label, state.readerMode === "mm" ? "pali" : "mm");
+        }
         if (state.readerMode === "split") {
             if (el.splitViewContainer) el.splitViewContainer.style.display = "flex";
             if (el.readerPaper) el.readerPaper.style.display = "none";
@@ -6828,7 +7224,13 @@ function setupEventListeners() {
         });
     }
     if (el.btnNavMore) {
-        el.btnNavMore.addEventListener("click", () => toggleSidebar());
+        el.btnNavMore.addEventListener("click", () => {
+            if (state.appView === "reader") {
+                openReaderActionSheet();
+            } else {
+                toggleSidebar();
+            }
+        });
     }
 
     // Comprehensive History Modal Listeners
@@ -6992,6 +7394,156 @@ function setupEventListeners() {
             }
         }, 150);
     });
+
+    // Mobile Header Breadcrumb Back Button -> Home Catalog
+    if (el.btnMobileBackHome) {
+        el.btnMobileBackHome.addEventListener("click", () => {
+            closeSidebarMobile();
+            setAppView("home");
+        });
+    }
+
+    // Mobile Header Breadcrumb Page Badge -> Jump inline
+    if (el.btnMobilePageBadge) {
+        el.btnMobilePageBadge.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (el.jumpInlineRow) {
+                const isHidden = el.jumpInlineRow.hidden;
+                el.jumpInlineRow.hidden = !isHidden;
+                if (!el.jumpInlineRow.hidden && el.jumpInlineInput) {
+                    el.jumpInlineInput.value = "";
+                    el.jumpInlineInput.focus();
+                }
+            } else if (el.btnOpenJumpSheet) {
+                el.btnOpenJumpSheet.click();
+            }
+        });
+    }
+
+    // Mobile Header Breadcrumb More Button & Footer More Button -> Reader Action Sheet
+    if (el.btnMobileHeaderMore) {
+        el.btnMobileHeaderMore.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openReaderActionSheet();
+        });
+    }
+    if (el.btnFooterActionSheet) {
+        el.btnFooterActionSheet.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openReaderActionSheet();
+        });
+    }
+
+    // Reader Action Sheet Close & Backdrop Click
+    if (el.btnCloseActionSheet) {
+        el.btnCloseActionSheet.addEventListener("click", closeReaderActionSheet);
+    }
+    if (el.readerActionSheetBackdrop) {
+        el.readerActionSheetBackdrop.addEventListener("click", (e) => {
+            if (e.target === el.readerActionSheetBackdrop) {
+                closeReaderActionSheet();
+            }
+        });
+    }
+
+    // Reader Action Sheet 8 Action Buttons:
+    if (el.btnActionSettings) {
+        el.btnActionSettings.addEventListener("click", toggleActionQuickSettings);
+    }
+    if (el.btnActionBookmark) {
+        el.btnActionBookmark.addEventListener("click", () => {
+            toggleCurrentBookmark();
+            const curBookId = (state.readerMode === "mm") ? state.mmBookId : state.paliBookId;
+            const curPage = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            const isBookmarked = BookmarkManager.isBookmarked(curBookId, curPage);
+            if (el.actionBookmarkIcon) {
+                el.actionBookmarkIcon.setAttribute("fill", isBookmarked ? "currentColor" : "none");
+            }
+            if (el.actionBookmarkLabel) {
+                el.actionBookmarkLabel.textContent = isBookmarked ? "မှတ်ပြီး" : "စာမှတ်";
+            }
+            showScrollToast(isBookmarked ? "🔖 စာမျက်နှာကို မှတ်သားပြီးပါပြီ" : "စာမှတ်ကို ဖယ်ရှားပြီးပါပြီ");
+        });
+    }
+    if (el.btnActionCopy) {
+        el.btnActionCopy.addEventListener("click", copyCurrentPageText);
+    }
+    if (el.btnActionSearch) {
+        el.btnActionSearch.addEventListener("click", () => {
+            closeReaderActionSheet();
+            openSearchModal();
+        });
+    }
+    if (el.btnActionCompanion) {
+        el.btnActionCompanion.addEventListener("click", handleCompanionSwap);
+    }
+    if (el.btnActionMM) {
+        el.btnActionMM.addEventListener("click", handleMMSwap);
+    }
+    if (el.btnActionDict) {
+        el.btnActionDict.addEventListener("click", () => {
+            closeReaderActionSheet();
+            toggleDictSidebar(true);
+        });
+    }
+    if (el.btnActionTOC) {
+        el.btnActionTOC.addEventListener("click", () => {
+            closeReaderActionSheet();
+            toggleSidebar(true);
+            const tocTabBtn = document.querySelector('.sidebar-tabs .tab-btn[data-tab="tab-toc"]');
+            if (tocTabBtn) tocTabBtn.click();
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
+        });
+    }
+
+    // Quick Settings inside Action Sheet
+    if (el.btnQsFontDec) {
+        el.btnQsFontDec.addEventListener("click", () => {
+            setupFontSize(state.fontSize - 10);
+            if (el.qsFontDisplay) el.qsFontDisplay.textContent = `${state.fontSize}%`;
+        });
+    }
+    if (el.btnQsFontInc) {
+        el.btnQsFontInc.addEventListener("click", () => {
+            setupFontSize(state.fontSize + 10);
+            if (el.qsFontDisplay) el.qsFontDisplay.textContent = `${state.fontSize}%`;
+        });
+    }
+    document.querySelectorAll(".qs-theme-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const theme = btn.getAttribute("data-theme");
+            if (theme) {
+                setupTheme(theme);
+                document.querySelectorAll(".qs-theme-btn").forEach(b => {
+                    b.classList.toggle("active", b.getAttribute("data-theme") === theme);
+                });
+            }
+        });
+    });
+    if (el.btnQsToggleNotes) {
+        el.btnQsToggleNotes.addEventListener("click", () => {
+            setNotesVisibility(!state.showNotes);
+            if (el.qsNotesStateText) {
+                el.qsNotesStateText.textContent = state.showNotes ? "အောက်ခြေမှတ်စု ဝှက်မည်" : "အောက်ခြေမှတ်စု ပြမည်";
+            }
+        });
+    }
+
+    // Floating Quick-Swap Pill
+    if (el.floatingSwapPill) {
+        el.floatingSwapPill.addEventListener("click", handleFloatingSwapPillClick);
+    }
+
+    // Companion Volume Picker Modal
+    if (el.btnCloseCompanionPicker) {
+        el.btnCloseCompanionPicker.addEventListener("click", closeCompanionPicker);
+    }
+    if (el.companionPickerBackdrop) {
+        el.companionPickerBackdrop.addEventListener("click", (e) => {
+            if (e.target === el.companionPickerBackdrop) closeCompanionPicker();
+        });
+    }
 }
 
 function toggleDictSidebar(forceState = null) {
