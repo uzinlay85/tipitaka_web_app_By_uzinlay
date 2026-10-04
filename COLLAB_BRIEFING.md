@@ -125,8 +125,17 @@
      - Added `test_chattha_vocative_and_particle_punctuation` in `test_stemmer_and_punc.py` covering user prompt, anchor tags preservation, and royal/monastic vocatives.
      - Real database page test against printed photo: `mula_vi_03` page 16 output is character-for-character identical to the printed book.
      - All 7 test suites pass 100% (107/107).
-  4. Documentation:
-     - Added Section 26 to `README.md` detailing the Chattha Sangayana authentic punctuation rules.
+- 2026-10-04 — Other Agent (Antigravity): `collab/stemmer-conjunct-click-fix` implemented & verified.
+  1. Conjunct Click Fix (Issue 2 from user): In `static/app.js:6641`, `e.target.closest('.pali-word, .no-split')` selected the inner child `<span class="no-split">` whenever the user clicked on any stacked conjunct (e.g. `မ္ဗ`, `ဒ္ဓ`, `က္ခ`, `တ္တ`), sending ONLY that 2-letter conjunct to the dictionary instead of the full word! Changed to `e.target.closest('.pali-word')`, correctly capturing the entire word (`သမ္မာသမ္ဗုဒ္ဓဿ`) wherever the user taps or clicks.
+  2. Pali Morphological Stemmer Expansion (Issue 1 from user):
+     - `-nt` and `-to` stems: `အရဟတော`, `အရဟတံ`, `အရဟတေ` -> `အရဟန္တ` (5 hits), `အရဟံ` (4 hits), `အရဟ` (6 hits). `မဟတော`, `မဟတာ` -> `မဟန္တ` (6 hits). Participles (`စရတော`, `ဂစ္ဆတော`, `ဇာနတော`) -> `စရ`, `ဂစ္ဆ`, `ဇာန`.
+     - Kinship & Agent nouns in `-u` / `-ar`: `သတ္ထုနော`, `သတ္ထာရံ` -> `သတ္ထု` (5 hits), `သတ္ထာ` (2 hits); `ပိတရော`, `ပိတုနော` -> `ပိတု` (5 hits); `မာတရော`, `မာတုနော` -> `မာတု` (7 hits); `ဘာတရော` -> `ဘာတု`; `ဒါတုနော` -> `ဒါတု`.
+     - Consonant stems: `ဗြဟ္မုနော`, `ဗြဟ္မာနော` -> `ဗြဟ္မာ` (4 hits), `ဗြဟ္မ` (5 hits); `အတ္တနော` -> `အတ္တာ` (2 hits).
+     - Feminine `-u`/`-ū`: `ဝဓုယာ` -> `ဝဓူ` (7 hits).
+     - Absolutive root: `ဉာတွာ` -> `ဇာနာတိ` (5 hits).
+     - Pronouns: `တဿ`, `တေသံ`, `ယေသံ`, `ကေသံ` -> `တ`, `ယ`, `ကိံ`.
+  3. Lookahead Hardening: Added `။` into `RE_VOCATIVES_BEFORE` in `app.py` and `PALI_VOCATIVES_BEFORE_RE` in `static/app.js` (`(?=[<၊။,\s”’"\'\)\]}}]|$ )`), addressing Muse's minor edge case observation.
+  4. Tests: 41-word test suite passes 41/41 (100%). All 7 regression test suites pass (107/107).
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -165,6 +174,7 @@
 | Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ✅ merged to main (2026-10-03, v7.52; Muse fixed TreeWalker lastIndex bug + history clear at merge) |
 | Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ✅ merged to main (2026-10-04, v7.53; Muse verified: 1000 DB pages idempotent, anchors intact, JS↔PY parity) |
 | Documentation update: README (sec 25 highlights, book order, stemmer) + in-app guide cards (sec 9) | Other Agent (Antigravity) | `collab/docs-reader-punc-update` | ✅ merged to main (2026-10-04; docs-only, no version bump; Muse fixed README highlight class name at merge) |
+| Pali Stemmer expansion (အရဟတော, သမ္မာသမ္ဗုဒ္ဓဿ, မဟတော, သတ္ထုနော, ပိတရော, etc.) & Stacked Conjunct Click Fix | Other Agent (Antigravity) | `collab/stemmer-conjunct-click-fix` | ready for Muse review & merge |
 
 
 

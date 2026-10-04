@@ -2149,7 +2149,7 @@ function cleanGathaQuotes(text) {
     return res;
 }
 
-const PALI_VOCATIVES_BEFORE_RE = /[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊,\s”’"\'\)\]}}]|$)/g;
+const PALI_VOCATIVES_BEFORE_RE = /[၊,]\s*((?:<[^>]+>)*\s*)(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)(?=[<၊။,\s”’"\'\)\]}}]|$)/g;
 const PALI_VOCATIVES_AFTER_RE = /(ဘိက္ခဝေ|ဘိက္ခဝေါ|ဘန္တေ|အာဝုသော|မဟာရာဇ|မဟာရာဇာ|အာနန္ဒ|ဗြာဟ္မဏ|တာတ|ဒေဝ|သာရိပုတ္တ|မောဂ္ဂလ္လာန|ကဿပ|ဥပါလိ|သုဘဒ္ဒ|ဂေါတမ)((?:<[^>]+>)*)\s*[၊,]/g;
 const PALI_PARTICLES_RE = /(^|[\s"\'“‘\(])(န|နော|မာ|စ|ဝါ|ဟိ|တု|ပန|ခေါ|ဝတ|ဟန္ဒ)((?:<[^>]+>)*)\s*[၊,]/g;
 
@@ -6638,7 +6638,7 @@ function setupEventListeners() {
         let clickedWord = "";
 
         {
-            const wordEl = e.target.closest(".pali-word, .no-split");
+            const wordEl = e.target.closest(".pali-word");
             if (wordEl) {
                 clickedWord = wordEl.textContent.trim();
             } else if (sel && sel.isCollapsed) {
