@@ -112,7 +112,21 @@
   2. Canonical Book Order in Search (Issue 2): Selected `b.rowid AS book_order` in `search_pali_phrase` and sorted results strictly by `(book_order, page)`, accurately displaying books in standard Tipitaka sequence: Mula (1–61) -> Atthakatha (62–114) -> Tika (115–151) -> Anya (152–192) and canonical Nikaya order.
   3. Morphological Stemmer for Pali Dictionary (Issue 3): Added `get_pali_stem_candidates(clean)` in `app.py` covering enclitic stripping (`-န္တိ`, `-တိ`, `-ပိ`, `-ဉ္စ`, etc.), noun declension rules (`-ဝတော/-မတော` -> `-ဝါ/-ဝန္တ`, `-ဝေ/-ူနံ/-ုနာ/-ူဟိ/-ူသု` -> `-ု/-ူ`, `-ညော/-ရာဇာနော` -> `-ရာဇာ`, `-ိယာ` -> `-ီ`), pronominal plurals, and pronoun stems. Resolves inflected word lookups (e.g. `ဘဂဝတော`, `ဘိက္ခဝေ`, `ဘိက္ခူနံ`, `ရာညော`, `အာယသ္မတော`, `ဒေဝိယာ`) directly to root headwords.
   4. Prose Punctuation Preservation (Issue 4): Updated `format_chattasangayana_pali()` in `app.py` and `cleanPaliContent()` in `app.js` to preserve pauses in prose by converting Western commas `,` and semicolons `;` to Myanmar pada-thi `၊`, and `?`/`!` to pada-ma `။` (normalizing duplicate punctuation). Gatha verses correctly terminate in `၊` (odd padas) or `။` (even padas).
-  5. Test suite: Created `test_stemmer_and_punc.py` (4 tests). All test suites pass 100% (107/107 across `test_stemmer_and_punc`, `test_jump_hang_regression`, `test_export`, `test_audit_fixes`, `test_phrase_search_live`, `test_toc_tree`, `test_updater`). Ready for Muse review & merge (app.js?v= bump deferred to Muse).
+- 2026-10-04 — Other Agent (Antigravity): `collab/chattha-punctuation-rules` implemented & verified.
+  1. Printed Book Alignment: Analyzed 5 high-resolution authentic Myanmar Chattha Sangayana printed book photos. In authentic typography:
+     - Vocatives (`ဘိက္ခဝေ`, `ဘန္တေ`, `အာဝုသော`, `မဟာရာဇ`, `မဟာရာဇာ`, `အာနန္ဒ`, `ဗြာဟ္မဏ`, `တာတ`, `ဒေဝ`) NEVER have pada-thi (`၊`) before or after them.
+     - Particles/Negatives (`န`, `နော`, `မာ`, `စ`, `ဝါ`, `ဟိ`, `တု`, `ပန`, `ခေါ`, `ဝတ`, `ဟန္ဒ`) NEVER have pada-thi (`၊`) immediately following them.
+     - Legitimate clause boundaries (`... ဥပသမ္ပာဒေယျ၊`, `... ဥပသမ္ပာဒေတဗ္ဗော၊`, `... အဟောသိ၊`, `... ကရောထ၊`, `... ဟောတု၊`) and sentence ends (`။`) are strictly preserved.
+  2. Backend & Frontend Implementation:
+     - Precompiled regexes (`RE_VOCATIVES_BEFORE`, `RE_VOCATIVES_AFTER`, `RE_PARTICLES`) in `app.py` and `static/app.js` using Unicode-safe Myanmar non-letter lookarounds (avoiding ASCII-only `\b` pitfalls with Myanmar virama/vowels).
+     - Inline HTML tags (such as VRI edition anchors `<a name="..."></a>`) are preserved while stripping the unwanted pada-thi.
+     - Standardized duplicate punctuation and normalized spacing.
+  3. Tests & Verification:
+     - Added `test_chattha_vocative_and_particle_punctuation` in `test_stemmer_and_punc.py` covering user prompt, anchor tags preservation, and royal/monastic vocatives.
+     - Real database page test against printed photo: `mula_vi_03` page 16 output is character-for-character identical to the printed book.
+     - All 7 test suites pass 100% (107/107).
+  4. Documentation:
+     - Added Section 26 to `README.md` detailing the Chattha Sangayana authentic punctuation rules.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -149,6 +163,7 @@
 | Telegram contact / feedback link in User Guide modal and README | Other Agent | `collab/guide-telegram-contact` | ✅ merged to main (2026-10-02) |
 | In-App Updater (Native Android + FileProvider + /api/android-update + Keystore tools) | Other Agent (Antigravity) | `collab/in-app-updater` | ✅ merged to main (2026-10-02, v7.51) |
 | Reader search highlight & auto-scroll, Canonical book search ordering, Pali stemmer dict lookup, Prose punctuation (၊ & ။) | Other Agent (Antigravity) | `collab/reader-search-dict-enhancements` | ✅ merged to main (2026-10-03, v7.52; Muse fixed TreeWalker lastIndex bug + history clear at merge) |
+| Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ✅ merged to main (2026-10-04, v7.53; Muse verified: 1000 DB pages idempotent, anchors intact, JS↔PY parity) |
 
 
 
