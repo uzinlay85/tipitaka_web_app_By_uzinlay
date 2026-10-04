@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.2/app-release.apk",
-  "changelog": "• ဖုန်းမျက်နှာပြင်သီးသန့် Clean Reader Header (မာတိကာ၊ စာမျက်နှာခုန်ကူး Badge နှင့် နောက်သို့ခလုတ်)\n• 2x4 Circular Action Sheet (အပြင်အဆင်၊ စာမှတ်၊ ကော်ပီကူး၊ ကျမ်းတွင်းရှာ၊ တွဲဖက်ကျမ်း၊ မြန်မာပြန်၊ အဘိဓာန်၊ မာတိကာ)\n• Instant Full-Width Companion Swap (Split View အစား မျက်နှာပြင်ပြည့် ဖတ်ရှုမှုနှင့် Floating Quick-Swap Pill)\n• ဆဋ္ဌသံဂါယနာ မူရင်း ပုဒ်ထီး (၊) နှင့် ပုဒ်မ (။) စံနှုန်းစနစ် အပြည့်အစုံ\n• အရဟတော၊ သမ္မာသမ္ဗုဒ္ဓဿ၊ မဟတော စသည့် ပါဠိဝိဘတ်ပုဒ်များ အဘိဓာန်ရှာဖွေမှု အလိုအလျောက် ပြုလုပ်ပေးခြင်း\n• စာလုံးဆင့် မည်သည့်နေရာကို ကလစ်နှိပ်စေကာမူ ဝေါဟာရတစ်ခုလုံးကို အဘိဓာန်သို့ တိကျစွာ ပို့ဆောင်ပေးခြင်း",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.3/app-release.apk",
+  "changelog": "• မိုဘိုင်းသီးသန့် Reader Toolbar ([ကျမ်းရွေး] [ရှာရန်] [စာမှတ်] [⋯ အခြား])\n• Dynamic Edition Icon: ဖတ်နေသည့် ကျမ်းအလိုက် [☸️ ပါဠိ] / [🇲🇲 မြန်မာ] / [📖 အဋ္ဌ] / [📜 ဋီကာ] အဖြစ် တိကျစွာ ပြသပေးခြင်း\n• Unified Edition Switcher: မူလပါဠိ၊ အဋ္ဌကထာ၊ ဋီကာနှင့် မြန်မာပြန်ကျမ်းများကို progressive matching ဖြင့် လဲလှယ်ဖတ်ရှုနိုင်ခြင်း\n• Scroll Auto-Hide Chrome: စာဖတ်နေစဉ် စာသားမဖုံးစေဘဲ အောက်သို့ scroll ဆွဲပါက Header နှင့် Toolbar အလိုအလျောက် ပုန်းပေးခြင်း\n• 'အခြား' Quick Settings Hub: စာလုံးအရွယ်အစား +/-၊ Theme အပြင်အဆင်၊ မှတ်ချက်များ ဖွင့်/ပိတ်၊ အဘိဓာန် Shortcut များ\n• App Version Auto-Sync: Installed APK ဗားရှင်း (v1.0.3) ကို အက်ပ်အချက်အလက် (About Modal) တွင် အလိုအလျောက် တိကျစွာ ချိတ်ဆက်ပြသပေးခြင်း",
   "forceUpdate": false
 }

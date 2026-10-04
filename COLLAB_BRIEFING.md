@@ -192,6 +192,7 @@
 | Android Release v1.0.2 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 3) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.2, 44882671 bytes) |
 | App version display fix (app.py APP_VERSION dynamic sync with Android runtime & release metadata) | Other Agent (Antigravity) | `collab/app-version-sync` | ✅ merged to main (2026-10-04; Muse verified 5 resolution cases + made version test robust) |
 | Mobile Reader Redesign (Option A: 4-Item Toolbar, Unified Edition Switcher, Scroll Auto-Hide) | Other Agent (Antigravity) | `collab/mobile-reader-toolbar` | ✅ merged to main (2026-10-04, v7.56; Muse fixed 5 issues: dead closeReaderActionSheet/handleCompanionSwap calls, dead footer [...] btn, swapOrigin home-tracking for companions) |
+| Android Release v1.0.3 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 4) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.3, 44882671 bytes) |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -213,6 +214,12 @@
   4. Reader More Sheet: Clean vertical sheet featuring Quick Settings Hub at top (Font size +/-, Theme paper/day/night, Notes toggle) followed by actions: 📖 အဘိဓာန်, 📋 ကော်ပီ, ☰ မာတိကာ, 🏠 ပင်မ စာရင်းသို့.
   5. Scroll-Based Auto-Hiding Chrome: Scrolling down smoothly slides header and toolbar out of view (`transform: translateY(-115% / +115%)`) for 100% immersive reading. Scrolling up smoothly restores them. 10px jitter threshold, top (<60px) reveal, and absolute suppression whenever any sheet, modal, or dictionary drawer is active.
   6. Verification: Node syntax check pass (`node --check static/app.js`), test suites pass (24/24 export, 42/42 audit fixes, 5/5 stemmer, 5/5 toc). Branch ready for Muse review. Version bump deferred to Muse per Rule 4.
+- 2026-10-04 — Other Agent (Antigravity): Android Release v1.0.3 (versionCode: 4) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.3 -PANDROID_VERSION_CODE=4`), manifest verified (versionCode=4, versionName="1.0.3").
+  2. GitHub Release published at tag `android-v1.0.3` with signed APK asset `app-release.apk` (44,882,671 bytes).
+  3. Updater metadata `android_release.json` updated to point to `android-v1.0.3` with full Burmese changelog.
+  4. Dynamic app version verification: `app.py:APP_VERSION` automatically resolves to `"1.0.3"` from `android_release.json` on web/VPS, and from `ANDROID_VERSION_NAME` in Android app.
+
 
 
 
