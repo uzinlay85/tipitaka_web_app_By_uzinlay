@@ -60,12 +60,14 @@ def _selftest(data_dir, port):
         _stage(data_dir, f"SELFTEST_FAIL_{type(e).__name__}")
 
 
-def run_server(data_dir, port, sync_upstream=""):
+def run_server(data_dir, port, sync_upstream="", version_name=""):
     _stage(data_dir, "BOOTSTRAP_ENTER")
     try:
         os.environ["TIPITAKA_DATA_DIR"] = data_dir
         if sync_upstream:
             os.environ["TIPITAKA_SYNC_UPSTREAM"] = sync_upstream
+        if version_name:
+            os.environ["ANDROID_VERSION_NAME"] = str(version_name).strip()
         _stage(data_dir, "ENV_SET")
 
         _stage(data_dir, "IMPORT_APP_START")

@@ -25,11 +25,29 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 # ---------------------------------------------------------------------------
 # App identity: shown in the User Guide (credits section) on web + Android.
-# Bump APP_VERSION on every user-facing release (keep Android versionName in
-# android/app/build.gradle in sync). APP_CREATED_DATE is the day this app was
-# first created and never changes.
+# Synchronized with Android versionName or android_release.json.
+# APP_CREATED_DATE is the day this app was first created and never changes.
 # ---------------------------------------------------------------------------
-APP_VERSION = "1.0.0"
+def _resolve_app_version():
+    # 1. Injected by Android bootstrap/runtime (matches installed APK versionName)
+    env_ver = os.environ.get("ANDROID_VERSION_NAME")
+    if env_ver:
+        return env_ver.strip()
+    # 2. VPS / Web release metadata
+    try:
+        rel_file = os.path.join(BASE_DIR, "android_release.json")
+        if os.path.isfile(rel_file):
+            with open(rel_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                v = data.get("versionName")
+                if v:
+                    return str(v).strip()
+    except Exception:
+        pass
+    # 3. Fallback
+    return "1.0.2"
+
+APP_VERSION = _resolve_app_version()
 APP_CREATED_DATE = "2026-09-24"
 
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)

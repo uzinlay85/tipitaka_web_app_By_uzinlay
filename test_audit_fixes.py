@@ -190,5 +190,12 @@ r_mm = client.get("/api/search", query_string={"q": "သစ္စာလေးပ
 check("mm phrase search 200 without mm db", r_mm.status_code == 200)
 check("mm phrase search returns 0 without mm db", r_mm.get_json().get("total") == 0)
 
+print("== app version resolution ==")
+r_index = client.get("/")
+check("index 200", r_index.status_code == 200)
+check("app_version in html", f"Version {appmod.APP_VERSION}" in r_index.get_data(as_text=True))
+check("app_version matches release json or default", appmod.APP_VERSION in ("1.0.2", "1.0.3"))
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
+
