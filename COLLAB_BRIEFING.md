@@ -136,6 +136,11 @@
      - Pronouns: `တဿ`, `တေသံ`, `ယေသံ`, `ကေသံ` -> `တ`, `ယ`, `ကိံ`.
   3. Lookahead Hardening: Added `။` into `RE_VOCATIVES_BEFORE` in `app.py` and `PALI_VOCATIVES_BEFORE_RE` in `static/app.js` (`(?=[<၊။,\s”’"\'\)\]}}]|$ )`), addressing Muse's minor edge case observation.
   4. Tests: 41-word test suite passes 41/41 (100%). All 7 regression test suites pass (107/107).
+- 2026-10-04 — Other Agent (Antigravity): `collab/android-release-v101` implemented & published.
+  1. Built official Release APK (v1.0.1, versionCode: 2) signed with `tipitaka-release.jks` (identical certificate to v1.0.0, enabling direct update without reinstall). APK size: 44,866,291 bytes.
+  2. Created Git tag `android-v1.0.1` and pushed to GitHub.
+  3. Created GitHub Release `android-v1.0.1` ("Tipitaka Android v1.0.1 (Authentic Punctuation & Stemmer)") and uploaded `app-release.apk` to release assets. Download URL: `https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.1/app-release.apk` (verified 200 OK, Content-Length: 44,866,291).
+  4. Added `android_release.json` (versionCode: 2, versionName: "1.0.1", downloadUrl, Burmese changelog) so `/api/android-update` serves the new version automatically once pulled to VPS.
 - ⏳ Pending (user side): daily backup cron; phone test of jump row in WebView; volume-label vs physical-book check; APK rebuild+reinstall.
 
 ---
@@ -175,6 +180,7 @@
 | Chattha Sangayana authentic punctuation rules (strip vocatives & particles false commas, preserve clause pada-thi & pada-ma) | Other Agent (Antigravity) | `collab/chattha-punctuation-rules` | ✅ merged to main (2026-10-04, v7.53; Muse verified: 1000 DB pages idempotent, anchors intact, JS↔PY parity) |
 | Documentation update: README (sec 25 highlights, book order, stemmer) + in-app guide cards (sec 9) | Other Agent (Antigravity) | `collab/docs-reader-punc-update` | ✅ merged to main (2026-10-04; docs-only, no version bump; Muse fixed README highlight class name at merge) |
 | Pali Stemmer expansion (အရဟတော, သမ္မာသမ္ဗုဒ္ဓဿ, မဟတော, သတ္ထုနော, ပိတရော, etc.) & Stacked Conjunct Click Fix | Other Agent (Antigravity) | `collab/stemmer-conjunct-click-fix` | ✅ merged to main (2026-10-04, v7.54; Muse fixed single-char pronoun lemmas တ/ယ/က dropped by len>=2 guard) |
+| Android Release v1.0.1 (signed APK build, GitHub Release publish, and updater metadata) | Other Agent (Antigravity) | `collab/android-release-v101` | ✅ merged to main (2026-10-04; Muse verified APK manifest versionCode=2 via AXML parse, download 200 OK 44866291 bytes) |
 
 
 
