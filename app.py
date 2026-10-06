@@ -1613,6 +1613,13 @@ def search_mm_phrase(conn, query, page=1, limit=20):
 
 @app.route("/api/search")
 def api_search():
+    # Rate limit: search is the most expensive public endpoint (SQLite FTS per
+    # query); /api/export and /api/sync/* already have limits. 120/5min is
+    # generous for real readers, stops single-IP hammering (see Wikimedia
+    # 2026-10-05 rogue-agent report: millions of automated API requests).
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    if not _rate_ok(ip, limit=120, window=300):
+        return jsonify({"error": "too many searches, try again later"}), 429
     query = request.args.get("q", "").strip()
     stype = request.args.get("type", "word")
     try:
