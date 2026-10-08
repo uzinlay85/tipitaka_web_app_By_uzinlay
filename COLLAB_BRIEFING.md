@@ -199,7 +199,8 @@
 | Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ✅ merged to main (1cce533, v7.61) |
 | Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), merged to main (74d029a) |
 | Android Release v1.0.9 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 10; includes Muse v7.62 mobile reader chrome fix) | Other Agent (Antigravity) | `collab/android-release-v109` | ✅ published to GitHub Releases (android-v1.0.9, 44882671 bytes), merged to main (7acab33) |
-| Comprehensive Split User Guide (Web vs Android dedicated tabs, reader more sheet shortcut, device-aware auto-selection) | Other Agent (Antigravity) | `collab/split-user-guide` | ready for Muse review |
+| Comprehensive Split User Guide (Web vs Android dedicated tabs, reader more sheet shortcut, device-aware auto-selection) | Other Agent (Antigravity) | `collab/split-user-guide` | ✅ merged to main (052fa7d, v7.63) |
+| Android Release v1.0.10 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 11; includes Web v7.63 split user guide) | Other Agent (Antigravity) | `collab/android-release-v1010` | ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -284,7 +285,12 @@
      - `🌟 ဘုံအင်္ဂါရပ်များနှင့် ကျေးဇူးတင်လွှာ`: Cross-Device Cloud Sync (`☁️` Sync Code), JSON Backup/Restore & Insights, Chatthasangayana authenticity and typography, Dedication & Credits to Ven. Pn Daza, and project contact information.
   2. Device-Aware Auto-Selection: Opening the user guide (`openHelpModal`) automatically defaults to `📱 Android` tab on mobile screens (`<= 768px`) or when opened from Android mobile drawer / reader more sheet, and to `💻 Web` tab on desktop screens. Users can tap to switch between tabs at any time.
   3. Reader More Sheet Shortcut: Added `[💡 အသုံးပြုနည်း လမ်းညွှန်]` action directly into `readerMoreSheet` so mobile readers can access the guide without having to exit to the catalog.
-  4. Tests: `node --check static/app.js` clean PASS (0 errors), `test_audit_fixes.py` 42/42 PASS, `test_scripture_page_matching.py` 8/8 PASS. Branch `collab/split-user-guide` ready for Muse review & merge.
+  4. Tests: `node --check static/app.js` clean PASS (0 errors), `test_audit_fixes.py` 42/42 PASS, `test_scripture_page_matching.py` 8/8 PASS. Branch `collab/split-user-guide` ready for Muse review & merge. Merged to main by Muse (052fa7d, v7.63).
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.10 (versionCode: 11) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.10 -PANDROID_VERSION_CODE=11`), manifest verified via `verify_android_release.py` (versionCode=11, versionName="1.0.10", package=top.upanna.tipitaka). Incorporates Muse commit `052fa7d` (v7.63) Dedicated Web & Android User Guides.
+  2. GitHub Release published at tag `android-v1.0.10` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
+  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.10 / versionCode 11 in branch `collab/android-release-v1010`.
+  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
 
 
 
