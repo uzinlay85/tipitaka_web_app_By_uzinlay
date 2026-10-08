@@ -1,7 +1,7 @@
 {
-  "versionCode": 8,
-  "versionName": "1.0.7",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.7/app-release.apk",
-  "changelog": "• Web v7.60 (Edition pills စနစ် အပြည့်အစုံ ကောင်းမွန်စေခြင်း)\n• အဋ္ဌကထာနှင့် ဋီကာ pill များကို ဒေတာရောက်ရှိမှသာ နှိပ်နိုင်စေရန် စနစ်တကျ ပြုပြင်ထားခြင်း\n• အဋ္ဌကထာ/ဋီကာ ကူးပြောင်းရာတွင် မူလပါဠိနှင့် ကိုက်ညီသော စာမျက်နှာနံပါတ်သို့ တိကျစွာ ရောက်ရှိစေခြင်း (Page Matching Fix)\n• မြန်မာပြန် ကျမ်းကူးပြောင်းမှု တိကျမှန်ကန်စေခြင်း\n• Sticky Header စနစ်ကို ညှိယူထားပြီး စာဖတ်နေစဉ် စာသားမဖုံးဘဲ အလွယ်တကူ ကျမ်းကူးပြောင်းနိုင်ခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.7 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
+  "versionCode": 9,
+  "versionName": "1.0.8",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.8/app-release.apk",
+  "changelog": "• Web v7.61 (Option A: Modern Minimal Reader စနစ်သစ် ထည့်သွင်းထားခြင်း)\n• ပါဠိ ⇄ မြန်မာ ⇄ အဋ္ဌ ⇄ ဋီကာ စာပိုဒ်နံပါတ် (Paragraph) အလိုက် တိကျသော Two-Way Scripture Page Matching စနစ်\n• သန့်ရှင်းသော Header အသစ်နှင့် စာဖတ်ဧရိယာ ကျယ်ဝန်းစေသော Scroll Auto-Hide စနစ်\n• လက်မတစ်ကမ်း အောက်ခြေဘား (၅ ခု) — [ကျမ်းရွေး]၊ [ရှာရန်]၊ [အဘိဓာန်]၊ [စာမှတ်]၊ [အပြင်အဆင်]\n• ကျမ်းစာအကူးအပြောင်း စာမျက်နှာ (၁) သို့ မှားယွင်းရောက်ရှိသည့် bug အား အပြီးအပိုင် ဖြေရှင်းထားခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.8 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
   "forceUpdate": false
 }
