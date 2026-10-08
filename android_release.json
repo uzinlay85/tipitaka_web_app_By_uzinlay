@@ -1,7 +1,7 @@
 {
-  "versionCode": 10,
-  "versionName": "1.0.9",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.9/app-release.apk",
-  "changelog": "• Web v7.62 (မိုဘိုင်းလ် Reader Header & Bottom Bar ပြင်ဆင်ချက်)\n• စာဖတ်နေစဉ် မိုဘိုင်းလ် Header နှစ်ထပ်ဖြစ်ပေါ်နေသည့် bug အား အပြီးအပိုင် ဖြေရှင်းထားခြင်း\n• မိုဘိုင်းလ် Reader View တွင် Option A Toolbar (၅ ခု) — [ကျမ်းရွေး]၊ [ရှာရန်]၊ [အဘိဓာန်]၊ [စာမှတ်]၊ [အပြင်အဆင်] သီးသန့် အဆင်ပြေစွာ ဖော်ပြပေးခြင်း\n• စာဖတ်နေစဉ် ပင်မ Navigation Bar မှားယွင်းပေါ်နေမှုအား ရှင်းလင်းထားခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.9 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
+  "versionCode": 11,
+  "versionName": "1.0.10",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.10/app-release.apk",
+  "changelog": "• Web v7.63 (အသုံးပြုနည်း လမ်းညွှန် Web & Android ကဏ္ဍခွဲ စနစ်သစ်)\n• မိုဘိုင်းလ် ဖုန်းနှင့် ကွန်ပျူတာ အသုံးပြုနည်း လမ်းညွှန်ချက်များအား သီးခြားစီ စနစ်တကျ ပြည့်စုံစွာ ခွဲခြားဖော်ပြပေးထားခြင်း\n• စာဖတ်နေစဉ် စာအုပ်မှ ထွက်စရာမလိုဘဲ အပြင်အဆင်မှတစ်ဆင့် အသုံးပြုနည်း လမ်းညွှန်အား [💡 အသုံးပြုနည်း လမ်းညွှန်] ဖြင့် တိုက်ရိုက် ကြည့်ရှုနိုင်ခြင်း\n• ဖုန်းတွင် Android လမ်းညွှန်အား အလိုအလျောက် ရွေးချယ်ပြသပေးခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.10 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
   "forceUpdate": false
 }
