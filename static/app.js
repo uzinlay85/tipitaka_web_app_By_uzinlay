@@ -3991,6 +3991,32 @@ async function renderHomeCatalog() {
         el.homeModeToggleLabel.textContent = isPali ? "🇲🇲 မြန်မာပြန်သို့" : "☸️ ပါဠိတော်သို့";
     }
 
+    // Continue Reading card (ဆက်ဖတ်ရန်) — layered design: Home is FIND layer
+    try {
+        const hist = HistoryManager.getReadingHistory();
+        const card = document.getElementById("homeContinueCard");
+        if (card && hist && hist.length > 0) {
+            const top = hist[0];
+            const bookEl = document.getElementById("homeContinueBook");
+            const pageEl = document.getElementById("homeContinuePage");
+            if (bookEl) bookEl.textContent = top.bookName || top.bookId || "—";
+            if (pageEl) pageEl.textContent = "စာမျက်နှာ " + (top.page || 1);
+            card.style.display = "block";
+            card.onclick = () => {
+                if (top.mode === "mm") {
+                    setReaderMode("mm");
+                    loadMMBook(top.bookId, top.page || 1);
+                } else {
+                    setReaderMode("pali");
+                    loadPaliBook(top.bookId, top.page || 1);
+                }
+                showView("reader");
+            };
+        } else if (card) {
+            card.style.display = "none";
+        }
+    } catch (e) { /* history unavailable — card stays hidden */ }
+
     // Basket Tabs for Pali (ပါဠိ, အဋ္ဌကထာ, ဋီကာ, အည)
     if (el.homeBasketTabs) {
         if (isPali) {

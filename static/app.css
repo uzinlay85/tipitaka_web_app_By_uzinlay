@@ -3383,6 +3383,35 @@ body.view-reader .home-page-container {
     padding: 12px 16px 84px 16px; /* 84px for bottom nav & FAB clearance */
 }
 
+/* Continue Reading card (ဆက်ဖတ်ရန်) — layered design */
+.home-continue-card {
+    margin: 12px 16px 0 16px;
+    padding: 14px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px var(--shadow-color, rgba(0, 0, 0, 0.06));
+}
+.home-continue-card:active {
+    transform: scale(0.98);
+}
+.home-continue-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.home-continue-book {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.home-continue-page {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
 .home-catalog-inner {
     max-width: 760px;
     margin: 0 auto;
