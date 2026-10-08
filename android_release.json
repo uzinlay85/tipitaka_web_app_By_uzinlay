@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.0.6",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.6/app-release.apk",
-  "changelog": "• Web v7.59 (Edition pills — One-tap switching)\n• စာဖတ်နေစဉ် မူလပါဠိ၊ မြန်မာပြန်၊ အဋ္ဌကထာ၊ ဋီကာ ကျမ်းများကို [ပါဠိ] [မြန်မာ] [အဋ္ဌ] [ဋီကာ] pill ခလုတ်များဖြင့် တစ်ချက်နှိပ်ရုံဖြင့် လျင်မြန်စွာ ကူးပြောင်းဖတ်ရှုနိုင်ခြင်း\n• ရွေးချယ်ထားသော ကျမ်းအလိုက် badge နှင့် စာမျက်နှာနံပါတ် အလိုအလျောက် ကိုက်ညီစွာ ဖော်ပြပေးခြင်း\n• Layered Redesign အလွှာလိုက် မျက်နှာပြင်စနစ် (အာရုံစူးစိုက်မှု ပိုမိုကောင်းမွန်စေသော Reader UI)\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.6 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
+  "versionCode": 8,
+  "versionName": "1.0.7",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.7/app-release.apk",
+  "changelog": "• Web v7.60 (Edition pills စနစ် အပြည့်အစုံ ကောင်းမွန်စေခြင်း)\n• အဋ္ဌကထာနှင့် ဋီကာ pill များကို ဒေတာရောက်ရှိမှသာ နှိပ်နိုင်စေရန် စနစ်တကျ ပြုပြင်ထားခြင်း\n• အဋ္ဌကထာ/ဋီကာ ကူးပြောင်းရာတွင် မူလပါဠိနှင့် ကိုက်ညီသော စာမျက်နှာနံပါတ်သို့ တိကျစွာ ရောက်ရှိစေခြင်း (Page Matching Fix)\n• မြန်မာပြန် ကျမ်းကူးပြောင်းမှု တိကျမှန်ကန်စေခြင်း\n• Sticky Header စနစ်ကို ညှိယူထားပြီး စာဖတ်နေစဉ် စာသားမဖုံးဘဲ အလွယ်တကူ ကျမ်းကူးပြောင်းနိုင်ခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.7 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
   "forceUpdate": false
 }
