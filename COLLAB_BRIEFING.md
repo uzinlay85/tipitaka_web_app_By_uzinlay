@@ -199,8 +199,8 @@
 | Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ✅ merged to main (1cce533, v7.61) |
 | Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), merged to main (74d029a) |
 | Android Release v1.0.9 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 10; includes Muse v7.62 mobile reader chrome fix) | Other Agent (Antigravity) | `collab/android-release-v109` | ✅ published to GitHub Releases (android-v1.0.9, 44882671 bytes), merged to main (7acab33) |
-| Comprehensive Split User Guide (Web vs Android dedicated tabs, reader more sheet shortcut, device-aware auto-selection) | Other Agent (Antigravity) | `collab/split-user-guide` | ✅ merged to main (052fa7d, v7.63) |
-| Android Release v1.0.10 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 11; includes Web v7.63 split user guide) | Other Agent (Antigravity) | `collab/android-release-v1010` | ready for Muse review |
+| Android Release v1.0.10 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 11; includes Web v7.63 split user guide) | Other Agent (Antigravity) | `collab/android-release-v1010` | ✅ merged to main (650d344) |
+| Android Release v1.0.11 (signed APK build, GitHub Release publish, updater metadata for versionCode: 12; Direct In-App Downloader with live ProgressDialog and Browser fallback) | Other Agent (Antigravity) | `collab/fix-updater-download` | ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -290,7 +290,15 @@
   1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.10 -PANDROID_VERSION_CODE=11`), manifest verified via `verify_android_release.py` (versionCode=11, versionName="1.0.10", package=top.upanna.tipitaka). Incorporates Muse commit `052fa7d` (v7.63) Dedicated Web & Android User Guides.
   2. GitHub Release published at tag `android-v1.0.10` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
   3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.10 / versionCode 11 in branch `collab/android-release-v1010`.
-  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
+  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Merged to main by Muse (650d344).
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.11 (versionCode: 12) In-App Direct Downloader & Browser Fallback:
+  1. In-App Direct Downloader: Replaced brittle system `DownloadManager` with an in-app streaming downloader in Kotlin (`MainActivity.kt`). Displays an immediate horizontal `ProgressDialog` showing real-time % and downloaded size in MB (`ဒေါင်းလုဒ်ဆွဲနေပါသည်... 45% (20.1 MB / 44.8 MB)`).
+  2. Redirects & Network Fix: Handles GitHub Releases HTTP 302/307 redirects to `objects.githubusercontent.com` seamlessly without dropping connections. Completely works over mobile data (cellular/metered connections) and Wi-Fi alike.
+  3. Browser Fallback: Added dedicated `[Browser ဖြင့် ဒေါင်းမည်]` button in update dialog and on download error, allowing users to instantly download the APK via Chrome/default browser if preferred.
+  4. Manifest & Permissions: Added `POST_NOTIFICATIONS` permission to `AndroidManifest.xml`.
+  5. Release APK built with keystore signing (`app-release.apk`, 44,882,715 bytes). Manifest badging verified: `top.upanna.tipitaka`, `versionCode=12`, `versionName="1.0.11"`.
+  6. GitHub Release published at tag `android-v1.0.11` with signed APK asset uploaded and verified (HTTP 200 OK).
+  7. All verification passed: `verify_android_release.py` 3/4 PASS (1 SKIP live endpoint), `test_audit_fixes.py` 42/42 PASS, `test_updater.py` 2/2 PASS. Branch `collab/fix-updater-download` ready for Muse review & merge.
 
 
 
