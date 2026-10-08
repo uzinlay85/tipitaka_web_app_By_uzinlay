@@ -3,8 +3,10 @@ package top.upanna.tipitaka
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.DownloadManager
+import android.app.ProgressDialog
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
@@ -34,10 +36,12 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.Proxy
 import java.net.URL
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.ZipInputStream
@@ -535,6 +539,9 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("အပ်ဒိတ်ရယူမည်") { _, _ ->
                 startApkDownload(update.downloadUrl, update.versionName)
             }
+            .setNeutralButton("Browser ဖြင့် ဒေါင်းမည်") { _, _ ->
+                openInBrowser(update.downloadUrl)
+            }
             .setNegativeButton("နောက်မှ") { _, _ ->
                 val prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 prefs.edit().putLong(KEY_LAST_SNOOZE, System.currentTimeMillis()).apply()
@@ -543,53 +550,149 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun startApkDownload(apkUrl: String, versionName: String) {
+    private fun openInBrowser(url: String) {
         try {
-            val destDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: cacheDir
-            val apkFile = File(destDir, "tipitaka-v$versionName.apk")
-            if (apkFile.exists()) apkFile.delete()
-            pendingApkFile = apkFile
-
-            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val req = DownloadManager.Request(Uri.parse(apkUrl)).apply {
-                setTitle("Tipitaka v$versionName")
-                setDescription("အပ်ဒိတ်ဒေါင်းလုဒ်ဆွဲနေသည်...")
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationUri(Uri.fromFile(apkFile))
-                setMimeType("application/vnd.android.package-archive")
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Browser ဖွင့်မရပါ: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-            downloadId = dm.enqueue(req)
-            Toast.makeText(this, "အပ်ဒိတ်ဒေါင်းလုဒ် စတင်နေပါပြီ...", Toast.LENGTH_SHORT).show()
+    private fun startApkDownload(apkUrl: String, versionName: String) {
+        if (!isOnline()) {
+            Toast.makeText(this, "အင်တာနက်ချိတ်ဆက်မှု မရှိပါ", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            unregisterDownloadReceiver()
+        @Suppress("DEPRECATION")
+        val progressDialog = ProgressDialog(this).apply {
+            setTitle("အပ်ဒိတ် ဒေါင်းလုဒ်ဆွဲနေသည်")
+            setMessage("ဗားရှင်း v$versionName ကို ရယူနေပါသည်...")
+            setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
+            isIndeterminate = false
+            max = 100
+            progress = 0
+            setCancelable(false)
+        }
 
-            val receiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
-                    if (id == downloadId) {
-                        unregisterDownloadReceiver()
-                        pendingApkFile?.let { file ->
-                            if (file.exists()) {
-                                promptInstall(file)
-                            } else {
-                                Toast.makeText(this@MainActivity, "ဖိုင်ဒေါင်းလုဒ် မအောင်မြင်ပါ", Toast.LENGTH_SHORT).show()
+        var isCancelled = false
+        progressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, "မလုပ်တော့ပါ") { dialog, _ ->
+            isCancelled = true
+            dialog.dismiss()
+        }
+        progressDialog.show()
+
+        Thread {
+            var conn: HttpURLConnection? = null
+            var targetFile: File? = null
+            try {
+                // Follow redirects manually to handle GitHub -> objects.githubusercontent.com safely
+                var currentUrl = apkUrl
+                var redirectCount = 0
+                while (redirectCount < 5) {
+                    val url = URL(currentUrl)
+                    conn = (url.openConnection() as HttpURLConnection).apply {
+                        instanceFollowRedirects = true
+                        connectTimeout = 15000
+                        readTimeout = 30000
+                        setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) TipitakaApp")
+                    }
+                    val code = conn.responseCode
+                    if (code == HttpURLConnection.HTTP_MOVED_PERM ||
+                        code == HttpURLConnection.HTTP_MOVED_TEMP ||
+                        code == HttpURLConnection.HTTP_SEE_OTHER ||
+                        code == 307 || code == 308
+                    ) {
+                        val location = conn.getHeaderField("Location")
+                        conn.disconnect()
+                        if (!location.isNullOrEmpty()) {
+                            currentUrl = location
+                            redirectCount++
+                            continue
+                        }
+                    }
+                    if (code != HttpURLConnection.HTTP_OK) {
+                        throw IOException("HTTP error $code")
+                    }
+                    break
+                }
+
+                val finalConn = conn ?: throw IOException("ချိတ်ဆက်မှု မအောင်မြင်ပါ")
+                val totalBytes = finalConn.contentLengthLong
+
+                val destDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: cacheDir
+                val apkFile = File(destDir, "tipitaka-v$versionName.apk")
+                if (apkFile.exists()) apkFile.delete()
+                targetFile = apkFile
+
+                var downloadedBytes = 0L
+                var lastUpdate = 0L
+
+                finalConn.inputStream.use { input ->
+                    FileOutputStream(apkFile).use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            if (isCancelled) {
+                                apkFile.delete()
+                                return@Thread
+                            }
+                            output.write(buffer, 0, bytesRead)
+                            downloadedBytes += bytesRead
+                            val now = System.currentTimeMillis()
+                            if (now - lastUpdate > 200 || (totalBytes > 0 && downloadedBytes == totalBytes)) {
+                                lastUpdate = now
+                                val percent = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
+                                val downloadedMb = String.format(Locale.US, "%.1f", downloadedBytes / (1024f * 1024f))
+                                val totalMb = if (totalBytes > 0) String.format(Locale.US, "%.1f", totalBytes / (1024f * 1024f)) else "?"
+                                runOnUiThread {
+                                    if (!isFinishing && !isDestroyed && progressDialog.isShowing) {
+                                        progressDialog.progress = percent
+                                        progressDialog.setMessage("ဒေါင်းလုဒ်ဆွဲနေပါသည်... $percent% ($downloadedMb MB / $totalMb MB)")
+                                    }
+                                }
                             }
                         }
                     }
                 }
+
+                runOnUiThread {
+                    if (progressDialog.isShowing) progressDialog.dismiss()
+                    if (apkFile.exists() && apkFile.length() > 1_000_000L) {
+                        pendingApkFile = apkFile
+                        promptInstall(apkFile)
+                    } else {
+                        showDownloadFallbackDialog(apkUrl, "ဒေါင်းလုဒ်ဖိုင် အရွယ်အစား မပြည့်စုံပါ")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Tipitaka", "In-app download failed", e)
+                targetFile?.let { if (it.exists()) it.delete() }
+                runOnUiThread {
+                    if (progressDialog.isShowing) progressDialog.dismiss()
+                    if (!isCancelled) {
+                        showDownloadFallbackDialog(apkUrl, e.message ?: "အင်တာနက်ပြတ်တောက်သွားပါသည်")
+                    }
+                }
+            } finally {
+                conn?.disconnect()
             }
-            downloadReceiver = receiver
-            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
-            } else {
-                registerReceiver(receiver, filter)
+        }.start()
+    }
+
+    private fun showDownloadFallbackDialog(apkUrl: String, errorMsg: String) {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle("ဒေါင်းလုဒ် မအောင်မြင်ပါ")
+            .setMessage("အက်ပ်အတွင်း ဒေါင်းလုဒ်လုပ်၍ မရပါ ($errorMsg)။\n\nဖုန်း၏ Browser ဖြင့် တိုက်ရိုက် ဒေါင်းလုဒ်ရယူလိုပါသလား?")
+            .setPositiveButton("Browser ဖြင့် ဒေါင်းမည်") { _, _ ->
+                openInBrowser(apkUrl)
             }
-        } catch (e: Exception) {
-            Log.e("Tipitaka", "Download failed", e)
-            Toast.makeText(this, "ဒေါင်းလုဒ် စတင်မရပါ: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+            .setNegativeButton("မလုပ်တော့ပါ", null)
+            .show()
     }
 
     private fun unregisterDownloadReceiver() {
