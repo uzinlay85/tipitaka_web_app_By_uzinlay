@@ -148,7 +148,7 @@ def check_release_json():
 
 
 def check_download_url(url):
-    req = urllib.request.Request(url, method="HEAD")
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "TipitakaReleaseVerifier/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             code, size = r.status, r.headers.get("Content-Length")
@@ -208,7 +208,8 @@ def check_apk_bytes(apk_bytes, meta):
 
 def download_apk(url):
     print("Downloading APK (~44 MB)…")
-    with urllib.request.urlopen(url, timeout=120) as r:
+    req = urllib.request.Request(url, headers={"User-Agent": "TipitakaReleaseVerifier/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
         total = int(r.headers.get("Content-Length") or 0)
         chunks, got = [], 0
         while True:

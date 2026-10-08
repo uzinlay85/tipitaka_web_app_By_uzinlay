@@ -195,6 +195,7 @@
 | Android Release v1.0.3 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 4) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.3, 44882671 bytes) |
 | Android Release v1.0.4 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 5; includes Muse v7.57 mobile split removal) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.4, 44882671 bytes) |
 | Android Release v1.0.5 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 6; includes Muse v7.58 layered redesign) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.5, 44882679 bytes) |
+| Android Release v1.0.6 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 7; includes Muse v7.59 edition pills) | Other Agent (Antigravity) | `collab/android-release-v106` | ✅ published to GitHub Releases (android-v1.0.6, 44882671 bytes), ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -231,6 +232,12 @@
   2. GitHub Release published at tag `android-v1.0.5` with signed APK asset `app-release.apk` (44,882,679 bytes).
   3. Updater metadata `android_release.json` updated to point to `android-v1.0.5` (versionCode: 6).
   4. Dynamic app version verification: `app.py:APP_VERSION` automatically resolves to `"1.0.5"`.
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.6 (versionCode: 7) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.6 -PANDROID_VERSION_CODE=7`), manifest verified via `verify_android_release.py` (versionCode=7, versionName="1.0.6", package=top.upanna.tipitaka). Incorporates Muse commit `6122239` (v7.59) Edition pills: one-tap switching [ပါဠိ][မြန်မာ][အဋ္ဌ][ဋီကာ].
+  2. GitHub Release published at tag `android-v1.0.6` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
+  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.6 / versionCode 7 in branch `collab/android-release-v106`.
+  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_audit_fixes.py` 42/42 PASS.
+
 
 
 

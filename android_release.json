@@ -1,7 +1,7 @@
 {
-  "versionCode": 6,
-  "versionName": "1.0.5",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.5/app-release.apk",
-  "changelog": "• Layered Redesign v7.58 (အလွှာလိုက် ဒီဇိုင်းသစ်)\n• မိုဘိုင်း Reader Toolbar တွင် စာဖတ်ရာ၌ အာရုံစူးစိုက်နိုင်စေရန် [ကျမ်းရွေး] နှင့် [စာမှတ်] ခလုတ် ၂ ခုသာ သီးသန့်ထားရှိခြင်း\n• ပင်မစာမျက်နှာတွင် ရှာဖွေရန်/သုတ်တော် ခလုတ်များအစား 'ဆက်ဖတ်ရန်' (Continue Reading) Card ဖြင့် အလွယ်တကူ ဆက်ဖတ်နိုင်ခြင်း\n• အပြင်အဆင်နှင့် လုပ်ဆောင်ချက်များကို 'အခြား' ကဏ္ဍတွင် စနစ်တကျ စုစည်းထားခြင်း\n• Android App ဗားရှင်း Auto-Sync (Version 1.0.5)",
+  "versionCode": 7,
+  "versionName": "1.0.6",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.6/app-release.apk",
+  "changelog": "• Web v7.59 (Edition pills — One-tap switching)\n• စာဖတ်နေစဉ် မူလပါဠိ၊ မြန်မာပြန်၊ အဋ္ဌကထာ၊ ဋီကာ ကျမ်းများကို [ပါဠိ] [မြန်မာ] [အဋ္ဌ] [ဋီကာ] pill ခလုတ်များဖြင့် တစ်ချက်နှိပ်ရုံဖြင့် လျင်မြန်စွာ ကူးပြောင်းဖတ်ရှုနိုင်ခြင်း\n• ရွေးချယ်ထားသော ကျမ်းအလိုက် badge နှင့် စာမျက်နှာနံပါတ် အလိုအလျောက် ကိုက်ညီစွာ ဖော်ပြပေးခြင်း\n• Layered Redesign အလွှာလိုက် မျက်နှာပြင်စနစ် (အာရုံစူးစိုက်မှု ပိုမိုကောင်းမွန်စေသော Reader UI)\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.6 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
   "forceUpdate": false
 }
