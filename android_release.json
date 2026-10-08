@@ -1,7 +1,7 @@
 {
-  "versionCode": 9,
-  "versionName": "1.0.8",
-  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.8/app-release.apk",
-  "changelog": "• Web v7.61 (Option A: Modern Minimal Reader စနစ်သစ် ထည့်သွင်းထားခြင်း)\n• ပါဠိ ⇄ မြန်မာ ⇄ အဋ္ဌ ⇄ ဋီကာ စာပိုဒ်နံပါတ် (Paragraph) အလိုက် တိကျသော Two-Way Scripture Page Matching စနစ်\n• သန့်ရှင်းသော Header အသစ်နှင့် စာဖတ်ဧရိယာ ကျယ်ဝန်းစေသော Scroll Auto-Hide စနစ်\n• လက်မတစ်ကမ်း အောက်ခြေဘား (၅ ခု) — [ကျမ်းရွေး]၊ [ရှာရန်]၊ [အဘိဓာန်]၊ [စာမှတ်]၊ [အပြင်အဆင်]\n• ကျမ်းစာအကူးအပြောင်း စာမျက်နှာ (၁) သို့ မှားယွင်းရောက်ရှိသည့် bug အား အပြီးအပိုင် ဖြေရှင်းထားခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.8 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
+  "versionCode": 10,
+  "versionName": "1.0.9",
+  "downloadUrl": "https://github.com/uzinlay85/tipitaka_web_app_By_uzinlay/releases/download/android-v1.0.9/app-release.apk",
+  "changelog": "• Web v7.62 (မိုဘိုင်းလ် Reader Header & Bottom Bar ပြင်ဆင်ချက်)\n• စာဖတ်နေစဉ် မိုဘိုင်းလ် Header နှစ်ထပ်ဖြစ်ပေါ်နေသည့် bug အား အပြီးအပိုင် ဖြေရှင်းထားခြင်း\n• မိုဘိုင်းလ် Reader View တွင် Option A Toolbar (၅ ခု) — [ကျမ်းရွေး]၊ [ရှာရန်]၊ [အဘိဓာန်]၊ [စာမှတ်]၊ [အပြင်အဆင်] သီးသန့် အဆင်ပြေစွာ ဖော်ပြပေးခြင်း\n• စာဖတ်နေစဉ် ပင်မ Navigation Bar မှားယွင်းပေါ်နေမှုအား ရှင်းလင်းထားခြင်း\n• App Version Auto-Sync (Android Package Manager နှင့် ချိတ်ဆက်၍ Version 1.0.9 အဖြစ် အလိုအလျောက် ပြသပေးခြင်း)",
   "forceUpdate": false
 }
