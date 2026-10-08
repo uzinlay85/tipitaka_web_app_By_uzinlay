@@ -380,14 +380,17 @@ const el = {
     // Mobile Reader Header & Toolbar (Option A)
     mobileBreadcrumbWrapper: document.getElementById("mobileBreadcrumbWrapper"),
     btnMobileBackHome: document.getElementById("btnMobileBackHome"),
+    btnMobileHeaderSearch: document.getElementById("btnMobileHeaderSearch"),
+    btnMobileHeaderTOC: document.getElementById("btnMobileHeaderTOC"),
     btnMobilePageBadge: document.getElementById("btnMobilePageBadge"),
 
-    // Mobile Dedicated Reader Toolbar (4 Items)
+    // Mobile Dedicated Reader Toolbar (5 Items)
     mobileReaderToolbar: document.getElementById("mobileReaderToolbar"),
     btnReaderEdition: document.getElementById("btnReaderEdition"),
     toolbarEditionIcon: document.getElementById("toolbarEditionIcon"),
     toolbarEditionLabel: document.getElementById("toolbarEditionLabel"),
     btnReaderSearch: document.getElementById("btnReaderSearch"),
+    btnReaderDict: document.getElementById("btnReaderDict"),
     btnReaderBookmark: document.getElementById("btnReaderBookmark"),
     toolbarBookmarkIcon: document.getElementById("toolbarBookmarkIcon"),
     toolbarBookmarkLabel: document.getElementById("toolbarBookmarkLabel"),
@@ -2055,7 +2058,7 @@ async function openEditionSwitcher() {
     const origPaliPage = (state.swapOrigin && state.swapOrigin.mode === "pali") ? state.swapOrigin.page : (isPaliMula ? curPage : (state.paliPage || 1));
 
     html += `
-        <div class="edition-switcher-card ${isPaliMula ? 'active-edition' : ''}" data-type="pali" data-book="${origPaliId}" data-page="${origPaliPage}">
+        <div class="edition-switcher-card ${isPaliMula ? 'active-edition' : ''}" id="switcherCardPali" data-type="pali" data-book="${origPaliId}" data-page="${origPaliPage}">
             <div class="edition-card-left">
                 <span class="edition-card-icon">☸️</span>
                 <div class="edition-card-texts">
@@ -2063,7 +2066,7 @@ async function openEditionSwitcher() {
                     <span class="edition-card-desc">ဆဋ္ဌသံဂါယနာ မူရင်းပါဠိ</span>
                 </div>
             </div>
-            <span class="edition-card-badge ${isPaliMula ? 'badge-active' : 'badge-jump'}">
+            <span class="edition-card-badge ${isPaliMula ? 'badge-active' : 'badge-jump'}" id="switcherBadgePali">
                 ${isPaliMula ? '✓ ဖတ်ရှုနေဆဲ' : `စာ-${toMyanmarNum(origPaliPage)} သို့ ↩`}
             </span>
         </div>
@@ -2134,14 +2137,13 @@ function attachSwitcherItemHandlers() {
                 await loadMMBook(bookId, page);
                 showScrollToast(`🇲🇲 မြန်မာပြန် (စာမျက်နှာ ${toMyanmarNum(page)}) သို့ ကူးပြောင်းထားပါသည်`);
             } else {
-                // Preserve the Pali home book before leaving it for a companion,
-                // so the switcher can always offer "မူလပါဠိ" as the return target.
-                if (!state.swapOrigin || state.swapOrigin.mode !== "pali") {
+                // Preserve current origin before navigating
+                if (!state.swapOrigin) {
                     state.swapOrigin = {
-                        mode: "pali",
-                        bookId: state.paliBookId,
-                        page: state.paliPage,
-                        bookName: state.paliBookName || "ပါဠိတော်"
+                        mode: state.readerMode === "mm" ? "mm" : "pali",
+                        bookId: state.readerMode === "mm" ? state.mmBookId : state.paliBookId,
+                        page: state.readerMode === "mm" ? state.mmPage : state.paliPage,
+                        bookName: state.readerMode === "mm" ? (state.mmBookName || "မြန်မာပြန်") : (state.paliBookName || "ပါဠိတော်")
                     };
                 }
                 if (bookId === state.swapOrigin.bookId) {
@@ -2158,9 +2160,10 @@ function attachSwitcherItemHandlers() {
     });
 }
 
-// ===== Edition Pills (v7.59: one-tap edition switching) =====
+// ===== Edition Pills (v7.59: one-tap edition switching fallback) =====
 function initEditionPills() {
     const pills = document.querySelectorAll('.edition-pill');
+    if (!pills || pills.length === 0) return;
     pills.forEach(pill => {
         pill.addEventListener('click', () => {
             if (pill.disabled || pill.classList.contains('active')) return;
@@ -2179,8 +2182,6 @@ async function updateEditionPills() {
     const isMM = (state.readerMode === 'mm');
     const curBookId = isMM ? state.mmBookId : state.paliBookId;
 
-    // Reset active states; disable Attha/Tika until we confirm availability
-    // (prevents taps before companion data loads — v7.60 fix)
     [pillPali, pillMm, pillAttha, pillTika].forEach(p => p.classList.remove('active'));
     pillPali.disabled = false;
     pillMm.disabled = false;
@@ -2188,12 +2189,11 @@ async function updateEditionPills() {
     pillTika.disabled = true;
     state.pillCompanions = null;
 
-    // Set active pill
     if (isMM) {
         pillMm.classList.add('active');
     } else if (curBookId && curBookId.startsWith('attha_')) {
         pillAttha.classList.add('active');
-        pillAttha.disabled = false; // currently reading attha — pill shows active
+        pillAttha.disabled = false;
     } else if (curBookId && curBookId.startsWith('tika_')) {
         pillTika.classList.add('active');
         pillTika.disabled = false;
@@ -2201,7 +2201,6 @@ async function updateEditionPills() {
         pillPali.classList.add('active');
     }
 
-    // For Pali mula books: fetch companions to enable Attha/Tika pills
     if (!isMM && curBookId && !curBookId.startsWith('attha_') && !curBookId.startsWith('tika_')) {
         try {
             const res = await fetch(`/api/pali/companions/${encodeURIComponent(curBookId)}`);
@@ -2211,9 +2210,8 @@ async function updateEditionPills() {
                 if (comp.attha && comp.attha.length > 0) pillAttha.disabled = false;
                 if (comp.tika && comp.tika.length > 0) pillTika.disabled = false;
             }
-        } catch (_) { /* companions unavailable — pills stay disabled */ }
+        } catch (_) {}
     }
-    // In MM mode: Attha/Tika stay disabled (MM DB has no attha/tika)
 }
 
 async function switchToPillEdition(edition) {
@@ -2221,7 +2219,6 @@ async function switchToPillEdition(edition) {
     const curBookId = isMM ? state.mmBookId : state.paliBookId;
     const curPage = isMM ? (state.mmPage || 1) : (state.paliPage || 1);
 
-    // Save Pali origin before leaving (for return trip)
     function savePaliOrigin() {
         if (!isMM && state.paliBookId && (!state.swapOrigin || state.swapOrigin.mode !== 'pali')) {
             state.swapOrigin = {
@@ -2233,11 +2230,11 @@ async function switchToPillEdition(edition) {
         }
     }
 
-    // Try server-side page matching: Pali -> target edition
     async function matchPage(targetType) {
-        if (isMM || !state.paliBookId) return null;
+        const curSrc = isMM ? state.mmBookId : state.paliBookId;
+        if (!curSrc) return null;
         try {
-            const res = await fetch(`/api/match/pali_to_companion?source_book=${encodeURIComponent(state.paliBookId)}&source_page=${curPage}&target_type=${targetType}`);
+            const res = await fetch(`/api/match/pali_to_companion?source_book=${encodeURIComponent(curSrc)}&source_page=${curPage}&target_type=${targetType}`);
             if (res.ok) {
                 const match = await res.json();
                 if (match && match.target_book) {
@@ -2250,23 +2247,22 @@ async function switchToPillEdition(edition) {
 
     try {
         if (edition === 'pali') {
-            // Return to Pali mula (via swapOrigin if we came from elsewhere)
             let targetId, targetPage;
             if (state.swapOrigin && state.swapOrigin.mode === 'pali' && state.swapOrigin.bookId) {
                 targetId = state.swapOrigin.bookId;
                 targetPage = state.swapOrigin.page || 1;
-                state.swapOrigin = null; // back home: clear origin
+                state.swapOrigin = null;
             } else {
-                targetId = state.paliBookId || 'mula_vi_01';
-                targetPage = state.paliPage || 1;
+                const matched = await matchPage('pali');
+                targetId = matched ? matched.book : (state.paliBookId || 'mula_vi_01');
+                targetPage = matched ? matched.page : (state.paliPage || 1);
             }
             if (isMM) setReaderMode('pali');
             await loadPaliBook(targetId, targetPage);
         } else if (edition === 'mm') {
             savePaliOrigin();
-            // Prefer page-matched MM book; fall back to current MM book (page 1)
             const matched = await matchPage('mm');
-            const targetBook = matched ? matched.book : (state.mmBookId || 'mm_vi_01');
+            const targetBook = matched ? matched.book : (state.mmBookId || '01_vinaya_01');
             const targetPage = matched ? matched.page : 1;
             setReaderMode('mm');
             await loadMMBook(targetBook, targetPage);
@@ -2277,7 +2273,6 @@ async function switchToPillEdition(edition) {
             if (list && list.length > 0) {
                 savePaliOrigin();
                 if (isMM) setReaderMode('pali');
-                // Prefer page-matched companion; fall back to first companion page 1
                 const matched = await matchPage(edition);
                 const target = matched
                     ? { id: matched.book, page: matched.page }
@@ -2299,6 +2294,10 @@ async function loadSwitcherProgressiveData(curBookId, curPage, isMM) {
     const compContainer = document.getElementById("switcherCompanionsContainer");
     const mmCard = document.getElementById("switcherCardMM");
     const mmBadge = document.getElementById("switcherBadgeMM");
+    const paliCard = document.getElementById("switcherCardPali");
+    const paliBadge = document.getElementById("switcherBadgePali");
+
+    let basePaliId = state.paliBookId;
 
     // A. Match Myanmar translation target page if currently in Pali
     if (!isMM && mmCard && mmBadge) {
@@ -2315,8 +2314,24 @@ async function loadSwitcherProgressiveData(curBookId, curPage, isMM) {
         } catch (_) {}
     }
 
-    // B. Fetch Atthakatha and Tika companions
-    const paliId = isMM ? (state.swapOrigin?.bookId || state.paliBookId || "mula_vi_01") : state.paliBookId;
+    // B. Match Pali Mula target page if currently in Myanmar
+    if (isMM && paliCard && paliBadge) {
+        try {
+            const res = await fetch(`/api/match/pali_to_companion?source_book=${encodeURIComponent(state.mmBookId)}&source_page=${state.mmPage}&target_type=pali`);
+            if (res.ok) {
+                const match = await res.json();
+                if (match && match.target_book) {
+                    basePaliId = match.target_book;
+                    paliCard.setAttribute("data-book", match.target_book);
+                    paliCard.setAttribute("data-page", match.target_page || 1);
+                    paliBadge.textContent = `စာ-${toMyanmarNum(match.target_page || 1)} သို့ ↩`;
+                }
+            }
+        } catch (_) {}
+    }
+
+    // C. Fetch Atthakatha and Tika companions
+    const paliId = isMM ? (basePaliId || state.swapOrigin?.bookId || "mula_vi_01") : state.paliBookId;
     if (!paliId || !compContainer) return;
 
     try {
@@ -2373,28 +2388,29 @@ async function loadSwitcherProgressiveData(curBookId, curPage, isMM) {
         compContainer.innerHTML = compHtml;
         attachSwitcherItemHandlers();
 
-        // Resolve exact target pages for companions
-        if (!isMM) {
-            const allItems = compContainer.querySelectorAll(".edition-switcher-card");
-            allItems.forEach(async item => {
-                const targetBook = item.getAttribute("data-book");
-                if (targetBook === state.paliBookId) return;
-                try {
-                    const mUrl = `/api/match/pali_to_companion?source_book=${encodeURIComponent(state.paliBookId)}&source_page=${state.paliPage}&target_type=pali&target_book=${encodeURIComponent(targetBook)}`;
-                    const mRes = await fetch(mUrl);
-                    if (mRes.ok) {
-                        const mData = await mRes.json();
-                        if (mData && mData.target_page) {
-                            item.setAttribute("data-page", mData.target_page);
-                            const badge = item.querySelector(`[data-match-book="${targetBook}"]`);
-                            if (badge && !item.classList.contains("active-edition")) {
-                                badge.textContent = `စာ-${toMyanmarNum(mData.target_page)} သို့`;
-                            }
+        // D. Resolve exact target pages for companions
+        const allItems = compContainer.querySelectorAll(".edition-switcher-card");
+        const srcBook = isMM ? state.mmBookId : state.paliBookId;
+        const srcPage = isMM ? (state.mmPage || 1) : (state.paliPage || 1);
+
+        allItems.forEach(async item => {
+            const targetBook = item.getAttribute("data-book");
+            if (targetBook === curActiveBook) return;
+            try {
+                const mUrl = `/api/match/pali_to_companion?source_book=${encodeURIComponent(srcBook)}&source_page=${srcPage}&target_type=pali&target_book=${encodeURIComponent(targetBook)}`;
+                const mRes = await fetch(mUrl);
+                if (mRes.ok) {
+                    const mData = await mRes.json();
+                    if (mData && mData.target_page) {
+                        item.setAttribute("data-page", mData.target_page);
+                        const badge = item.querySelector(`[data-match-book="${targetBook}"]`);
+                        if (badge && !item.classList.contains("active-edition")) {
+                            badge.textContent = `စာ-${toMyanmarNum(mData.target_page)} သို့`;
                         }
                     }
-                } catch (_) {}
-            });
-        }
+                }
+            } catch (_) {}
+        });
     } catch (_) {}
 }
 
@@ -7680,6 +7696,13 @@ function setupEventListeners() {
         });
     }
 
+    if (el.btnReaderDict) {
+        el.btnReaderDict.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleDictSidebar();
+        });
+    }
+
     if (el.btnReaderBookmark) {
         el.btnReaderBookmark.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -7701,6 +7724,24 @@ function setupEventListeners() {
         el.btnReaderMore.addEventListener("click", (e) => {
             e.stopPropagation();
             openReaderMoreSheet();
+        });
+    }
+
+    if (el.btnMobileHeaderSearch) {
+        el.btnMobileHeaderSearch.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openSearchModal();
+        });
+    }
+
+    if (el.btnMobileHeaderTOC) {
+        el.btnMobileHeaderTOC.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleSidebar(true);
+            const tocTabBtn = document.querySelector('.sidebar-tabs .tab-btn[data-tab="tab-toc"]');
+            if (tocTabBtn) tocTabBtn.click();
+            const curPg = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
+            highlightActiveToc(curPg, true);
         });
     }
 

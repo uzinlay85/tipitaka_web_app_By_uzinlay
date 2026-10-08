@@ -1135,76 +1135,119 @@ def api_match_pali_to_companion():
     if not source_book or not source_page:
         return jsonify({"error": "Missing source_book or source_page"}), 400
 
-    if target_type == "mm":
-        # Resolve MM candidate target if not specified
-        if not candidate_targets and os.path.exists(DB_MM_PATH):
-            m_conn = get_mm_db()
-            m_cur = m_conn.cursor()
-            src = m_cur.execute("SELECT mm_book_id FROM source_book WHERE pali_book_id = ?", (source_book,)).fetchone()
-            if not src:
-                p_conn = get_pali_db()
-                p_cur = p_conn.cursor()
-                p_matches = p_cur.execute("SELECT base, exp FROM pali_attha_tika_match WHERE base = ? OR exp = ?", (source_book, source_book)).fetchall()
-                for r in p_matches:
-                    oth = r[1] if r[0] == source_book else r[0]
-                    src2 = m_cur.execute("SELECT mm_book_id FROM source_book WHERE pali_book_id = ?", (oth,)).fetchone()
-                    if src2:
-                        candidate_targets = [src2[0]]
-                        break
-            else:
-                candidate_targets = [src[0]]
+    m_conn = get_mm_db() if os.path.exists(DB_MM_PATH) else None
+    p_conn = get_pali_db() if os.path.exists(DB_PALI_PATH) else None
 
-        if not candidate_targets:
-            return jsonify({"matched": False, "target_book": None, "target_page": 1})
+    # 1. Detect if source_book is Myanmar
+    is_source_mm = False
+    base_pali_id = source_book
+    source_paras = []
 
-        mm_bid = candidate_targets[0]
-        # Query source Pali page's paragraph numbers
-        p_conn = get_pali_db()
+    if m_conn:
+        m_cur = m_conn.cursor()
+        src_mm = m_cur.execute("SELECT pali_book_id FROM source_book WHERE mm_book_id = ?", (source_book,)).fetchone()
+        if src_mm:
+            is_source_mm = True
+            base_pali_id = src_mm[0]
+            # Extract paragraph numbers from Myanmar page
+            p_rows = m_cur.execute("SELECT paragraph_number FROM paragraphs WHERE book_id = ? AND page_number = ?", (source_book, source_page)).fetchall()
+            source_paras = [r[0] for r in p_rows if r[0]]
+
+    # If source is Pali (Mūla, Aṭṭhakathā, or Ṭīkā)
+    if not is_source_mm and p_conn:
         p_cur = p_conn.cursor()
-        page_row = p_cur.execute("SELECT paranum, content FROM pages WHERE book_id = ? AND page = ?", (source_book, source_page)).fetchone()
+        # Find base Mūla Pali book ID if source is an Atthakatha or Tika
+        base_match = p_cur.execute("SELECT base FROM pali_attha_tika_match WHERE exp = ?", (source_book,)).fetchone()
+        if base_match:
+            base_pali_id = base_match[0]
 
-        m_conn = get_mm_db()
+        # Extract paragraph numbers from Pali page
+        page_row = p_cur.execute("SELECT paranum, content FROM pages WHERE book_id = ? AND page = ?", (source_book, source_page)).fetchone()
+        if page_row and page_row["paranum"]:
+            source_paras = [int(n) for n in str(page_row["paranum"]).strip('-').split('-') if n.isdigit()]
+        if not source_paras and page_row and page_row["content"]:
+            found = re.findall(r'para(\d+)', page_row["content"])
+            source_paras = [int(n) for n in found if n.isdigit()]
+
+    # 2. Resolve Candidate Targets if not explicitly passed
+    if not candidate_targets:
+        if target_type == "mm":
+            if m_conn:
+                src = m_conn.cursor().execute("SELECT mm_book_id FROM source_book WHERE pali_book_id = ?", (base_pali_id,)).fetchone()
+                if src:
+                    candidate_targets = [src[0]]
+                elif p_conn:
+                    p_matches = p_conn.cursor().execute("SELECT base, exp FROM pali_attha_tika_match WHERE base = ? OR exp = ?", (base_pali_id, base_pali_id)).fetchall()
+                    for r in p_matches:
+                        oth = r[1] if r[0] == base_pali_id else r[0]
+                        src2 = m_conn.cursor().execute("SELECT mm_book_id FROM source_book WHERE pali_book_id = ?", (oth,)).fetchone()
+                        if src2:
+                            candidate_targets = [src2[0]]
+                            break
+        elif target_type == "pali":
+            candidate_targets = [base_pali_id]
+        elif target_type == "attha" and p_conn:
+            rows = p_conn.cursor().execute("SELECT exp FROM pali_attha_tika_match WHERE base = ? AND exp LIKE 'attha_%'", (base_pali_id,)).fetchall()
+            candidate_targets = [r[0] for r in rows]
+        elif target_type == "tika" and p_conn:
+            rows = p_conn.cursor().execute("SELECT exp FROM pali_attha_tika_match WHERE base = ? AND exp LIKE 'tika_%'", (base_pali_id,)).fetchall()
+            candidate_targets = [r[0] for r in rows]
+
+    if not candidate_targets:
+        def_target = base_pali_id if target_type == "pali" else source_book
+        return jsonify({"matched": False, "target_book": def_target, "target_page": 1})
+
+    # 3. Target: Myanmar Translation
+    if target_type == "mm":
+        mm_bid = candidate_targets[0]
+        if not m_conn:
+            return jsonify({"matched": False, "target_book": mm_bid, "target_page": 1})
         m_cur = m_conn.cursor()
 
-        # Try page map first
-        pmap = m_cur.execute("""
-            SELECT mm_page_number FROM mm_pali_page_map 
-            WHERE pali_book_id = ? AND pali_page_number = ? AND mm_book_id = ?
-        """, (source_book, source_page, mm_bid)).fetchone()
-        if pmap:
-            return jsonify({"matched": True, "target_book": mm_bid, "target_page": pmap[0]})
+        # Try direct page map first if source is Pali
+        if not is_source_mm:
+            pmap = m_cur.execute("""
+                SELECT mm_page_number FROM mm_pali_page_map 
+                WHERE pali_book_id = ? AND pali_page_number = ? AND mm_book_id = ?
+            """, (source_book, source_page, mm_bid)).fetchone()
+            if pmap:
+                return jsonify({"matched": True, "target_book": mm_bid, "target_page": pmap[0]})
 
-        # Try paragraph numbers
-        nums = []
-        if page_row and page_row["paranum"]:
-            nums = [int(n) for n in str(page_row["paranum"]).strip('-').split('-') if n.isdigit()]
-        if not nums and page_row and page_row["content"]:
-            found = re.findall(r'para(\d+)', page_row["content"])
-            nums = [int(n) for n in found if n.isdigit()]
-
-        if nums:
-            for num in nums:
+        if source_paras:
+            for num in source_paras:
                 mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, num)).fetchone()
                 if mp:
                     return jsonify({"matched": True, "target_book": mm_bid, "target_page": mp[0], "matched_para": num})
 
+        # Preceding paragraphs fallback for MM
+        if not is_source_mm and p_conn:
+            prev_row = p_conn.cursor().execute("SELECT paranum FROM pages WHERE book_id = ? AND page < ? AND paranum != '' ORDER BY page DESC LIMIT 1", (source_book, source_page)).fetchone()
+            if prev_row:
+                p_nums = [int(n) for n in str(prev_row["paranum"]).strip('-').split('-') if n.isdigit()]
+                for num in reversed(p_nums):
+                    mp = m_cur.execute("SELECT page_number FROM paragraphs WHERE book_id = ? AND paragraph_number = ?", (mm_bid, num)).fetchone()
+                    if mp:
+                        return jsonify({"matched": True, "target_book": mm_bid, "target_page": mp[0], "matched_para": num})
+
         return jsonify({"matched": False, "target_book": mm_bid, "target_page": 1})
 
+    # 4. Target: Pali (Mūla, Aṭṭhakathā, or Ṭīkā)
     else:
-        # Match Pali to Pali companion (Mūla, Aṭṭhakathā, or Ṭīkā)
-        p_conn = get_pali_db()
+        if not p_conn:
+            def_bid = candidate_targets[0]
+            return jsonify({"matched": False, "target_book": def_bid, "target_page": 1})
         p_cur = p_conn.cursor()
 
-        page_row = p_cur.execute("SELECT paranum, content FROM pages WHERE book_id = ? AND page = ?", (source_book, source_page)).fetchone()
-        nums = []
-        if page_row and page_row["paranum"]:
-            nums = [int(n) for n in str(page_row["paranum"]).strip('-').split('-') if n.isdigit()]
-        if not nums and page_row and page_row["content"]:
-            found = re.findall(r'para(\d+)', page_row["content"])
-            nums = [int(n) for n in found if n.isdigit()]
+        # If source is MM and target is Pali mula, check direct page map
+        if is_source_mm and target_type == "pali" and m_conn:
+            pmap = m_conn.cursor().execute("""
+                SELECT pali_book_id, pali_page_number FROM mm_pali_page_map
+                WHERE mm_book_id = ? AND mm_page_number = ?
+            """, (source_book, source_page)).fetchone()
+            if pmap and pmap[0] in candidate_targets:
+                return jsonify({"matched": True, "target_book": pmap[0], "target_page": pmap[1]})
 
-        # Optimized In-Memory Scan: Query each candidate book's page & paranum once (indexed on book_id)
-        # Avoids repeated O(N*M) full table scans with leading wildcard LIKE '%-num-%'
+        # Pre-cache pages & paranum for candidate target books
         target_pages_map = {}
         for t_bid in candidate_targets:
             rows = p_cur.execute(
@@ -1216,26 +1259,26 @@ def api_match_pali_to_companion():
                 p_nums = [int(n) for n in str(r["paranum"]).strip('-').split('-') if n.isdigit()]
                 target_pages_map[t_bid].append((r["page"], p_nums))
 
-        if nums:
+        if source_paras:
             for t_bid in candidate_targets:
-                for num in nums:
+                for num in source_paras:
                     for page_no, t_nums in target_pages_map.get(t_bid, []):
                         if num in t_nums:
                             return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
 
         # Preceding paragraphs fallback
-        prev_row = p_cur.execute("SELECT paranum FROM pages WHERE book_id = ? AND page < ? AND paranum != '' ORDER BY page DESC LIMIT 1", (source_book, source_page)).fetchone()
-        if prev_row:
-            prev_nums = [int(n) for n in str(prev_row["paranum"]).strip('-').split('-') if n.isdigit()]
-            if prev_nums:
-                last_num = prev_nums[-1]
-                for num in range(last_num, 0, -1):
-                    for t_bid in candidate_targets:
-                        for page_no, t_nums in target_pages_map.get(t_bid, []):
-                            if num in t_nums:
-                                return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
+        if not is_source_mm:
+            prev_row = p_cur.execute("SELECT paranum FROM pages WHERE book_id = ? AND page < ? AND paranum != '' ORDER BY page DESC LIMIT 1", (source_book, source_page)).fetchone()
+            if prev_row:
+                prev_nums = [int(n) for n in str(prev_row["paranum"]).strip('-').split('-') if n.isdigit()]
+                if prev_nums:
+                    for num in range(prev_nums[-1], 0, -1):
+                        for t_bid in candidate_targets:
+                            for page_no, t_nums in target_pages_map.get(t_bid, []):
+                                if num in t_nums:
+                                    return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
 
-        def_bid = candidate_targets[0] if candidate_targets else source_book
+        def_bid = candidate_targets[0]
         b = p_cur.execute("SELECT firstpage FROM books WHERE id = ?", (def_bid,)).fetchone()
         first_pg = b["firstpage"] if b else 1
         return jsonify({"matched": False, "target_book": def_bid, "target_page": first_pg})

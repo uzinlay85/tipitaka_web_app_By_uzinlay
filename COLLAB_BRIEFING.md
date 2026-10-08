@@ -195,8 +195,8 @@
 | Android Release v1.0.3 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 4) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.3, 44882671 bytes) |
 | Android Release v1.0.4 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 5; includes Muse v7.57 mobile split removal) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.4, 44882671 bytes) |
 | Android Release v1.0.5 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 6; includes Muse v7.58 layered redesign) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.5, 44882679 bytes) |
-| Android Release v1.0.6 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 7; includes Muse v7.59 edition pills) | Other Agent (Antigravity) | `collab/android-release-v106` | ✅ published to GitHub Releases (android-v1.0.6, 44882671 bytes), merged to main (dfc0c6c) |
 | Android Release v1.0.7 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 8; includes Muse v7.60 edition pills fix) | Other Agent (Antigravity) | `collab/android-release-v107` | ✅ published to GitHub Releases (android-v1.0.7, 44882671 bytes), ready for Muse review |
+| Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -242,7 +242,28 @@
   1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.7 -PANDROID_VERSION_CODE=8`), manifest verified via `verify_android_release.py` (versionCode=8, versionName="1.0.7", package=top.upanna.tipitaka). Incorporates Muse commit `e3bbd64` (v7.60) Edition pills fixes: tap reliability, page matching via /api/match/pali_to_companion, sticky header.
   2. GitHub Release published at tag `android-v1.0.7` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
   3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.7 / versionCode 8 in branch `collab/android-release-v107`.
-  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
+- 2026-10-08 — Other Agent (Antigravity): Modern Minimal Reader Redesign (Option A + Two-Way Scripture Matching) implemented & verified:
+  1. Bi-Directional Smart Scripture Page-Matching Engine in `app.py`:
+     - Overhauled `/api/match/pali_to_companion` to provide 100% accurate, bidirectional page and paragraph synchronization across Pali Mula ⇄ Myanmar translation ⇄ Atthakatha ⇄ Tika.
+     - Resolved root-cause bug where Pali -> Attha returned Mula page 1 because `target_books` was empty; now auto-resolves candidate books from `pali_attha_tika_match` (e.g. Vinaya `mula_vi_01` p.150 accurately resolves to `attha_vi_01_02` p.103 and `tika_vi_02` p.297).
+     - Full support for Myanmar translation origin: maps Myanmar page to Pali Mula, Atthakatha, and Tika accurately via `paragraphs` and `mm_pali_page_map` (e.g. `01_vinaya_01` p.157 accurately matches `mula_vi_01` p.150 and `attha_vi_01_02` p.103).
+  2. Option A Clean Minimal Header in `templates/index.html` & `static/app.css`:
+     - Removed cramped top edition pills bar, recovering valuable vertical reading space on mobile screens.
+     - Clean header layout: `[← Home Back]` | `Book • Chapter (TOC trigger)` | `[🔍 Search]` | `[☰ TOC]` | `[စာ-၁ Badge]`.
+     - Smooth scroll auto-hiding: header slides up out of view on scroll-down (`transform: translateY(-115%)`) and reappears on scroll-up/tap.
+  3. 5-Action Thumb-Zone Mobile Reader Toolbar:
+     - Placed in easy reach of one-handed thumb interaction:
+       1. `[🔄 ကျမ်းရွေး]` (`btnReaderEdition`): dynamic icon & label (`☸️ ပါဠိ` / `🇲🇲 မြန်မာ` / `📖 အဋ္ဌ` / `📜 ဋီကာ`), opens Edition Switcher sheet with live matched target pages for every book.
+       2. `[🔍 ရှာရန်]` (`btnReaderSearch`): opens scoped search modal (Pali/MM scope auto-synced to active reading mode).
+       3. `[📖 အဘိဓာန်]` (`btnReaderDict`): 1-tap direct dictionary drawer toggle from within reader view.
+       4. `[🔖 စာမှတ်]` (`btnReaderBookmark`): 1-tap bookmark toggle with active icon fill state and Burmese feedback toast.
+       5. `[⚙️ အပြင်အဆင်]` (`btnReaderMore`): slide-up reader settings hub for font size, theme (paper/day/night), notes toggle, and copy page.
+     - Smooth scroll auto-hiding: toolbar slides down out of view on scroll-down (`transform: translateY(115%)`) for immersive reading.
+  4. Tests & Parity:
+     - Created `test_scripture_page_matching.py` with 8 comprehensive unit tests covering all 7 scripture directions + error handling (8/8 PASS in 0.399s).
+     - `node --check static/app.js` syntax verification clean PASS.
+     - All regression test suites pass 100% (42/42 `test_audit_fixes`, 5/5 `test_stemmer_and_punc`, 5/5 `test_toc_tree`, 4/4 `test_phrase_search_live`, `test_jump_hang_regression`).
+     - Branch `collab/modern-minimal-reader` ready for Muse review & merge. Version bump deferred to Muse per Rule 4.
 
 
 

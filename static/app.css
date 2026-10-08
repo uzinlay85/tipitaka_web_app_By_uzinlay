@@ -5143,6 +5143,27 @@ mark.search-match-highlight {
     transform: scale(0.92);
 }
 
+.breadcrumb-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s ease, transform 0.1s ease, color 0.15s ease;
+}
+
+.breadcrumb-icon-btn:active {
+    transform: scale(0.92);
+    background: var(--bg-hover);
+    color: var(--accent);
+}
+
 .mobile-header-more-btn {
     width: 36px;
     height: 36px;
@@ -5163,7 +5184,7 @@ mark.search-match-highlight {
 }
 
 /* ============================================================
-   Mobile Dedicated Reader Toolbar (Option A: 4 Actions on Mobile <= 768px)
+   Mobile Dedicated Reader Toolbar (Option A: 5 Actions on Mobile <= 768px)
    ============================================================ */
 .mobile-reader-toolbar {
     display: none; /* Displayed only when in reader view on mobile */
@@ -5190,9 +5211,11 @@ mark.search-match-highlight {
     body.view-reader .split-view-container {
         padding-bottom: 70px !important;
     }
+    .mobile-sticky-header,
     .mobile-breadcrumb-wrapper {
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    body.chrome-hidden .mobile-sticky-header,
     body.chrome-hidden .mobile-breadcrumb-wrapper {
         transform: translateY(-115%);
     }
