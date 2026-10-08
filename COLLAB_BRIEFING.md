@@ -197,7 +197,8 @@
 | Android Release v1.0.5 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 6; includes Muse v7.58 layered redesign) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.5, 44882679 bytes) |
 | Android Release v1.0.7 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 8; includes Muse v7.60 edition pills fix) | Other Agent (Antigravity) | `collab/android-release-v107` | ✅ published to GitHub Releases (android-v1.0.7, 44882671 bytes), ready for Muse review |
 | Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ✅ merged to main (1cce533, v7.61) |
-| Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), ready for Muse review |
+| Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), merged to main (74d029a) |
+| Android Release v1.0.9 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 10; includes Muse v7.62 mobile reader chrome fix) | Other Agent (Antigravity) | `collab/android-release-v109` | ✅ published to GitHub Releases (android-v1.0.9, 44882671 bytes), ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -268,8 +269,13 @@
 - 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.8 (versionCode: 9) Built & Published:
   1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.8 -PANDROID_VERSION_CODE=9`), manifest verified via `verify_android_release.py` (versionCode=9, versionName="1.0.8", package=top.upanna.tipitaka). Incorporates Muse commit `1cce533` (v7.61) Option A Modern Minimal Reader + Two-Way Scripture Page Matching.
   2. GitHub Release published at tag `android-v1.0.8` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
-  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.8 / versionCode 9 in branch `collab/android-release-v108`.
-  4. All verification passed: `verify_android_release.py` 7/7 PASS, `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
+  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.8 / versionCode 9 in branch `collab/android-release-v108`. Merged to main by Muse (74d029a).
+  4. All verification passed: `verify_android_release.py` 7/7 PASS, `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS.
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.9 (versionCode: 10) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.9 -PANDROID_VERSION_CODE=10`), manifest verified via `verify_android_release.py` (versionCode=10, versionName="1.0.9", package=top.upanna.tipitaka). Incorporates Muse commit `007b15e` (v7.62) Mobile Reader Chrome fixes (resolved double-header & bottom bar navigation).
+  2. GitHub Release published at tag `android-v1.0.9` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
+  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.9 / versionCode 10 in branch `collab/android-release-v109`.
+  4. All verification passed: `verify_android_release.py` 7/8 PASS (1 SKIP live endpoint), `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
 
 
 
