@@ -6707,7 +6707,7 @@ function setupEventListeners() {
     if (btnOpenHelpMobile) {
         btnOpenHelpMobile.addEventListener("click", () => {
             closeSidebarMobile();
-            if (el.helpModal) el.helpModal.classList.add("open");
+            openHelpModal("tab-guide-android");
         });
     }
 
@@ -7225,12 +7225,45 @@ function setupEventListeners() {
         });
     }
 
-    // Help / User Guide Modal
-    el.btnOpenHelp.addEventListener("click", () => el.helpModal.classList.add("open"));
-    el.btnCloseHelp.addEventListener("click", () => el.helpModal.classList.remove("open"));
+    // Help / User Guide Modal & Navigation Tabs
+    function openHelpModal(preferredTab) {
+        if (!el.helpModal) return;
+        el.helpModal.classList.add("open");
+        const defaultTab = preferredTab || (window.innerWidth <= 768 ? "tab-guide-android" : "tab-guide-web");
+        const targetBtn = document.querySelector(`.guide-nav-tab[data-guide-tab="${defaultTab}"]`);
+        if (targetBtn) {
+            targetBtn.click();
+        }
+    }
+
+    if (el.btnOpenHelp) el.btnOpenHelp.addEventListener("click", () => openHelpModal());
+    if (el.btnCloseHelp) el.btnCloseHelp.addEventListener("click", () => el.helpModal.classList.remove("open"));
     el.helpModal.addEventListener("click", (e) => {
         if (e.target === el.helpModal) el.helpModal.classList.remove("open");
     });
+
+    // Wire Guide Navigation Tabs (Web vs Android vs Common)
+    const guideNavTabs = document.querySelectorAll(".guide-nav-tab");
+    const guideTabPanels = document.querySelectorAll(".guide-tab-panel");
+    guideNavTabs.forEach(tabBtn => {
+        tabBtn.addEventListener("click", () => {
+            const targetId = tabBtn.getAttribute("data-guide-tab");
+            guideNavTabs.forEach(b => b.classList.toggle("active", b === tabBtn));
+            guideTabPanels.forEach(p => p.classList.toggle("active", p.id === targetId));
+        });
+    });
+
+    const btnMoreHelp = document.getElementById("btnMoreHelp");
+    if (btnMoreHelp) {
+        btnMoreHelp.addEventListener("click", () => openHelpModal());
+    }
+    const btnMoreReaderHelp = document.getElementById("btnMoreReaderHelp");
+    if (btnMoreReaderHelp) {
+        btnMoreReaderHelp.addEventListener("click", () => {
+            if (typeof closeReaderMoreSheet === "function") closeReaderMoreSheet();
+            openHelpModal("tab-guide-android");
+        });
+    }
 
     // In-App Updater check button (Android native bridge with Web fallback)
     const btnCheckAppUpdate = document.getElementById("btnCheckAppUpdate");
@@ -7391,7 +7424,7 @@ function setupEventListeners() {
             openSearchModal();
         } else if (e.key === "?" && !el.helpModal.classList.contains("open")) {
             e.preventDefault();
-            el.helpModal.classList.add("open");
+            openHelpModal();
         } else if (e.key === "Escape") {
             if (state.isFocusMode) {
                 toggleFocusMode(false);
