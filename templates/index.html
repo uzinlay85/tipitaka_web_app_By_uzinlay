@@ -431,7 +431,7 @@
                 <span id="scrollPageToastText">⬇️ စာမျက်နှာ ၂ သို့ ရောက်ရှိပါသည်</span>
             </div>
 
-            <!-- Mobile Sticky Header: Breadcrumb + Edition Pills (v7.60) -->
+            <!-- Mobile Sticky Header: Clean Minimal Reader Header (Option A) -->
             <div class="mobile-sticky-header" id="mobileStickyHeader">
             <!-- Mobile & Tablet Dynamic Chapter Breadcrumb (Sticky Tappable Bar) -->
             <div class="mobile-breadcrumb-wrapper" id="mobileBreadcrumbWrapper">
@@ -448,18 +448,23 @@
                     </div>
                 </div>
                 <div class="breadcrumb-right-actions">
+                    <button class="breadcrumb-icon-btn" id="btnMobileHeaderSearch" title="စာရှာရန်" aria-label="စာရှာရန်">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                    <button class="breadcrumb-icon-btn" id="btnMobileHeaderTOC" title="မာတိကာ ဖွင့်ရန်" aria-label="မာတိကာ">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
                     <button class="breadcrumb-page-badge" id="btnMobilePageBadge" title="စာမျက်နှာ ရွေးချယ်ရန် နှိပ်ပါ">
                         <span id="mobileBreadcrumbPage">စာ-၁</span>
                     </button>
                 </div>
-            </div>
-
-            <!-- Edition Pills (v7.59: one-tap edition switching) -->
-            <div class="edition-pills-bar" id="editionPillsBar">
-                <button class="edition-pill active" data-edition="pali" id="pillPali">☸️ ပါဠိ</button>
-                <button class="edition-pill" data-edition="mm" id="pillMm">🇲🇲 မြန်မာ</button>
-                <button class="edition-pill" data-edition="attha" id="pillAttha">📖 အဋ္ဌ</button>
-                <button class="edition-pill" data-edition="tika" id="pillTika">📜 ဋီကာ</button>
             </div>
             </div><!-- /mobile-sticky-header -->
 
@@ -1198,9 +1203,39 @@
         </button>
     </nav>
 
-    <!-- Mobile Dedicated Reader Toolbar (Option A: 4 Actions on Mobile <= 768px when in reader view) -->
+    <!-- Mobile Dedicated Reader Toolbar (Option A: 5 Ergonomic Actions on Mobile <= 768px in reader view) -->
     <nav class="mobile-reader-toolbar" id="mobileReaderToolbar" style="display:none;" aria-label="စာဖတ် လုပ်ဆောင်ချက်များ">
-        <!-- 1. Bookmark / စာမှတ် (v7.59: edition switching moved to pills at top) -->
+        <!-- 1. Unified Edition Switcher / ကျမ်းရွေး (Dynamic: ☸️ ပါဠိ / 🇲🇲 မြန်မာ / 📖 အဋ္ဌ / 📜 ဋီကာ) -->
+        <button class="reader-toolbar-item" id="btnReaderEdition" title="ကျမ်းစာနှင့် ဘာသာပြန် ရွေးချယ်ရန်">
+            <span class="reader-toolbar-icon" id="toolbarEditionIcon">☸️</span>
+            <span class="reader-toolbar-label" id="toolbarEditionLabel">ပါဠိ</span>
+        </button>
+
+        <!-- 2. In-Book Search / ရှာရန် -->
+        <button class="reader-toolbar-item" id="btnReaderSearch" title="စာအုပ်အတွင်း ရှာဖွေရန်">
+            <span class="reader-toolbar-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label">ရှာရန်</span>
+        </button>
+
+        <!-- 3. Dictionary / အဘိဓာန် -->
+        <button class="reader-toolbar-item" id="btnReaderDict" title="ပါဠိ-မြန်မာ အဘိဓာန် ဖွင့်ရန်">
+            <span class="reader-toolbar-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    <circle cx="13" cy="10" r="2.5"></circle>
+                    <line x1="14.8" y1="11.8" x2="17.5" y2="14.5"></line>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label">အဘိဓာန်</span>
+        </button>
+
+        <!-- 4. Bookmark / စာမှတ် -->
         <button class="reader-toolbar-item" id="btnReaderBookmark" title="စာမျက်နှာ မှတ်သားရန်">
             <span class="reader-toolbar-icon" id="toolbarBookmarkIconBox">
                 <svg id="toolbarBookmarkIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1208,6 +1243,17 @@
                 </svg>
             </span>
             <span class="reader-toolbar-label" id="toolbarBookmarkLabel">စာမှတ်</span>
+        </button>
+
+        <!-- 5. Settings / အပြင်အဆင် -->
+        <button class="reader-toolbar-item" id="btnReaderMore" title="အပြင်အဆင်နှင့် အခြား လုပ်ဆောင်ချက်များ">
+            <span class="reader-toolbar-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </span>
+            <span class="reader-toolbar-label">အပြင်အဆင်</span>
         </button>
     </nav>
 
