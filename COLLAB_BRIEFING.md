@@ -194,6 +194,7 @@
 | Mobile Reader Redesign (Option A: 4-Item Toolbar, Unified Edition Switcher, Scroll Auto-Hide) | Other Agent (Antigravity) | `collab/mobile-reader-toolbar` | ✅ merged to main (2026-10-04, v7.56; Muse fixed 5 issues: dead closeReaderActionSheet/handleCompanionSwap calls, dead footer [...] btn, swapOrigin home-tracking for companions) |
 | Android Release v1.0.3 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 4) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.3, 44882671 bytes) |
 | Android Release v1.0.4 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 5; includes Muse v7.57 mobile split removal) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.4, 44882671 bytes) |
+| Android Release v1.0.5 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 6; includes Muse v7.58 layered redesign) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.5, 44882679 bytes) |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -225,6 +226,12 @@
   2. GitHub Release published at tag `android-v1.0.4` with signed APK asset `app-release.apk` (44,882,671 bytes).
   3. Updater metadata `android_release.json` updated to point to `android-v1.0.4` (versionCode: 5).
   4. Dynamic app version verification: `app.py:APP_VERSION` automatically resolves to `"1.0.4"`.
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.5 (versionCode: 6) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.5 -PANDROID_VERSION_CODE=6`), manifest verified (versionCode=6, versionName="1.0.5"). Incorporates Muse commit `f789ede` (v7.58) Layered Redesign: 2-button minimal reader toolbar ([ကျမ်းရွေး] [စာမှတ်]), Continue Reading card on Home, consolidated Settings.
+  2. GitHub Release published at tag `android-v1.0.5` with signed APK asset `app-release.apk` (44,882,679 bytes).
+  3. Updater metadata `android_release.json` updated to point to `android-v1.0.5` (versionCode: 6).
+  4. Dynamic app version verification: `app.py:APP_VERSION` automatically resolves to `"1.0.5"`.
+
 
 
 

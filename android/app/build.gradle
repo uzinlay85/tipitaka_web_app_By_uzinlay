@@ -5,9 +5,9 @@ plugins {
 }
 
 def verName = System.getenv("ANDROID_VERSION_NAME")
-    ?: (project.findProperty("ANDROID_VERSION_NAME") ?: "1.0.0")
+    ?: (project.findProperty("ANDROID_VERSION_NAME") ?: "1.0.5")
 def verCode = (System.getenv("ANDROID_VERSION_CODE")
-    ?: (project.findProperty("ANDROID_VERSION_CODE") ?: "1")).toInteger()
+    ?: (project.findProperty("ANDROID_VERSION_CODE") ?: "6")).toInteger()
 
 android {
     namespace = "top.upanna.tipitaka"
