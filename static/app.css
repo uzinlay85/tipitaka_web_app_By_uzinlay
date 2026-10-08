@@ -884,27 +884,31 @@ button, input, select {
 }
 
 /* Mobile & Tablet Dynamic Chapter Breadcrumb (Sticky Tappable Bar) */
-.mobile-breadcrumb-wrapper {
+/* Mobile sticky header: breadcrumb + edition pills (v7.60) */
+.mobile-sticky-header {
     display: none; /* Displayed via media query on mobile & tablet */
     position: sticky;
     top: 0;
     z-index: 70;
     width: 100%;
     max-width: 860px;
-    padding: 8px 0;
     background: var(--bg-app);
+    box-sizing: border-box;
+}
+
+.mobile-breadcrumb-wrapper {
+    display: flex; /* Always flex inside sticky header */
+    width: 100%;
+    padding: 8px 0;
     box-sizing: border-box;
 }
 
 /* Edition Pills Bar (v7.59: one-tap edition switching) */
 .edition-pills-bar {
-    display: none; /* Displayed via media query on mobile & tablet */
-    position: sticky;
-    top: 52px; /* Below breadcrumb */
-    z-index: 69;
+    display: flex; /* Always flex inside sticky header */
     width: 100%;
     max-width: 860px;
-    padding: 6px 12px;
+    padding: 6px 12px 8px 12px;
     background: var(--bg-app);
     box-sizing: border-box;
     gap: 6px;
@@ -3113,11 +3117,8 @@ body.hide-notes .note {
     .reader-container {
         padding-top: 0 !important;
     }
-    .mobile-breadcrumb-wrapper {
-        display: flex;
-    }
-    .edition-pills-bar {
-        display: flex;
+    .mobile-sticky-header {
+        display: block;
     }
     .toc-item-btn {
         padding: 8px 12px;
@@ -4411,12 +4412,12 @@ body.focus-mode.focus-bars-revealed .bottom-nav-bar {
     transform: translateY(0);
 }
 
-body.focus-mode .mobile-breadcrumb-wrapper {
+body.focus-mode .mobile-sticky-header {
     display: none !important;
 }
 
-body.focus-mode.focus-bars-revealed .mobile-breadcrumb-wrapper {
-    display: flex !important;
+body.focus-mode.focus-bars-revealed .mobile-sticky-header {
+    display: block !important;
 }
 
 body.focus-mode .app-layout {

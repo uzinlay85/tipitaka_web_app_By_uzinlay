@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.59">
+    <link rel="stylesheet" href="/static/app.css?v=7.60">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -431,6 +431,8 @@
                 <span id="scrollPageToastText">⬇️ စာမျက်နှာ ၂ သို့ ရောက်ရှိပါသည်</span>
             </div>
 
+            <!-- Mobile Sticky Header: Breadcrumb + Edition Pills (v7.60) -->
+            <div class="mobile-sticky-header" id="mobileStickyHeader">
             <!-- Mobile & Tablet Dynamic Chapter Breadcrumb (Sticky Tappable Bar) -->
             <div class="mobile-breadcrumb-wrapper" id="mobileBreadcrumbWrapper">
                 <button class="mobile-back-btn" id="btnMobileBackHome" title="ပင်မ စာရင်းသို့ ပြန်သွားရန်" aria-label="ပင်မ သို့">
@@ -452,13 +454,14 @@
                 </div>
             </div>
 
-            <!-- Edition Pills (အလွှာလိုက် v7.59: one-tap edition switching) -->
+            <!-- Edition Pills (v7.59: one-tap edition switching) -->
             <div class="edition-pills-bar" id="editionPillsBar">
                 <button class="edition-pill active" data-edition="pali" id="pillPali">☸️ ပါဠိ</button>
                 <button class="edition-pill" data-edition="mm" id="pillMm">🇲🇲 မြန်မာ</button>
                 <button class="edition-pill" data-edition="attha" id="pillAttha">📖 အဋ္ဌ</button>
                 <button class="edition-pill" data-edition="tika" id="pillTika">📜 ဋီကာ</button>
             </div>
+            </div><!-- /mobile-sticky-header -->
 
             <!-- Normal Single Reading Paper (Pali or Myanmar) -->
             <div class="reader-paper" id="readerPaper">
@@ -1365,6 +1368,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.59"></script>
+    <script src="/static/app.js?v=7.60"></script>
 </body>
 </html>
