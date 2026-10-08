@@ -2591,6 +2591,56 @@ body.hide-notes .note {
     line-height: 1.8;
 }
 
+.guide-nav-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.guide-nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg, var(--bg-surface));
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+}
+
+.guide-nav-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.guide-nav-tab.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.guide-tab-panel {
+    display: none;
+}
+
+.guide-tab-panel.active {
+    display: block;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
 .guide-welcome-box {
     background: var(--bg-surface);
     border-left: 4px solid var(--accent);
@@ -3250,6 +3300,14 @@ body.hide-notes .note {
     }
     .help-modal-body {
         padding: 16px !important;
+    }
+    .guide-nav-tabs {
+        padding: 8px 12px !important;
+        gap: 6px !important;
+    }
+    .guide-nav-tab {
+        padding: 6px 12px !important;
+        font-size: 0.82rem !important;
     }
 
     /* Mobile Bottom Sheet Popover */

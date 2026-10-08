@@ -808,320 +808,421 @@
             <div class="modal-header">
                 <div class="help-modal-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    <span>တိပိဋက Web App အသုံးပြုနည်း လမ်းညွှန်ချက် အပြည့်အစုံ</span>
+                    <span>တိပိဋက အသုံးပြုနည်း လမ်းညွှန် (Web & Android Guide)</span>
                 </div>
                 <button id="btnCloseHelp" class="icon-btn modal-close-btn" title="ပိတ်ရန် (Esc)">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
 
+            <!-- Guide Platform Navigation Tabs -->
+            <div class="guide-nav-tabs">
+                <button class="guide-nav-tab active" data-guide-tab="tab-guide-web" id="tabBtnGuideWeb">
+                    <span>💻</span>
+                    <span>Web (ကွန်ပျူတာ / Browser)</span>
+                </button>
+                <button class="guide-nav-tab" data-guide-tab="tab-guide-android" id="tabBtnGuideAndroid">
+                    <span>📱</span>
+                    <span>Android (ဖုန်း / Tablet App)</span>
+                </button>
+                <button class="guide-nav-tab" data-guide-tab="tab-guide-common" id="tabBtnGuideCommon">
+                    <span>🌟</span>
+                    <span>ဘုံအင်္ဂါရပ်များနှင့် ကျေးဇူးတင်လွှာ</span>
+                </button>
+            </div>
+
             <div class="help-modal-body">
-                <!-- Welcome Banner -->
-                <div class="guide-welcome-box">
-                    <h3>🙏 သာသနာတော်အကျိုးငှာ အဆင်ပြေစေရန် တည်ဆောက်ထားသော နည်းစနစ်များ</h3>
-                    <p>ဤ Web Application သည် ဆဋ္ဌသင်္ဂါယနာ <strong>တိပိဋက ပါဠိတော်</strong> နှင့် <strong>တိပိဋက မြန်မာပြန်</strong>၊ အဋ္ဌကထာ၊ ဋီကာ ကျမ်းစာများနှင့် ပါဠိ-မြန်မာ အဘိဓာန်များကို ရဟန်း၊ ရှင်၊ လူ၊ သာသနာ့နွယ်ဝင် ကျောင်းသား၊ ကျောင်းသူများ မည်သည့်စက်ပစ္စည်းမှမဆို အလွယ်ကူဆုံး၊ အလျင်မြန်ဆုံး လေ့လာဖတ်ရှုနိုင်ရန် ဖန်တီးထားခြင်း ဖြစ်ပါသည်။</p>
-                </div>
-
-                <!-- Section 1: 3 Reading Modes -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၁</span>
-                        <span>ဖတ်ရှုမှု ပုံစံ ၃ မျိုး (Reading Modes)</span>
-                    </h4>
-                    <p class="guide-desc">အပေါ်ဘားရှိ ခလုတ် ၃ ခုဖြင့် မိမိနှစ်သက်ရာ ဖတ်ရှုမှုစနစ်ကို လွတ်လပ်စွာ ပြောင်းလဲနိုင်ပါသည် -</p>
-                    <div class="guide-cards-grid">
-                        <div class="guide-card">
-                            <div class="card-icon">☸️</div>
-                            <h5>ပါဠိတော် Mode</h5>
-                            <p>ဆဋ္ဌသင်္ဂါယနာ မူရင်းပါဠိတော် (မူလ၊ အဋ္ဌကထာ၊ ဋီကာ) ကို စာအုပ်အစစ်ကဲ့သို့ သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <div class="card-icon">🇲🇲</div>
-                            <h5>မြန်မာပြန် Mode</h5>
-                            <p>သာသနာရေးဦးစီးဌာနမှ ထုတ်ဝေသော တိပိဋက မြန်မာပြန် ကျမ်းစာများ (ဇာတ်တော် ၅၅၀၊ ဓမ္မပဒ၊ ဝိသုဒ္ဓိမဂ် အပါအဝင်) ကို သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card highlight-card">
-                            <div class="card-icon">📖</div>
-                            <h5>ယှဉ်တွဲဖတ်ရှုခြင်း (Dual Split View)</h5>
-                            <p><strong>ဘယ်ဘက်တွင် ပါဠိတော်</strong> နှင့် <strong>ညာဘက်တွင် မြန်မာပြန်</strong> တို့ကို ဘေးချင်းယှဉ်တွဲ၍ တစ်ပြိုင်နက် ဖတ်ရှုနိုင်ပါသည်။ စာမျက်နှာမညီပါက ဘယ်/ညာ သီးခြားစာမျက်နှာ လှန်နိုင်သလို စာပိုဒ်နံပါတ်ကို နှိပ်၍လည်း တစ်ဖက်ရှိ စာပိုဒ်သို့ တိုက်ရိုက် ခုန်ကူး highlight ပြသပေးပါသည်။</p>
-                        </div>
+                <!-- ========================================== -->
+                <!-- Tab Panel 1: Web (Computer / Browser)      -->
+                <!-- ========================================== -->
+                <div class="guide-tab-panel active" id="tab-guide-web">
+                    <div class="guide-welcome-box">
+                        <h3>💻 Web Application (ကွန်ပျူတာ / Laptop / Browser) အသုံးပြုနည်း လမ်းညွှန်ချက်များ</h3>
+                        <p>Google Chrome, Microsoft Edge, Safari, Firefox စသည့် မည်သည့် Browser တွင်မဆို ကွန်ပျူတာ / Laptop မျက်နှာပြင်ကျယ်ကြီးများဖြင့် ပိဋကတ်တော်များကို အသေးစိတ် သုတေသနပြုခြင်း၊ ဘေးချင်းယှဉ်တွဲလေ့လာခြင်း၊ စာအုပ် Word (.docx) ထုတ်ယူခြင်း စသည့် အဆင့်မြင့်လုပ်ဆောင်ချက်များကို အပြည့်အဝ အသုံးပြုနိုင်ပါသည်။</p>
                     </div>
-                </div>
 
-                <!-- Section 2: Cross Link -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၂</span>
-                        <span>ပါဠိ နှင့် မြန်မာပြန် အပြန်အလှန် ခုန်ကူးဖတ်ရှုနည်း (Instant Cross-Link)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <ul>
-                            <li><strong>ပါဠိတော် ဖတ်ရှုနေစဉ်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">🇲🇲 မြန်မာပြန်သို့</span> ခလုတ်ကို နှိပ်လိုက်သည်နှင့် လက်ရှိဖတ်နေသော စာပိုဒ်နှင့် ကိုက်ညီသည့် <strong>မြန်မာပြန် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ခုန်ကူးရောက်ရှိသွားပါမည်။</li>
-                            <li><strong>မြန်မာပြန် ဖတ်ရှုနေစဉ်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">☸️ ပါဠိတော်သို့</span> ခလုတ်ကို နှိပ်လိုက်ပါကလည်း မူရင်း <strong>ပါဠိတော် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ပြန်လည်ရောက်ရှိပါမည်။</li>
-                            <li><strong>အဋ္ဌကထာ/ဋီကာ ကူးလိုလျှင်:</strong> အပေါ်ဘားရှိ <span class="guide-badge">တွဲဖက်ကျမ်း</span> ခလုတ်ကို နှိပ်၍ သက်ဆိုင်ရာ အဋ္ဌကထာ သို့မဟုတ် ဋီကာသို့ ချက်ချင်း ကူးပြောင်းနိုင်ပါသည်။</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Section 3: Click to lookup Dictionary -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၃</span>
-                        <span>ကလစ်တစ်ချက်နှိပ်ရုံဖြင့် အဘိဓာန် အနက်ကြည့်ရှုနည်း (Instant Click-to-Lookup)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <div class="guide-feature-row">
-                            <div class="feature-badge-icon">👆</div>
-                            <div>
-                                <strong>စာလုံးကို Click နှိပ်ရုံမျှဖြင့် အနက်ထွက်ပေါ်ခြင်း:</strong>
-                                <p>ပါဠိစာဖတ်နေစဉ် မသိသော ပါဠိစကားလုံးကို Mouse ဖြင့် <strong>Click တစ်ချက် နှိပ်လိုက်ရုံဖြင့်</strong> ညာဘက်ခြမ်းရှိ အဘိဓာန်ပြားတွင် အဓိပ္ပာယ် ချက်ချင်း ထွက်ပေါ်လာမည် ဖြစ်ပါသည်။</p>
+                    <!-- Web Section 1: 3 Reading Modes -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၁</span>
+                            <span>ဖတ်ရှုမှု ပုံစံ ၃ မျိုး (Reading Modes)</span>
+                        </h4>
+                        <p class="guide-desc">ကွန်ပျူတာ Header ပေါ်ရှိ ခလုတ် ၃ ခုဖြင့် မိမိနှစ်သက်ရာ ဖတ်ရှုမှုစနစ်ကို လွတ်လပ်စွာ ပြောင်းလဲနိုင်ပါသည် -</p>
+                        <div class="guide-cards-grid">
+                            <div class="guide-card">
+                                <div class="card-icon">☸️</div>
+                                <h5>ပါဠိတော် Mode</h5>
+                                <p>ဆဋ္ဌသင်္ဂါယနာ မူရင်းပါဠိတော် (မူလ၊ အဋ္ဌကထာ၊ ဋီကာ) ၁၉၂ အုပ်ကို စာအုပ်အစစ်ကဲ့သို့ သန့်ရှင်းကြည်လင်စွာ သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
                             </div>
-                        </div>
-                        <div class="guide-feature-row">
-                            <div class="feature-badge-icon">🧠</div>
-                            <div>
-                                <strong>ပါဠိ ဝိဘတ်ဖြုတ်နည်းစနစ် (Smart Pali Stemming):</strong>
-                                <p>ဥပမာ- <code>ဗုဒ္ဓေါ</code> ဟု ကလစ်နှိပ်သော်လည်း အဆုံးသတ်ဝိဘတ် <code>-ော</code> ကို စနစ်က အလိုအလျောက် ဖြုတ်ပေးပြီး မူရင်းပုဒ် <code>ဗုဒ္ဓ</code> ၏ အနက်ကို ရှာဖွေပြသပေးပါသည်။ ထို့အတူ <code>ဓမ္မဿ</code>၊ <code>သမ္မာသမ္ဗုဒ္ဓဿ</code> စသည်တို့ကိုလည်း မူရင်းပုဒ်အနက် ထွက်ပေါ်စေပါသည်။</p>
+                            <div class="guide-card">
+                                <div class="card-icon">🇲🇲</div>
+                                <h5>မြန်မာပြန် Mode</h5>
+                                <p>သာသနာရေးဦးစီးဌာနမှ ထုတ်ဝေသော တိပိဋက မြန်မာပြန် ကျမ်းစာများ (ဇာတ်တော် ၅၅၀၊ ဓမ္မပဒ၊ ဝိသုဒ္ဓိမဂ် အပါအဝင်) ၆၀ အုပ်ကို သီးသန့်ဖတ်ရှုနိုင်ပါသည်။</p>
                             </div>
-                        </div>
-                        <div class="guide-feature-row">
-                            <div class="feature-badge-icon">📚</div>
-                            <div>
-                                <strong>အဘိဓာန် ၈ မျိုးလုံးမှ တစ်ပြိုင်နက် ပြသခြင်း:</strong>
-                                <p>တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်၊ ဦးဟုတ်စိန် ပါဠိ-မြန်မာ အဘိဓာန်၊ ဓာတွတ္ထပန်းကုံး၊ ပါဠိဓာတ်အဘိဓာန်၊ PTS Pali-English စသည့် အဘိဓာန် ၈ မျိုးစလုံးမှ ဖွင့်ဆိုချက်များကို တစ်နေရာတည်းတွင် စုံလင်စွာ ဖတ်ရှုနိုင်ပါသည်။ အောက်ခြေ menu bar ရှိ <span class="guide-badge">အဘိဓာန်</span> ကို နှိပ်၍လည်း အဘိဓာန်ပြား ဖွင့်/ပိတ် လုပ်နိုင်ပါသည်။</p>
+                            <div class="guide-card highlight-card">
+                                <div class="card-icon">📖</div>
+                                <h5>ယှဉ်တွဲဖတ်ရှုခြင်း (Dual Split View)</h5>
+                                <p><strong>ဘယ်ဘက်တွင် ပါဠိတော်</strong> နှင့် <strong>ညာဘက်တွင် မြန်မာပြန်</strong> (သို့မဟုတ် အဋ္ဌကထာ/ဋီကာ) တို့ကို ဘေးချင်းယှဉ်တွဲ၍ တစ်ပြိုင်နက် ဖတ်ရှုနိုင်ပါသည်။ ဘယ်/ညာ သီးခြားစာမျက်နှာ လှန်နိုင်သလို စာပိုဒ်နံပါတ် (Paragraph) ကို နှိပ်၍လည်း တစ်ဖက်ရှိ စာပိုဒ်သို့ တိုက်ရိုက် ခုန်ကူး highlight ပြသပေးပါသည်။</p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Section 4: Universal Search -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၄</span>
-                        <span>အလွန်လျင်မြန်သော ရှာဖွေမှုစနစ် (Universal Search - Ctrl + K)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>Keyboard ပေါ်မှ <code>Ctrl + K</code> (သို့မဟုတ် <code>/</code> သို့မဟုတ် အပေါ်ဘားရှိ ရှာဖွေရန်ခလုတ်) ကို နှိပ်၍ — ဖုန်းဆိုလျှင် အောက်ခြေ menu bar ရှိ 🔍 <strong>စာရှာရန်</strong> ကို နှိပ်ရုံဖြင့် — အောက်ပါတို့ကို မီလီစက္ကန့်ပိုင်းအတွင်း ရှာဖွေနိုင်ပါသည် -</p>
-                        <ul style="margin-top:8px;">
-                            <li><strong>ပါဠိစကားလုံး (Word Index):</strong> စာလုံးပေါင်း <strong>၉ သိန်းကျော်</strong> ကို ကြိုတင် Index ပြုလုပ်ထားသဖြင့် စာလုံးတစ်ခု ကျမ်းစာများအတွင်း မည်သည့်နေရာတွင် ဘယ်နှစ်ကြိမ်ပါဝင်သည်ကို မျက်စိတစ်မှိတ်အတွင်း ရှာတွေ့နိုင်ပါသည်။</li>
-                            <li><strong>စာကြောင်း/စာပိုဒ်လိုက် (Phrase Search):</strong> ပါဠိနှင့် မြန်မာပြန် နှစ်မျိုးလုံးတွင် စကားလုံးအတွဲလိုက် (ဥပမာ- <strong>အာသဝါ တေ ပဒါလိတာ</strong>) ရိုက်ထည့်၍ စာကြောင်းအလိုက် တိကျစွာ ရှာဖွေနိုင်ပါသည်။</li>
-                            <li><strong>သုတ္တန်များ (Suttas):</strong> သုတ္တန်ပေါင်း <strong>၆,၈၈၁ ပုဒ်</strong> ကို အမည်ဖြင့် တိုက်ရိုက် ရှာဖွေနိုင်ပါသည်။</li>
-                            <li><strong>ကျမ်းစာအုပ်များ:</strong> ပါဠိကျမ်းစာများ နှင့် မြန်မာပြန်ကျမ်းစာများကို အမည်ဖြင့် အမြန်ရှာဖွေနိုင်ပါသည်။</li>
-                            <li><strong>မာတိကာများ:</strong> အခန်းကဏ္ဍပေါင်း <strong>၁ သောင်းကျော်</strong> ကို ရှာဖွေနိုင်ပါသည်။</li>
-                        </ul>
-                        <p style="margin-top:8px; color:var(--accent);"><em>* တွေ့ရှိသည့် ရလဒ်ကို နှိပ်လိုက်သည်နှင့် သက်ဆိုင်ရာ စာမျက်နှာသို့ တိုက်ရိုက်ရောက်ရှိပြီး စာလုံးကို အရောင်တင် (Highlight) ပြသပေးပါသည်။</em></p>
-                    </div>
-                </div>
-
-                <!-- Section 5: Inline Page Jump -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၅</span>
-                        <span>လိုချင်သော စာမျက်နှာသို့ တိုက်ရိုက်ခုန်ကူးနည်း (Page Jump)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>စာဖတ်နေစဉ် အောက်ခြေဘားရှိ <span class="guide-badge">စာမျက်နှာနံပါတ်</span> (ဥပမာ- "စာမျက်နှာ ၁၃") ကို နှိပ်လိုက်လျှင် နံပါတ်ရိုက်ထည့်ရန် အတန်းတစ်ခု ပွင့်လာပါမည် -</p>
-                        <ul style="margin-top:8px;">
-                            <li>စာမျက်နှာတွေကြားက <strong>📖 စာမျက်နှာ ၁၃</strong> badge ကို နှိပ်လိုက်ရင်လည်း jump row က badge အောက်မှာတင် ပွင့်လာပါမည် (ထပ်နှိပ်လျှင် ပြန်ပိတ်ပါသည်)</li>
-                            <li>ခုန်ကူးလိုသော <strong>စာမျက်နှာနံပါတ်</strong> ကို ရိုက်ထည့်ပါ (မြန်မာဂဏန်း ၁၂၃ ဖြင့်လည်း ရပါသည်)</li>
-                            <li><span class="guide-badge">သွားမည်</span> ကို နှိပ်ပါ (သို့မဟုတ် Enter ခေါက်ပါ)</li>
-                            <li><span class="guide-badge">✕</span> ကို နှိပ်လျှင် ပြန်ပိတ်သွားပါမည်</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Section 6: Annotations -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၆</span>
-                        <span>မှတ်ချက်နှင့် အရောင်အမှတ်အသားများ (Annotations)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>စာသားကို <strong>ဆွဲရွေး</strong> (ဖုန်းဆိုလျှင် စာကို ဖိဆွဲပါ) လိုက်လျှင် toolbar တစ်ခု ပေါ်လာပါမည် -</p>
-                        <ul style="margin-top:8px;">
-                            <li>🖍️ — <strong>အရောင်မှတ်သားရန်</strong> (မှတ်ချက်မပါ)</li>
-                            <li>📝 — <strong>မှတ်ချက် + အရောင်</strong> (ကိုယ်ပိုင်မှတ်စု ရေးသားနိုင်သည်)</li>
-                            <li>📋 — <strong>စာသား ကူးယူရန်</strong></li>
-                        </ul>
-                        <p style="margin-top:8px;">မှတ်သားထားသမျှကို ဘေးဘား (sidebar) ရှိ <span class="guide-badge">📌 စာပိုဒ်မှတ်ချက်များ</span> tab တွင် ပြန်လည်ကြည့်ရှုနိုင်ပြီး၊ Sync ချိတ်ထားလျှင် စက်အားလုံးတွင် တူညီစွာ ပေါ်လာပါမည်။</p>
-                    </div>
-                </div>
-
-                <!-- Section 7: Cross-device Sync -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၇</span>
-                        <span>ဖုန်း/ကွန်ပျူတာ အချင်းချင်း Sync လုပ်နည်း (Sync Code)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>ဘေးဘား (sidebar) ရှိ <span class="guide-badge">📌 စာပိုဒ်မှတ်ချက်များ</span> tab ထဲက <span class="guide-badge">☁️</span> ခလုတ်ကို နှိပ်ပါ -</p>
-                        <ul style="margin-top:8px;">
-                            <li><strong>ပထမဆုံး စက်</strong> တွင် <span class="guide-badge">🔑 ကုဒ်အသစ် ထုတ်ရန်</span> ကို နှိပ်ပါ — <code>XXXX-XXXX</code> ပုံစံ ကုဒ်တစ်ခု ရလာပါမည်။</li>
-                            <li><strong>နောက်စက်များ</strong> တွင် ထိုကုဒ်ကို ရိုက်ထည့်ပြီး <span class="guide-badge">ချိတ်မည်</span> ကို နှိပ်ပါ။</li>
-                            <li>ချိတ်ပြီးလျှင် <strong>မှတ်ချက်များ၊ ဖတ်ရှုမှုမှတ်တမ်း၊ ရှာဖွေမှုမှတ်တမ်း</strong> တို့ စက်အားလုံးတွင် တူညီသွားပါမည်။</li>
-                            <li><span class="guide-badge">🔄 ယခု Sync လုပ်ရန်</span> ဖြင့် ကိုယ်တိုင် sync ဆွဲနိုင်ပြီး၊ <span class="guide-badge">🔌 ဒီ device ကို ဖြုတ်ရန်</span> ဖြင့် sync ကနေ ထွက်နိုင်ပါသည်။</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Section 8: DOCX Export -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၈</span>
-                        <span>ကျမ်းစာအုပ်ကို Word ဖိုင်အဖြစ် ရယူနည်း (DOCX Download)</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>မာတိကာ (TOC) ကတ်ရှိ <span class="guide-badge">⤓</span> ခလုတ်ကို နှိပ်ပါ -</p>
-                        <ul style="margin-top:8px;">
-                            <li><strong>တစ်အုပ်လုံး</strong> သို့မဟုတ် <strong>စာမျက်နှာအပိုင်းအခြား</strong> (ဥပမာ- ၁ မှ ၅၀) ရွေးချယ်နိုင်ပါသည်။</li>
-                            <li>Web ပေါ်မှာ မြင်ရတဲ့အတိုင်း <strong>သန့်စင်ပြီးသား စာသား</strong> (ဂါထာပုဒ်ထီး/ပုဒ်မ အပါအဝင်) ကို Word ဖိုင်အဖြစ် ရရှိပါမည်။</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Section 9: Reading Experience & Controls -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၉</span>
-                        <span>စာဖတ်ရှုရ လွယ်ကူစေသော အခြား အထောက်အကူများ</span>
-                    </h4>
-                    <div class="guide-cards-grid">
-                        <div class="guide-card">
-                            <h5>🎨 မျက်စိအေးစေသော Themes ၃ မျိုး</h5>
-                            <p><strong>📜 စက္ကူရောင် (Paper)</strong> - စာအုပ်အစစ်ဖတ်ရသကဲ့သို့ နွေးထွေးသော အဝါဖျော့ရောင်<br><strong>☀️ နေ့ရောင် (Day)</strong> - ကြည်လင်ပြတ်သားသော အဖြူရောင်<br><strong>🌙 ညရောင် (Night)</strong> - မျက်စိမညောင်းစေသော Dark Slate</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>🔤 စာလုံးအရွယ်အစား (Font Size)</h5>
-                            <p>အပေါ်ဘားရှိ <code>A-</code> နှင့် <code>A+</code> ခလုတ်များဖြင့် စာလုံးအရွယ်အစားကို ၇၀% မှ ၂၀၀% ထိ မိမိမျက်စိနှင့် ကိုက်ညီအောင် လွတ်လပ်စွာ ချိန်ညှိနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>🔖 စာမျက်နှာ မှတ်သားခြင်း (Bookmark)</h5>
-                            <p>ဖတ်လက်စ စာမျက်နှာကို Bookmark မှတ်ထားနိုင်ပြီး နောက်တစ်ကြိမ် App ဖွင့်သည့်အခါ နောက်ဆုံးဖတ်ခဲ့သည့် နေရာမှ အလိုအလျောက် ပြန်လည် စတင်ပေးပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>🕒 ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်း (History)</h5>
-                            <p>ဖတ်ရှုခဲ့သမျှ စာအုပ်များနှင့် ရှာဖွေမှုများကို ရက်စွဲအလိုက် စနစ်တကျ မှတ်တမ်းတင်ပေးထားပြီး <code>Ctrl + H</code> ဖြင့် အချိန်မရွေး ပြန်လည်ဖွင့်ကြည့်နိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>💾 Backup / Restore & 📊 စာရင်းအင်း</h5>
-                            <p>မှတ်တမ်း၊ မှတ်စုနှင့် ဆက်တင်များကို JSON ဖိုင်ဖြင့် Backup သိမ်း/ပြန်တင်နိုင်ပြီး၊ အပတ်စဉ်ဖတ်ရှုမှုနှင့် အများဆုံးလေ့လာသော ပိဋကတ်စာရင်းအင်းများကို ကြည့်ရှုနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>✨ စာလုံးဆင့် သန့်စင်မှု နှင့် သတ်ပုံ</h5>
-                            <p>စာကြောင်းအဆုံး၌ စာလုံးဆင့်များ ပြတ်တောက်၍ <code>+</code> ပေါ်ခြင်းကို ကာကွယ်ထားပြီး ဆဋ္ဌမူ မူရင်းအတိုင်း ဂါထာပုဒ်ထီး (၊) ပုဒ်မ (။) များကို စနစ်တကျ ပြသပေးပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>📚 ပုံနှိပ်တွဲ အမှတ်အသား (Printed Volume Label)</h5>
-                            <p>အတွဲများသော နိကာယ်များ (အင်္ဂုတ္တရ၊ သံယုတ္တ၊ ဒီဃ၊ မဇ္ဈိမ၊ ခုဒ္ဒက စသည်) တွင် စာအုပ်နာမည်ဘေး၌ <strong>အံ၊ ပတွဲ / သံ၊ ဒုတွဲ</strong> စသည့် အမှတ်အသားပြထားပါသည်။ <strong>ပါဠိ၊ အဋ္ဌကထာ၊ ဋီကာ</strong> သုံးမျိုးလုံးတွင် အကျုံးဝင်ပါသည်။ မြန်မာပြန်အတွဲများမှာ မြန်မာမူ (သာသနာရေးဦးစီးဌာနထုတ်) ၏ စာမျက်နှာအစီအစဉ်အတိုင်း သတ်မှတ်ထားပါသည်။ အပြင်စာအုပ်အစစ်နှင့် ယှဉ်ဖတ်သည့်အခါ မည်သည့်တွဲကို ကိုင်ရမည်ကို တစ်ချက်ကြည့်ရုံဖြင့် သိနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>📐 စာကြောင်းအလှညှိခြင်းနှင့် သဒ္ဒါအလိုက် စာခေါက်စနစ်</h5>
-                            <p>ဖုန်းနှင့် ကွန်ပျူတာ စခရင်အလိုက် စာကြောင်းအလယ်တွင် ကွက်လပ်ကြီးများ ဟာလာဟင်းလင်း မဖြစ်စေဘဲ စာအုပ်အစစ်ကဲ့သို့ သေသပ်စွာ ဘယ်ညာညှိပြသပေးပါသည်။ ပါဠိစာလုံးရှည်ကြီးများကို သဒ္ဒါအရ သဘာဝကျသော နေရာမှသာ စာကြောင်းခေါက်ဆင်းစေပြီး စာလုံးဆင့်များ မကွဲထွက်စေရန်နှင့် အဘိဓာန်ရှာဖွေမှု အပြည့်အဝ အလုပ်လုပ်စေရန် စီမံထားပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>🔍 စကားလုံးအတွဲလိုက် စာကြောင်းရှာဖွေမှု (Phrase Search)</h5>
-                            <p>ကျမ်းစာထဲမှ စာကြောင်းအတွဲလိုက် (ဥပမာ- <strong>အာသဝါ တေ ပဒါလိတာ</strong>၊ <strong>သဗ္ဗေ ဓမ္မာ အနတ္တာ</strong>) မှတ်မိပါက စကားလုံးများကြား space ခြား၍ ရိုက်ထည့်ရှာဖွေနိုင်ပါသည်။ စာမျက်နှာ ၅၉,၀၀၀ ကျော်ထဲမှ မီလီစက္ကန့်ပိုင်းအတွင်း တိကျစွာ ရှာဖွေပေးပြီး ရှာတွေ့သည့် စာကြောင်းကို မီးမောင်းထိုး (highlight) ပြသပေးပါသည်။ ပါဠိတော်အပြင် မြန်မာပြန်ကျမ်းစာများအတွင်းပါ စာကြောင်းလိုက် ရှာဖွေနိုင်ပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>🎯 ရှာဖွေသည့်နေရာ မီးမောင်းထိုးခြင်းနှင့် ကျမ်းစဉ်စနစ်</h5>
-                            <p>ရှာဖွေမှု ရလဒ်စာမျက်နှာကို နှိပ်လိုက်ပါက စာဖတ်မျက်နှာပြင်သို့ တိုက်ရိုက်ရောက်ရှိသွားပြီး မိမိရှာဖွေခဲ့သော စာလုံး/စာပိုဒ်ကို ဝါဝင်းတောက်ပသည့် အရောင်ဖြင့် မီးမောင်းထိုး (highlight) ပြသကာ ထိုစာကြောင်းဆီသို့ အလိုအလျောက် scroll ဆွဲပေးပါသည်။ ထို့ပြင် ရှာဖွေရလဒ်များကိုလည်း မူလပါဠိတော်၊ အဋ္ဌကထာ၊ ဋီကာ၊ အည ကျမ်းစဉ်အတိုင်း စနစ်တကျ ပြသပေးပါသည်။</p>
-                        </div>
-                        <div class="guide-card">
-                            <h5>📖 ဆဋ္ဌသံဂါယနာ မူရင်း ပုဒ်ထီး/ပုဒ်မ နှင့် ဝိဘတ်ဖြုတ် အဘိဓာန်</h5>
-                            <p>ဆဋ္ဌမူ စာအုပ်ကြီးများအတိုင်း ခေါ်ဆိုမှု အာလပနများ (<strong>ဘိက္ခဝေ</strong>၊ <strong>ဘန္တေ</strong> စသည်) နှင့် နိပါတ်ပုဒ်ငယ်များရှိ Western comma အပိုများကို သန့်စင်ထားပြီး၊ ဝါကျပိုင်း အနက်ရပ်နားမှု ပုဒ်ထီး (၊) နှင့် ဝါကျအဆုံး ပုဒ်မ (။) များကို တိကျစွာ ထိန်းသိမ်းထားပါသည်။ ထို့ပြင် စာဖတ်ရင်း ဝိဘတ်ပုဒ်များ (<strong>ဘဂဝတော</strong>၊ <strong>ဘိက္ခူနံ</strong> စသည်) ကို နှိပ်ပါကလည်း မူရင်းပုဒ်ကို အလိုအလျောက် ဖြုတ်ချ၍ အဘိဓာန်အနက်ကို ချက်ချင်း ဖော်ထုတ်ပေးပါသည်။</p>
+                    <!-- Web Section 2: Cross Link -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၂</span>
+                            <span>ပါဠိ နှင့် မြန်မာပြန် အပြန်အလှန် ခုန်ကူးဖတ်ရှုနည်း (Smart Cross-Link)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <ul>
+                                <li><strong>ပါဠိတော် ဖတ်ရှုနေစဉ်:</strong> Header ပေါ်ရှိ <span class="guide-badge">🇲🇲 မြန်မာပြန်</span> ခလုတ်ကို နှိပ်လိုက်သည်နှင့် လက်ရှိဖတ်နေသော စာပိုဒ်နှင့် ကိုက်ညီသည့် <strong>မြန်မာပြန် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ခုန်ကူးရောက်ရှိသွားပါမည်။</li>
+                                <li><strong>မြန်မာပြန် ဖတ်ရှုနေစဉ်:</strong> Header ပေါ်ရှိ <span class="guide-badge">☸️ ပါဠိတော်</span> ခလုတ်ကို နှိပ်လိုက်ပါကလည်း မူရင်း <strong>ပါဠိတော် စာမျက်နှာသို့ တိုက်ရိုက်</strong> ပြန်လည်ရောက်ရှိပါမည်။</li>
+                                <li><strong>အဋ္ဌကထာ/ဋီကာ ကူးလိုလျှင်:</strong> ဘယ်ဘက် မာတိကာ (Sidebar) မှတစ်ဆင့် ဆက်စပ် အဋ္ဌကထာ နှင့် ဋီကာ ကျမ်းစာများသို့ တိုက်ရိုက် ကူးပြောင်းနိုင်ပါသည်။</li>
+                            </ul>
                         </div>
                     </div>
-                </div>
 
-                <!-- Section 10: Shortcuts -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၁၀</span>
-                        <span>လက်ကွက်ဖြတ်လမ်းများ (Keyboard Shortcuts)</span>
-                    </h4>
-                    <table class="guide-shortcut-table">
-                        <thead>
-                            <tr>
-                                <th>Shortcut ခလုတ်</th>
-                                <th>လုပ်ဆောင်ချက်</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>[</code> သို့မဟုတ် <code>Arrow Left (◀)</code></td>
-                                <td>ယခင် စာမျက်နှာသို့ ကူးပြောင်းရန် (Previous Page)</td>
-                            </tr>
-                            <tr>
-                                <td><code>]</code> သို့မဟုတ် <code>Arrow Right (▶)</code></td>
-                                <td>နောက် စာမျက်နှာသို့ ကူးပြောင်းရန် (Next Page)</td>
-                            </tr>
-                            <tr>
-                                <td><code>Ctrl + K</code> သို့မဟုတ် <code>/</code></td>
-                                <td>ရှာဖွေရေး Modal ဖွင့်ရန် (Universal Search)</td>
-                            </tr>
-                            <tr>
-                                <td><code>Ctrl + H</code> သို့မဟုတ် <code>H</code></td>
-                                <td>ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်း ဖွင့်ရန် (History)</td>
-                            </tr>
-                            <tr>
-                                <td><code>Esc</code></td>
-                                <td>Modal များ၊ အသုံးပြုနည်း၊ အဘိဓာန် Popup ပိတ်ရန်</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Section 11: Mobile/Tablet Access -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၁၁</span>
-                        <span>ဖုန်း၊ Tablet နှင့် အင်တာနက်မှ အသုံးပြုနည်း</span>
-                    </h4>
-                    <div class="guide-info-box">
-                        <p>ဤ Web Application ကို သင်၏ ကွန်ပျူတာတင်မကဘဲ အင်တာနက်ရှိ မည်သည့် ဖုန်း၊ Tablet၊ iPad မှမဆို မိမိသတ်မှတ်ထားသော VPS Domain (သို့မဟုတ် IP) Link ဖြင့် လုံခြုံစွာနှင့် အခမဲ့ ဝင်ရောက်ဖတ်ရှုနိုင်ပါသည် -</p>
-                        <p style="margin-top:6px; font-weight:bold; font-size:1.05rem; color:var(--accent);">👉 <span id="appCurrentDomainLink">https://your-domain.com</span></p>
+                    <!-- Web Section 3: Left Sidebar -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၃</span>
+                            <span>လက်ဝဲဘက် မာတိကာနှင့် ကျမ်းစာရွေးချယ်မှု ဘေးဘား (Left Navigation Sidebar)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>Header ရှိ <span class="guide-badge">☰</span> ခလုတ်ကို နှိပ်၍ ဘယ်ဘက် Sidebar ကို အဖွင့်/အပိတ် ပြုလုပ်နိုင်ပြီး အောက်ပါ Tab ၅ ခု ပါဝင်ပါသည် -</p>
+                            <ul style="margin-top:8px;">
+                                <li>📑 <strong>မာတိကာ (TOC):</strong> ဝိနည်း၊ သုတ္တန်၊ အဘိဓမ္မာ နိကာယ်များနှင့် ကျမ်းစဉ်အလိုက် အခန်းကဏ္ဍပေါင်း ၁၀,၀၀၀ ကျော်ကို အပင်သစ် (Tree View) ပုံစံဖြင့် ချက်ချင်း လှန်ဖတ်နိုင်ပါသည်။</li>
+                                <li>📜 <strong>သုတ္တန်များ (Suttas):</strong> သုတ္တန်ပေါင်း ၆,၈၈၁ ပုဒ်ကို အက္ခရာစဉ် သို့မဟုတ် နိကာယ်အလိုက် အမြန်ရွေးချယ်နိုင်ပါသည်။</li>
+                                <li>🔍 <strong>အမြန်ရှာ (Quick Search):</strong> လက်ရှိကျမ်းစာအုပ်အတွင်း စာလုံးများကို အမြန်ရှာဖွေနိုင်ပါသည်။</li>
+                                <li>🔖 <strong>စာမှတ်များ (Bookmarks):</strong> မှတ်သားထားသော စာမျက်နှာများကို အလွယ်တကူ ပြန်လည်ကြည့်ရှုနိုင်ပါသည်။</li>
+                                <li>📌 <strong>စာပိုဒ်မှတ်ချက်များ (Annotations):</strong> အရောင်ခြယ်ထားသော စာပိုဒ်များနှင့် ကိုယ်ပိုင်မှတ်စုများကို စုစည်းဖတ်ရှုနိုင်ပါသည်။</li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Section 12: Credits & Dedication to Pn Daza -->
-                <div class="guide-section">
-                    <h4 class="guide-section-title">
-                        <span class="guide-step-num">၁၂</span>
-                        <span>🙏 မူရင်းဖန်တီးသူအား အသိအမှတ်ပြုခြင်း၊ ကျေးဇူးတင်လွှာ နှင့် ခွင့်တောင်းစာ (Credits & Dedication)</span>
-                    </h4>
-                    <div class="guide-info-box" style="line-height: 1.85;">
-                        <p><strong>မူရင်း Android Applications:</strong> ☸️ <strong>Tipitaka Pali (တိပိဋကပါဠိ)</strong> နှင့် 🇲🇲 <strong>Tipitaka Myanmar (တိပိဋက မြန်မာပြန်)</strong></p>
-                        <p><strong>မူရင်း ရေးသားဖန်တီးသူ:</strong> <strong>Pn Daza</strong> (သာသနာပြု အရှင်မြတ်) (<a href="https://www.facebook.com/pndaza.mlm" target="_blank" style="color:var(--accent); text-decoration:underline;">Facebook Profile</a> | Email: <code>mrpndaza@gmail.com</code>)</p>
-                        <hr style="border:none; border-top:1px dashed var(--border); margin:10px 0;">
-                        <p><strong>ဤ Web Application ကို ပြုစုဖန်တီးရခြင်း ရည်ရွယ်ချက်:</strong></p>
-                        <ul style="margin-top:6px; margin-bottom:10px;">
-                            <li>မူရင်းဆော့ဝဲလ်များသည် Android အပြင် Windows, macOS အတွက်ပါ ရှိသော်လည်း Install ပြုလုပ်ရာတွင် အဆင်မပြေသူများနှင့် Storage မလောက်သော ဖုန်း/ကွန်ပျူတာများတွင်ပါ မည်သည့် Browser မှမဆို တိုက်ရိုက် လွယ်ကူလျင်မြန်စွာ ဖွင့်လှစ်ဖတ်ရှုနိုင်စေရန်။</li>
-                            <li>ဆဋ္ဌမူ မူရင်းစာအုပ်ကြီးအတိုင်း ဂါထာပါဠိတော်များတွင် ပုဒ်ထီး ( ၊ )၊ ပုဒ်မ ( ။ ) ထားရှိခြင်း၊ ပေယျာလ (<code>။ ပ ။</code>) စနစ် ပြင်ဆင်ခြင်း၊ Dual View ယှဉ်တွဲဖတ်ရှုခြင်း၊ Continuous Stream Feed စသည့် မိမိကိုယ်တိုင် လိုအပ်ချက်များကို ဖြည့်စွက်ပြင်ဆင် အသုံးပြုနိုင်စေရန်။</li>
-                        </ul>
-                        <div style="background-color: rgba(230, 81, 0, 0.08); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 0.92rem; margin-bottom: 12px;">
-                            <em>* ဤအရှင်မြတ် (Pn Daza) သည် အခု အသုံးပြုထားသော App နှစ်ခုအပြင် တခြား ဘုရားဟော ပိဋကတ်ကျမ်းစာဆိုင်ရာ သာသနာအတွက် အလွန်အကျိုးများသော Applications များစွာကို ရေးသားပြုစုထားပြီး၊ ပိဋကတ်ကျမ်းစာ လေ့လာသူတိုင်း အားကိုးအားထား ပြုရသည့် Apps များစွာဖြင့် သာသနာတော်ကို အကျိုးပြုခဲ့သော အရှင်မြတ် ဖြစ်ပါသည်။ မူရင်း App ရေးသားသူ <strong>Pn Daza</strong> ၏ တည်ဆောက်ခဲ့သော ကြိုးစားအားထုတ်မှုနှင့် ဉာဏ်ပညာအား လေးစားကြည်ညိုစွာဖြင့် မှတ်တမ်းတင် ဂုဏ်ပြုအပ်ပါသည်။ အခုလို (မိမိလိုအပ်ချက်အတွက်) ပြင်ဆင် အသုံးပြုတာကိုလည်း ခွင့်ပြုပေးဖို့အတွက် မူရင်းဖန်တီးသူ အရှင်မြတ်အား လေးစားစွာဖြင့် ခွင့်ပြုပေးပါရန် တောင်းပန်အပ်ပါသည်။</em>
-                        </div>
-                        <div style="font-size: 0.88rem; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 8px;">
-                            <strong>🤖 ပြင်ဆင်အသုံးပြုသူ နှင့် နည်းပညာ တည်ဆောက်မှု:</strong> ပြင်ဆင်အသုံးပြုသူ <strong>Ashin Pannasetthalankara</strong> သည် Web Developer နည်းပညာကို အခြေခံမျှသာ သိရှိသူဖြစ်သဖြင့် စနစ်တစ်ခုလုံး၏ Architecture၊ Backend၊ UI နှင့် ဆဋ္ဌမူသန့်စင်ရေး နည်းပညာများကို <strong>Antigravity AI (Google DeepMind)</strong> ၏ အဆင့်မြင့် AI အကူအညီဖြင့် ပူးပေါင်းရေးသား တည်ဆောက်ခဲ့ခြင်း ဖြစ်ပါသည်။
-                        </div>
-                        <div style="margin-top: 10px; padding: 10px 14px; background: rgba(34, 158, 217, 0.08); border: 1px solid rgba(34, 158, 217, 0.25); border-left: 4px solid #229ED9; border-radius: 8px; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                            <div>
-                                <span style="font-weight: 600; color: var(--text-primary);">💬 ဆက်သွယ်ရန်နှင့် အကြံပြုချက်များ:</span>
-                                <span style="color: var(--text-secondary); margin-left: 4px;">အမှားအယွင်းတွေ့ရှိပါက သို့မဟုတ် ပိုမိုကောင်းမွန်စေရန် အကြံပြုလိုပါက Telegram မှ ဆက်သွယ်နိုင်ပါသည် -</span>
+                    <!-- Web Section 4: Dictionary -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၄</span>
+                            <span>ကလစ်တစ်ချက်နှိပ်ရုံဖြင့် အဘိဓာန် အနက်ကြည့်ရှုနည်း (Instant Click-to-Lookup)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <div class="guide-feature-row">
+                                <div class="feature-badge-icon">👆</div>
+                                <div>
+                                    <strong>စာလုံးကို Click နှိပ်ရုံမျှဖြင့် အနက်ထွက်ပေါ်ခြင်း:</strong>
+                                    <p>ပါဠိစာဖတ်နေစဉ် မသိသော စကားလုံးကို Mouse ဖြင့် <strong>Click တစ်ချက် နှိပ်လိုက်ရုံဖြင့်</strong> ညာဘက်ခြမ်းရှိ အဘိဓာန်ပြားတွင် အဓိပ္ပာယ် ချက်ချင်း ထွက်ပေါ်လာမည် ဖြစ်ပါသည်။</p>
+                                </div>
                             </div>
-                            <a href="https://t.me/upanna" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #229ED9; color: #ffffff; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(34, 158, 217, 0.25); transition: opacity 0.15s;">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.17 3.35-1.37 3.73-1.37.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
-                                <span>Telegram: @upanna</span>
-                            </a>
-                        </div>
-                        <div style="margin-top:10px; padding:10px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                            <div>
-                                📌 <strong>App အချက်အလက်:</strong> Version {{ app_version }} &nbsp;•&nbsp; စတင်တည်ဆောက်ခဲ့သည့်ရက်: {{ app_created_date }}
+                            <div class="guide-feature-row">
+                                <div class="feature-badge-icon">🧠</div>
+                                <div>
+                                    <strong>ပါဠိ ဝိဘတ်ဖြုတ်နည်းစနစ် (Smart Pali Stemming):</strong>
+                                    <p>ဥပမာ- <code>ဗုဒ္ဓေါ</code> ဟု ကလစ်နှိပ်သော်လည်း အဆုံးသတ်ဝိဘတ် <code>-ော</code> ကို စနစ်က အလိုအလျောက် ဖြုတ်ပေးပြီး မူရင်းပုဒ် <code>ဗုဒ္ဓ</code> ၏ အနက်ကို ရှာဖွေပြသပေးပါသည်။ ထို့အတူ <code>ဓမ္မဿ</code>၊ <code>သမ္မာသမ္ဗုဒ္ဓဿ</code> စသည်တို့ကိုလည်း မူရင်းပုဒ်အနက် ထွက်ပေါ်စေပါသည်။</p>
+                                </div>
                             </div>
-                            <button id="btnCheckAppUpdate" class="btn-secondary" style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; font-size:0.82rem; cursor:pointer; border-radius:6px;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                                <span>အပ်ဒိတ် စစ်ဆေးရန်</span>
-                            </button>
+                            <div class="guide-feature-row">
+                                <div class="feature-badge-icon">📚</div>
+                                <div>
+                                    <strong>အဘိဓာန် ၈ မျိုးလုံးမှ တစ်ပြိုင်နက် ပြသခြင်း:</strong>
+                                    <p>တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်၊ ဦးဟုတ်စိန် ပါဠိ-မြန်မာ အဘိဓာန်၊ ဓာတွတ္ထပန်းကုံး၊ ပါဠိဓာတ်အဘိဓာန်၊ PTS Pali-English စသည့် အဘိဓာန် ၈ မျိုးစလုံးမှ ဖွင့်ဆိုချက်များကို တစ်နေရာတည်းတွင် စုံလင်စွာ ဖတ်ရှုနိုင်ပါသည်။ Header ရှိ <span class="guide-badge">အဘိဓာန်</span> ခလုတ်ဖြင့်လည်း အဘိဓာန်ပြားကို အဖွင့်/အပိတ် ပြုလုပ်နိုင်ပါသည်။</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Web Section 5: Universal Search -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၅</span>
+                            <span>အလွန်လျင်မြန်သော ရှာဖွေမှုစနစ် (Universal Search - Ctrl + K)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>Keyboard ပေါ်မှ <code>Ctrl + K</code> (သို့မဟုတ် <code>/</code> သို့မဟုတ် Header ရှိ ရှာဖွေရန်ခလုတ်) ကို နှိပ်၍ အောက်ပါတို့ကို မီလီစက္ကန့်ပိုင်းအတွင်း ရှာဖွေနိုင်ပါသည် -</p>
+                            <ul style="margin-top:8px;">
+                                <li><strong>ပါဠိစကားလုံး (Word Index):</strong> စာလုံးပေါင်း <strong>၉ သိန်းကျော်</strong> ကို ကြိုတင် Index ပြုလုပ်ထားသဖြင့် မျက်စိတစ်မှိတ်အတွင်း ရှာတွေ့နိုင်ပါသည်။</li>
+                                <li><strong>စာကြောင်း/စာပိုဒ်လိုက် (Phrase Search):</strong> ပါဠိနှင့် မြန်မာပြန် နှစ်မျိုးလုံးတွင် စကားလုံးအတွဲလိုက် (ဥပမာ- <strong>အာသဝါ တေ ပဒါလိတာ</strong>၊ <strong>သဗ္ဗေ ဓမ္မာ အနတ္တာ</strong>) ရိုက်ထည့်၍ စာကြောင်းအလိုက် တိကျစွာ ရှာဖွေနိုင်ပါသည်။</li>
+                                <li><strong>သုတ္တန်များ (Suttas):</strong> သုတ္တန်ပေါင်း <strong>၆,၈၈၁ ပုဒ်</strong> ကို အမည်ဖြင့် တိုက်ရိုက် ရှာဖွေနိုင်ပါသည်။</li>
+                                <li><strong>ကျမ်းစာအုပ်များနှင့် မာတိကာများ:</strong> ပါဠိကျမ်းစာများနှင့် မြန်မာပြန်ကျမ်းစာများ၊ အခန်းကဏ္ဍပေါင်း <strong>၁ သောင်းကျော်</strong> ကို ရှာဖွေနိုင်ပါသည်။</li>
+                            </ul>
+                            <p style="margin-top:8px; color:var(--accent);"><em>* တွေ့ရှိသည့် ရလဒ်ကို နှိပ်လိုက်သည်နှင့် သက်ဆိုင်ရာ စာမျက်နှာသို့ တိုက်ရိုက်ရောက်ရှိပြီး စာလုံးကို ဝါဝင်းတောက်ပစွာ မီးမောင်းထိုး (Highlight) ပြသပေးပါသည်။</em></p>
+                        </div>
+                    </div>
+
+                    <!-- Web Section 6: DOCX Export -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၆</span>
+                            <span>ကျမ်းစာအုပ်ကို Word ဖိုင်အဖြစ် ရယူနည်း (DOCX Download)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>မာတိကာ (TOC) ရှိ <span class="guide-badge">⤓</span> ခလုတ်ကို နှိပ်ပါ -</p>
+                            <ul style="margin-top:8px;">
+                                <li><strong>ကျမ်းစာတစ်အုပ်လုံး</strong> သို့မဟုတ် <strong>စာမျက်နှာအပိုင်းအခြား</strong> (ဥပမာ- စာမျက်နှာ ၁ မှ ၅၀) ကို ရွေးချယ်နိုင်ပါသည်။</li>
+                                <li>Web ပေါ်တွင် မြင်တွေ့ရသည့်အတိုင်း <strong>သန့်စင်ပြီးသား စာသား</strong> (ဂါထာပုဒ်ထီး/ပုဒ်မ အပါအဝင်) ကို Microsoft Word (.docx) ဖိုင်အဖြစ် ကွန်ပျူတာထဲသို့ သိမ်းဆည်းရယူနိုင်ပါသည်။</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Web Section 7: Keyboard Shortcuts -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၇</span>
+                            <span>ကွန်ပျူတာ လက်ကွက်ဖြတ်လမ်းများ (Keyboard Shortcuts)</span>
+                        </h4>
+                        <table class="guide-shortcut-table">
+                            <thead>
+                                <tr>
+                                    <th>Shortcut ခလုတ်</th>
+                                    <th>လုပ်ဆောင်ချက်</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>[</code> သို့မဟုတ် <code>Arrow Left (◀)</code></td>
+                                    <td>ယခင် စာမျက်နှာသို့ ကူးပြောင်းရန် (Previous Page)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>]</code> သို့မဟုတ် <code>Arrow Right (▶)</code></td>
+                                    <td>နောက် စာမျက်နှာသို့ ကူးပြောင်းရန် (Next Page)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Ctrl + K</code> သို့မဟုတ် <code>/</code></td>
+                                    <td>ရှာဖွေရေး Modal ဖွင့်ရန် (Universal Search)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Ctrl + H</code> သို့မဟုတ် <code>H</code></td>
+                                    <td>ဖတ်ရှုမှုနှင့် ရှာဖွေမှု မှတ်တမ်း ဖွင့်ရန် (History)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>F11</code></td>
+                                    <td>အာရုံစူးစိုက် မျက်နှာပြင်ပြည့်မုဒ် (Focus / Fullscreen Mode)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Esc</code></td>
+                                    <td>Modal များ၊ အသုံးပြုနည်း၊ အဘိဓာန် Popup ပိတ်ရန်</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- Tab Panel 2: Android (Phone / Tablet App)  -->
+                <!-- ========================================== -->
+                <div class="guide-tab-panel" id="tab-guide-android">
+                    <div class="guide-welcome-box">
+                        <h3>📱 Android Application (ဖုန်း / Tablet App) အသုံးပြုနည်း လမ်းညွှန်ချက်များ</h3>
+                        <p>Android ဖုန်းနှင့် Tablet များတွင် သွားရင်းလာရင်း အင်တာနက်မလိုဘဲ အချိန်မရွေး လွယ်ကူလျင်မြန်စွာ ဖတ်ရှုနိုင်ရန် လက်မတစ်ကမ်း အသုံးပြုနိုင်သော <strong>Thumb-Zone Toolbar</strong>၊ စာဖတ်ဧရိယာ ကျယ်ဝန်းစေသော <strong>Scroll Auto-Hide</strong> နှင့် ဖုန်းတွင်း <strong>100% Offline Python Server</strong> ဖြင့် အထူးစီမံတည်ဆောက်ထားသော Application ဖြစ်ပါသည်။</p>
+                    </div>
+
+                    <!-- Android Section 1: Home Catalog View -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၁</span>
+                            <span>ပင်မ စာမျက်နှာ (Home Catalog View - APK Style)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>App ဖွင့်လိုက်သည်နှင့် သန့်ရှင်းသပ်ရပ်သော ပင်မစာမျက်နှာကို မြင်တွေ့ရမည်ဖြစ်ပါသည် -</p>
+                            <ul style="margin-top:8px;">
+                                <li>📚 <strong>ပိဋကတ် သုံးပုံ ကတ်ပြားများ:</strong> သုတ်၊ ဝိနည်း၊ အဘိဓမ္မာ နှင့် အည (ဗုဒ္ဓဝင်၊ မဟာဝင်၊ ဇာတ်တော်ကြီး) တို့ကို Tab ကတ်ပြားများဖြင့် သပ်ရပ်စွာ ခွဲခြားထားပြီး မိမိဖတ်လိုသော စာအုပ်ကို တစ်ချက်နှိပ်ရုံဖြင့် ချက်ချင်း ဖတ်ရှုနိုင်ပါသည်။</li>
+                                <li>📖 <strong>ဆက်လက်ဖတ်ရှုရန် (Continue Reading Card):</strong> ထိပ်ဆုံးတွင် မိမိနောက်ဆုံး ဖတ်လက်စ ကျမ်းစာအမည်နှင့် စာမျက်နှာကို အဆင်သင့် ပြသပေးထားပြီး ကလစ်တစ်ချက်နှိပ်ရုံဖြင့် ရပ်နားခဲ့သည့်နေရာမှ ချက်ချင်း ဆက်လက်ဖတ်ရှုနိုင်ပါသည်။</li>
+                                <li>📌 <strong>ပင်မ အောက်ခြေ Navigation Bar (၆ ခု):</strong>
+                                    <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                                        <span class="guide-badge">🏠 ပင်မ</span>
+                                        <span class="guide-badge">📖 စာဖတ်</span>
+                                        <span class="guide-badge">🕒 မှတ်တမ်း</span>
+                                        <span class="guide-badge">🔍 စာရှာရန်</span>
+                                        <span class="guide-badge">📚 အဘိဓာန်</span>
+                                        <span class="guide-badge">⚙️ အခြား</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Android Section 2: Option A Modern Minimal Reader -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၂</span>
+                            <span>မိုဘိုင်းလ် စာဖတ်မျက်နှာပြင်သစ် (Option A Modern Minimal Reader)</span>
+                        </h4>
+                        <p class="guide-desc">စာအုပ်တစ်အုပ်ကို ဖွင့်လိုက်ပါက စာဖတ်အား အနှောင့်အယှက်မဖြစ်စေသော ခေတ်မီ မိုဘိုင်းလ် စာဖတ်မျက်နှာပြင်သို့ ရောက်ရှိပါမည် -</p>
+                        
+                        <div class="guide-cards-grid">
+                            <div class="guide-card">
+                                <h5>🔝 သန့်ရှင်းသော Mobile Header</h5>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li><code>[←]</code> : ပင်မ ကတ်တလောက် (Home) သို့ ပြန်သွားရန်။</li>
+                                    <li><code>ကျမ်းအမည် • အခန်း</code> : နှိပ်ပါက မာတိကာ Drawer အလိုအလျောက် ပွင့်လာပါမည်။</li>
+                                    <li><code>[🔍]</code> : လက်ရှိဖတ်နေသော စာအုပ်အတွင်း အမြန်ရှာဖွေရန်။</li>
+                                    <li><code>[☰]</code> : ကျမ်းစာမာတိကာ ဖွင့်ရန်။</li>
+                                    <li><code>[စာ-နံပါတ်]</code> Badge : နှိပ်ပါက လိုချင်သော စာမျက်နှာသို့ ခုန်ကူးရန် နံပါတ်ရိုက်ထည့်သည့် အကွက် ပွင့်လာပါမည် (မြန်မာဂဏန်း ဖြင့်လည်း ရပါသည်)။</li>
+                                </ul>
+                            </div>
+
+                            <div class="guide-card highlight-card">
+                                <h5>🖐️ လက်မတစ်ကမ်း အောက်ခြေဘား (၅ ခု)</h5>
+                                <ul style="margin:0; padding-left:16px;">
+                                    <li><code>[🔄 ကျမ်းရွေး]</code> : <strong>ပါဠိ ⇄ မြန်မာပြန် ⇄ အဋ္ဌကထာ ⇄ ဋီကာ</strong> စာပိုဒ်နံပါတ် (Paragraph) အလိုက် တိကျသော Two-Way Scripture Matching ဖြင့် သက်ဆိုင်ရာ စာမျက်နှာသို့ တိုက်ရိုက် ခုန်ကူးဖတ်ရှုနိုင်ပါသည်။</li>
+                                    <li><code>[🔍 ရှာရန်]</code> : စာဖတ်မျက်နှာပြင်မှ မထွက်ဘဲ စာလုံး/စာကြောင်း အမြန်ရှာဖွေနိုင်ပါသည်။</li>
+                                    <li><code>[📖 အဘိဓာန်]</code> : အောက်ခြေမှ အဘိဓာန်ဆွဲဖွင့်နိုင်ပါသည်။</li>
+                                    <li><code>[🔖 စာမှတ်]</code> : ဖတ်လက်စ စာမျက်နှာကို ၁ ချက်နှိပ်ရုံဖြင့် စာမှတ် မှတ်သားနိုင်ပါသည်။</li>
+                                    <li><code>[⚙️ အပြင်အဆင်]</code> : စာလုံးအရွယ်အစား (A- / A+), Theme (စက္ကူ/နေ့/ည), မှတ်စုဖွင့်/ပိတ်၊ စာမျက်နှာ ကော်ပီကူးယူခြင်း စသည်တို့ကို အမြန်ချိန်ညှိနိုင်ပါသည်။</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Android Section 3: Scroll Auto-Hide -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၃</span>
+                            <span>မျက်နှာပြင် အပြည့် စာဖတ်ရှုနိုင်မှု (Scroll Auto-Hide Chrome)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <div class="guide-feature-row">
+                                <div class="feature-badge-icon">📜</div>
+                                <div>
+                                    <strong>စခရင်အပြည့် အနှောင့်အယှက်ကင်းစွာ ဖတ်ရှုနိုင်ခြင်း:</strong>
+                                    <p>စာဖတ်နေစဉ် မျက်နှာပြင်ကို အောက်သို့ scroll ဆွဲချလိုက်သည်နှင့် အပေါ် Header နှင့် အောက်ခြေ Toolbar တို့သည် <strong>အလိုအလျောက် ပုန်းကွယ်သွားပြီး</strong> ဖုန်းမျက်နှာပြင် အပြည့်အဝဖြင့် စာအုပ်အစစ်ကဲ့သို့ အာရုံစိုက် ဖတ်ရှုနိုင်ပါသည်။</p>
+                                    <p style="margin-top:6px;">ခလုတ်ဘားများ ပြန်လည်အသုံးပြုလိုပါက မျက်နှာပြင်ကို အပေါ်သို့ အနည်းငယ် ပြန်ဆွဲလိုက်ရုံဖြင့် အလိုအလျောက် ပြန်လည် ပေါ်ပေါက်လာပါမည်။</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Android Section 4: Mobile Text Selection & Lookup -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၄</span>
+                            <span>ဖုန်းစခရင်ပေါ်တွင် အဘိဓာန်ရှာဖွေခြင်းနှင့် မှတ်ချက်ပြုခြင်း</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <ul>
+                                <li><strong>ပါဠိစကားလုံး အနက်ရှာရန်:</strong> စာဖတ်နေစဉ် မသိသော ပါဠိစာလုံးကို လက်ဖြင့် <strong>တစ်ချက်တို့ထိ (Tap)</strong> လိုက်ရုံဖြင့် အောက်ခြေတွင် အဘိဓာန် အနက်ပြား ပေါ်လာပါမည်။</li>
+                                <li><strong>စာသား ဖိဆွဲ မှတ်သားရန်:</strong> စာသားကို လက်ချောင်းဖြင့် <strong>ဖိဆွဲ (Long-press & drag)</strong> လိုက်ပါက ပေါ်လာသော Toolbar ဖြင့် အရောင်ခြယ်သခြင်း (🖍️)၊ ကိုယ်ပိုင်မှတ်စု ရေးသားခြင်း (📝)၊ ကူးယူခြင်း (📋) တို့ကို ပြုလုပ်နိုင်ပါသည်။</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Android Section 5: Offline Server -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၅</span>
+                            <span>အင်တာနက် လုံးဝမလိုသော Offline စနစ် (Local Python Server)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>ဤ Android App သည် အင်တာနက်ဖွင့်ထားရန် မလိုဘဲ <strong>ဖုန်းထဲတွင် တိုက်ရိုက် run သော Local Server (127.0.0.1)</strong> ဖြင့် လည်ပတ်ပါသည်။ ထို့ကြောင့် တောရ၊ ရိပ်သာ၊ လိုင်းမမိသော အရပ်ဒေသများတွင်ပင် ပိဋကတ်တော် ကျမ်းစာအားလုံးနှင့် အဘိဓာန် ၈ မျိုးလုံးကို မြန်ဆန်စွာ အပြည့်အဝ အသုံးပြုနိုင်ပါသည်။</p>
+                        </div>
+                    </div>
+
+                    <!-- Android Section 6: In-App Updater -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၆</span>
+                            <span>အက်ပ်အတွင်း အလိုအလျောက် ဗားရှင်းမြှင့်တင်ခြင်း (In-App Auto-Updater)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>GitHub Releases တွင် Android Version အသစ် (APK) ထွက်ရှိတိုင်း -</p>
+                            <ul style="margin-top:8px;">
+                                <li>အင်တာနက်ဖွင့်၍ App ကို ဖွင့်လိုက်ပါက Version အသစ်ရှိကြောင်း <strong>Update Dialog</strong> အလိုအလျောက် သတိပေးပါမည်။</li>
+                                <li><span class="guide-badge">ဒေါင်းလုဒ်</span> ခလုတ်ကို နှိပ်လိုက်ရုံဖြင့် APK အသစ်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူပြီး Install ပြုလုပ်နိုင်ပါသည်။</li>
+                                <li>ပင်မ အောက်ခြေ <code>[⚙️ အခြား]</code> menu သို့မဟုတ် အောက်ခြေရှိ <span class="guide-badge">အပ်ဒိတ် စစ်ဆေးရန်</span> ခလုတ်ကို နှိပ်၍လည်း အချိန်မရွေး ကိုယ်တိုင် စစ်ဆေးနိုင်ပါသည်။</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- Tab Panel 3: Common Features & Dedication  -->
+                <!-- ========================================== -->
+                <div class="guide-tab-panel" id="tab-guide-common">
+                    <!-- Common Section 1: Cloud Sync -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၁</span>
+                            <span>ဖုန်းနှင့် ကွန်ပျူတာ အချင်းချင်း Sync ချိတ်ဆက်နည်း (Cross-Device Cloud Sync)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <p>သင်၏ ဖုန်းနှင့် ကွန်ပျူတာတို့တွင် မှတ်ချက်များ၊ Bookmark များနှင့် ဖတ်ရှုမှုမှတ်တမ်းများကို တူညီစွာ ရရှိစေရန် အောက်ပါအတိုင်း ချိတ်ဆက်နိုင်ပါသည် -</p>
+                            <ul style="margin-top:8px;">
+                                <li>ဘေးဘား (Sidebar) ရှိ <span class="guide-badge">📌 စာပိုဒ်မှတ်ချက်များ</span> tab ထဲမှ <span class="guide-badge">☁️</span> ခလုတ်ကို နှိပ်ပါ။</li>
+                                <li><strong>ပထမဆုံး စက်</strong> တွင် <span class="guide-badge">🔑 ကုဒ်အသစ် ထုတ်ရန်</span> ကို နှိပ်ပါ — <code>XXXX-XXXX</code> ပုံစံ ကုဒ်တစ်ခု ရလာပါမည်။</li>
+                                <li><strong>နောက်စက်များ (ဖုန်း သို့မဟုတ် ကွန်ပျူတာ)</strong> တွင် ထိုကုဒ်ကို ရိုက်ထည့်ပြီး <span class="guide-badge">ချိတ်မည်</span> ကို နှိပ်ပါ။</li>
+                                <li>ချိတ်ဆက်ပြီးပါက စက်အားလုံးတွင် မှတ်တမ်းနှင့် မှတ်ချက်များ အလိုအလျောက် တပြေးညီ ရရှိနေမည် ဖြစ်ပါသည်။</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Common Section 2: Backup / Restore & Insights -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၂</span>
+                            <span>မှတ်တမ်း သိမ်းဆည်းခြင်းနှင့် စာရင်းအင်း (Backup / Restore & Insights)</span>
+                        </h4>
+                        <div class="guide-cards-grid">
+                            <div class="guide-card">
+                                <h5>💾 Backup & Restore</h5>
+                                <p>မိမိမှတ်သားထားသော Bookmark၊ စာပိုဒ်မှတ်ချက်များနှင့် ဆက်တင်များကို JSON ဖိုင်ဖြင့် ကွန်ပျူတာ/ဖုန်းထဲသို့ သိမ်းဆည်းထားနိုင်ပြီး၊ အချိန်မရွေး ပြန်လည်တင်သွင်း (Restore) နိုင်ပါသည်။</p>
+                            </div>
+                            <div class="guide-card">
+                                <h5>📊 ဖတ်ရှုမှု စာရင်းအင်း (Insights)</h5>
+                                <p>မိမိ နေ့စဉ်၊ အပတ်စဉ် ဖတ်ရှုခဲ့သော စာမျက်နှာအရေအတွက်၊ အများဆုံးလေ့လာခဲ့သည့် နိကာယ်များနှင့် ပိဋကတ်စာရင်းအင်းများကို ဇယားများဖြင့် လေ့လာကြည့်ရှုနိုင်ပါသည်။</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Common Section 3: Chatthasangayana Authenticity -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၃</span>
+                            <span>ဆဋ္ဌသင်္ဂါယနာ မူရင်း သန့်စင်မှု ဂုဏ်ပုဒ်များ (Chatthasangayana Typography)</span>
+                        </h4>
+                        <div class="guide-info-box">
+                            <ul>
+                                <li><strong>ဆဋ္ဌမူ ဂါထာ ပုဒ်ထီး (၊) ပုဒ်မ (။) စနစ်:</strong> ဆဋ္ဌမူ စာအုပ်ကြီးများအတိုင်း ဝါကျပိုင်း အနက်ရပ်နားမှု ပုဒ်ထီး (၊) နှင့် ဝါကျအဆုံး ပုဒ်မ (။) များကို တိကျစွာ ထိန်းသိမ်းထားပါသည်။</li>
+                                <li><strong>ပုံနှိပ်တွဲ အမှတ်အသား (Printed Volume Label):</strong> အတွဲများသော နိကာယ်များ (အံ၊ ပတွဲ / သံ၊ ဒုတွဲ စသည်) တွင် စာအုပ်နာမည်ဘေး၌ ပုံနှိပ်တွဲ အမှတ်အသားကို ပြသပေးထားသဖြင့် ပြင်ပစာအုပ်အစစ်နှင့် ယှဉ်ဖတ်ရာတွင် လွယ်ကူစေပါသည်။</li>
+                                <li><strong>သဒ္ဒါအလိုက် စာခေါက်စနစ် (Smart Line Breaking):</strong> ပါဠိစာလုံးရှည်ကြီးများကို သဒ္ဒါအရ သဘာဝကျသော နေရာမှသာ စာကြောင်းခေါက်ဆင်းစေပြီး စာလုံးဆင့်များ မကွဲထွက်စေရန် စီမံထားပါသည်။</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Common Section 4: Credits & Dedication -->
+                    <div class="guide-section">
+                        <h4 class="guide-section-title">
+                            <span class="guide-step-num">၄</span>
+                            <span>🙏 မူရင်းဖန်တီးသူအား အသိအမှတ်ပြုခြင်း၊ ကျေးဇူးတင်လွှာ နှင့် ခွင့်တောင်းစာ (Credits & Dedication)</span>
+                        </h4>
+                        <div class="guide-info-box" style="line-height: 1.85;">
+                            <p><strong>မူရင်း Android Applications:</strong> ☸️ <strong>Tipitaka Pali (တိပိဋကပါဠိ)</strong> နှင့် 🇲🇲 <strong>Tipitaka Myanmar (တိပိဋက မြန်မာပြန်)</strong></p>
+                            <p><strong>မူရင်း ရေးသားဖန်တီးသူ:</strong> <strong>Pn Daza</strong> (သာသနာပြု အရှင်မြတ်) (<a href="https://www.facebook.com/pndaza.mlm" target="_blank" style="color:var(--accent); text-decoration:underline;">Facebook Profile</a> | Email: <code>mrpndaza@gmail.com</code>)</p>
+                            <hr style="border:none; border-top:1px dashed var(--border); margin:10px 0;">
+                            <div style="background-color: rgba(230, 81, 0, 0.08); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 4px 4px 0; font-size: 0.92rem; margin-bottom: 12px;">
+                                <em>* ဤအရှင်မြတ် (Pn Daza) သည် အခု အသုံးပြုထားသော App နှစ်ခုအပြင် တခြား ဘုရားဟော ပိဋကတ်ကျမ်းစာဆိုင်ရာ သာသနာအတွက် အလွန်အကျိုးများသော Applications များစွာကို ရေးသားပြုစုထားပြီး၊ ပိဋကတ်ကျမ်းစာ လေ့လာသူတိုင်း အားကိုးအားထား ပြုရသည့် Apps များစွာဖြင့် သာသနာတော်ကို အကျိုးပြုခဲ့သော အရှင်မြတ် ဖြစ်ပါသည်။ မူရင်း App ရေးသားသူ <strong>Pn Daza</strong> ၏ တည်ဆောက်ခဲ့သော ကြိုးစားအားထုတ်မှုနှင့် ဉာဏ်ပညာအား လေးစားကြည်ညိုစွာဖြင့် မှတ်တမ်းတင် ဂုဏ်ပြုအပ်ပါသည်။ အခုလို (မိမိလိုအပ်ချက်အတွက်) ပြင်ဆင် အသုံးပြုတာကိုလည်း ခွင့်ပြုပေးဖို့အတွက် မူရင်းဖန်တီးသူ အရှင်မြတ်အား လေးစားစွာဖြင့် ခွင့်ပြုပေးပါရန် တောင်းပန်အပ်ပါသည်။</em>
+                            </div>
+                            <div style="font-size: 0.88rem; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 8px;">
+                                <strong>🤖 ပြင်ဆင်အသုံးပြုသူ နှင့် နည်းပညာ တည်ဆောက်မှု:</strong> ပြင်ဆင်အသုံးပြုသူ <strong>Ashin Pannasetthalankara</strong> သည် Web Developer နည်းပညာကို အခြေခံမျှသာ သိရှိသူဖြစ်သဖြင့် စနစ်တစ်ခုလုံး၏ Architecture၊ Backend၊ UI နှင့် ဆဋ္ဌမူသန့်စင်ရေး နည်းပညာများကို <strong>Antigravity AI (Google DeepMind)</strong> ၏ အဆင့်မြင့် AI အကူအညီဖြင့် ပူးပေါင်းရေးသား တည်ဆောက်ခဲ့ခြင်း ဖြစ်ပါသည်။
+                            </div>
+                            <div style="margin-top: 10px; padding: 10px 14px; background: rgba(34, 158, 217, 0.08); border: 1px solid rgba(34, 158, 217, 0.25); border-left: 4px solid #229ED9; border-radius: 8px; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <span style="font-weight: 600; color: var(--text-primary);">💬 ဆက်သွယ်ရန်နှင့် အကြံပြုချက်များ:</span>
+                                    <span style="color: var(--text-secondary); margin-left: 4px;">အမှားအယွင်းတွေ့ရှိပါက သို့မဟုတ် ပိုမိုကောင်းမွန်စေရန် အကြံပြုလိုပါက Telegram မှ ဆက်သွယ်နိုင်ပါသည် -</span>
+                                </div>
+                                <a href="https://t.me/upanna" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #229ED9; color: #ffffff; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(34, 158, 217, 0.25); transition: opacity 0.15s;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.52 2.77-1.17 3.35-1.37 3.73-1.37.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                                    <span>Telegram: @upanna</span>
+                                </a>
+                            </div>
+                            <div style="margin-top:10px; padding:10px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; font-size:0.85rem; color:var(--text-muted); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                                <div>
+                                    📌 <strong>App အချက်အလက်:</strong> Version {{ app_version }} &nbsp;•&nbsp; စတင်တည်ဆောက်ခဲ့သည့်ရက်: {{ app_created_date }}
+                                </div>
+                                <button id="btnCheckAppUpdate" class="btn-secondary" style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; font-size:0.82rem; cursor:pointer; border-radius:6px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                    <span>အပ်ဒိတ် စစ်ဆေးရန်</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1394,6 +1495,20 @@
                     <div class="more-item-text">
                         <span class="more-item-title">မာတိကာနှင့် အခန်းများ</span>
                         <span class="more-item-desc">ကျမ်းစာ၏ အခန်းကဏ္ဍများကို ကြည့်ရှုရန်</span>
+                    </div>
+                </button>
+
+                <button type="button" class="reader-more-action-item" id="btnMoreReaderHelp">
+                    <div class="more-item-icon" style="background: rgba(230, 81, 0, 0.12); color: var(--accent);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                    <div class="more-item-text">
+                        <span class="more-item-title">အသုံးပြုနည်း လမ်းညွှန်</span>
+                        <span class="more-item-desc">Web နှင့် Android လမ်းညွှန်ချက် အပြည့်အစုံ</span>
                     </div>
                 </button>
 
