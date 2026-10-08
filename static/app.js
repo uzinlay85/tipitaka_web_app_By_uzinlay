@@ -350,6 +350,7 @@ const el = {
     homeCatalogInner: document.getElementById("homeCatalogInner"),
     btnFloatingSutta: document.getElementById("btnFloatingSutta"),
     bottomNavBar: document.getElementById("bottomNavBar"),
+    bottomNav: document.getElementById("bottomNavBar"),
     btnNavHome: document.getElementById("btnNavHome"),
     btnNavReader: document.getElementById("btnNavReader"),
     btnNavRecent: document.getElementById("btnNavRecent"),
@@ -4082,7 +4083,8 @@ function setAppView(view) {
         document.body.classList.remove("chrome-hidden");
         if (typeof closeEditionSwitcher === "function") closeEditionSwitcher();
         if (typeof closeReaderMoreSheet === "function") closeReaderMoreSheet();
-        if (el.bottomNav) el.bottomNav.style.display = "";
+        const bNav = el.bottomNavBar || el.bottomNav;
+        if (bNav) bNav.style.display = "";
         if (el.mobileReaderToolbar) el.mobileReaderToolbar.style.display = "none";
         if (el.homePage) el.homePage.style.display = "flex";
         if (el.readerContainer) el.readerContainer.style.display = "none";
@@ -4095,7 +4097,8 @@ function setAppView(view) {
         document.body.classList.add("view-reader");
         if (el.homePage) el.homePage.style.display = "none";
         if (window.innerWidth <= 768) {
-            if (el.bottomNav) el.bottomNav.style.display = "none";
+            const bNav = el.bottomNavBar || el.bottomNav;
+            if (bNav) bNav.style.display = "none";
             if (el.mobileReaderToolbar) el.mobileReaderToolbar.style.display = "flex";
             if (typeof updateReaderToolbarState === "function") updateReaderToolbarState();
         }
