@@ -196,7 +196,8 @@
 | Android Release v1.0.4 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 5; includes Muse v7.57 mobile split removal) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.4, 44882671 bytes) |
 | Android Release v1.0.5 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 6; includes Muse v7.58 layered redesign) | Other Agent (Antigravity) | main | ✅ published to GitHub Releases (android-v1.0.5, 44882679 bytes) |
 | Android Release v1.0.7 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 8; includes Muse v7.60 edition pills fix) | Other Agent (Antigravity) | `collab/android-release-v107` | ✅ published to GitHub Releases (android-v1.0.7, 44882671 bytes), ready for Muse review |
-| Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ready for Muse review |
+| Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ✅ merged to main (1cce533, v7.61) |
+| Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), ready for Muse review |
 
 - 2026-10-04 — User Phone Test & Verification (v1.0.2):
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
@@ -263,7 +264,12 @@
      - Created `test_scripture_page_matching.py` with 8 comprehensive unit tests covering all 7 scripture directions + error handling (8/8 PASS in 0.399s).
      - `node --check static/app.js` syntax verification clean PASS.
      - All regression test suites pass 100% (42/42 `test_audit_fixes`, 5/5 `test_stemmer_and_punc`, 5/5 `test_toc_tree`, 4/4 `test_phrase_search_live`, `test_jump_hang_regression`).
-     - Branch `collab/modern-minimal-reader` ready for Muse review & merge. Version bump deferred to Muse per Rule 4.
+     - Branch `collab/modern-minimal-reader` ready for Muse review & merge. Version bump deferred to Muse per Rule 4. Merged to main by Muse (1cce533, v7.61).
+- 2026-10-08 — Other Agent (Antigravity): Android Release v1.0.8 (versionCode: 9) Built & Published:
+  1. Release APK built with keystore signing (`-PANDROID_VERSION_NAME=1.0.8 -PANDROID_VERSION_CODE=9`), manifest verified via `verify_android_release.py` (versionCode=9, versionName="1.0.8", package=top.upanna.tipitaka). Incorporates Muse commit `1cce533` (v7.61) Option A Modern Minimal Reader + Two-Way Scripture Page Matching.
+  2. GitHub Release published at tag `android-v1.0.8` with signed APK asset `app-release.apk` (44,882,671 bytes, HTTP 200 OK verified).
+  3. Updater metadata `android_release.json` and `build.gradle` updated to v1.0.8 / versionCode 9 in branch `collab/android-release-v108`.
+  4. All verification passed: `verify_android_release.py` 7/7 PASS, `test_scripture_page_matching.py` 8/8 PASS, `test_audit_fixes.py` 42/42 PASS. Ready for Muse review.
 
 
 
