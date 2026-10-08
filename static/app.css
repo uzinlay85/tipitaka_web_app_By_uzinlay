@@ -896,6 +896,49 @@ button, input, select {
     box-sizing: border-box;
 }
 
+/* Edition Pills Bar (v7.59: one-tap edition switching) */
+.edition-pills-bar {
+    display: none; /* Displayed via media query on mobile & tablet */
+    position: sticky;
+    top: 52px; /* Below breadcrumb */
+    z-index: 69;
+    width: 100%;
+    max-width: 860px;
+    padding: 6px 12px;
+    background: var(--bg-app);
+    box-sizing: border-box;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.edition-pill {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+.edition-pill:active {
+    transform: scale(0.95);
+}
+.edition-pill.active {
+    color: #fff;
+    background: var(--accent-color, #8B5E34);
+    border-color: var(--accent-color, #8B5E34);
+    font-weight: 600;
+}
+.edition-pill:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 .mobile-chapter-breadcrumb {
     display: flex;
     align-items: center;
@@ -3071,6 +3114,9 @@ body.hide-notes .note {
         padding-top: 0 !important;
     }
     .mobile-breadcrumb-wrapper {
+        display: flex;
+    }
+    .edition-pills-bar {
         display: flex;
     }
     .toc-item-btn {

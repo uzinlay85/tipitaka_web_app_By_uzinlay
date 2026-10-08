@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.58">
+    <link rel="stylesheet" href="/static/app.css?v=7.59">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -450,6 +450,14 @@
                         <span id="mobileBreadcrumbPage">စာ-၁</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Edition Pills (အလွှာလိုက် v7.59: one-tap edition switching) -->
+            <div class="edition-pills-bar" id="editionPillsBar">
+                <button class="edition-pill active" data-edition="pali" id="pillPali">☸️ ပါဠိ</button>
+                <button class="edition-pill" data-edition="mm" id="pillMm">🇲🇲 မြန်မာ</button>
+                <button class="edition-pill" data-edition="attha" id="pillAttha">📖 အဋ္ဌ</button>
+                <button class="edition-pill" data-edition="tika" id="pillTika">📜 ဋီကာ</button>
             </div>
 
             <!-- Normal Single Reading Paper (Pali or Myanmar) -->
@@ -1189,13 +1197,7 @@
 
     <!-- Mobile Dedicated Reader Toolbar (Option A: 4 Actions on Mobile <= 768px when in reader view) -->
     <nav class="mobile-reader-toolbar" id="mobileReaderToolbar" style="display:none;" aria-label="စာဖတ် လုပ်ဆောင်ချက်များ">
-        <!-- 1. Unified Edition Switcher / ကျမ်းရွေး (Dynamic: ☸️ ပါဠိ / 🇲🇲 မြန်မာ / 📖 အဋ္ဌ / 📜 ဋီကာ) -->
-        <button class="reader-toolbar-item" id="btnReaderEdition" title="ကျမ်းစာနှင့် ဘာသာပြန် ရွေးချယ်ရန်">
-            <span class="reader-toolbar-icon" id="toolbarEditionIcon">☸️</span>
-            <span class="reader-toolbar-label" id="toolbarEditionLabel">ပါဠိ</span>
-        </button>
-
-        <!-- 2. Bookmark / စာမှတ် -->
+        <!-- 1. Bookmark / စာမှတ် (v7.59: edition switching moved to pills at top) -->
         <button class="reader-toolbar-item" id="btnReaderBookmark" title="စာမျက်နှာ မှတ်သားရန်">
             <span class="reader-toolbar-icon" id="toolbarBookmarkIconBox">
                 <svg id="toolbarBookmarkIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1363,6 +1365,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.58"></script>
+    <script src="/static/app.js?v=7.59"></script>
 </body>
 </html>

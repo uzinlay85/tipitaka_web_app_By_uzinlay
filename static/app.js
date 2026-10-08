@@ -1819,6 +1819,7 @@ async function initApp() {
     setScrollMode(state.scrollMode);
     setupEventListeners();
     setupAnnotationListeners();
+    initEditionPills(); // v7.59: one-tap edition pills
     
     // Always start on Home page when entering the web app
     localStorage.removeItem("tipitaka_app_view");
@@ -2155,6 +2156,125 @@ function attachSwitcherItemHandlers() {
             updateReaderToolbarState();
         };
     });
+}
+
+// ===== Edition Pills (v7.59: one-tap edition switching) =====
+function initEditionPills() {
+    const pills = document.querySelectorAll('.edition-pill');
+    pills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            if (pill.disabled || pill.classList.contains('active')) return;
+            switchToPillEdition(pill.getAttribute('data-edition'));
+        });
+    });
+}
+
+async function updateEditionPills() {
+    const pillPali = document.getElementById('pillPali');
+    const pillMm = document.getElementById('pillMm');
+    const pillAttha = document.getElementById('pillAttha');
+    const pillTika = document.getElementById('pillTika');
+    if (!pillPali || !pillMm || !pillAttha || !pillTika) return;
+
+    const isMM = (state.readerMode === 'mm');
+    const curBookId = isMM ? state.mmBookId : state.paliBookId;
+
+    // Reset
+    [pillPali, pillMm, pillAttha, pillTika].forEach(p => {
+        p.classList.remove('active');
+        p.disabled = false;
+    });
+
+    // Set active pill
+    if (isMM) {
+        pillMm.classList.add('active');
+    } else if (curBookId && curBookId.startsWith('attha_')) {
+        pillAttha.classList.add('active');
+    } else if (curBookId && curBookId.startsWith('tika_')) {
+        pillTika.classList.add('active');
+    } else {
+        pillPali.classList.add('active');
+    }
+
+    // For Pali books: fetch companions to enable/disable Attha/Tika pills
+    if (!isMM && curBookId && !curBookId.startsWith('attha_') && !curBookId.startsWith('tika_')) {
+        try {
+            const res = await fetch(`/api/pali/companions/${encodeURIComponent(curBookId)}`);
+            if (res.ok) {
+                const comp = await res.json();
+                state.pillCompanions = comp;
+                if (!comp.attha || comp.attha.length === 0) pillAttha.disabled = true;
+                if (!comp.tika || comp.tika.length === 0) pillTika.disabled = true;
+            }
+        } catch (_) { /* companions unavailable — pills stay enabled */ }
+    } else if (isMM) {
+        // In MM mode: Attha/Tika not available (MM DB has no attha/tika)
+        pillAttha.disabled = true;
+        pillTika.disabled = true;
+    }
+}
+
+async function switchToPillEdition(edition) {
+    const isMM = (state.readerMode === 'mm');
+
+    // Save Pali origin before leaving (for return trip)
+    function savePaliOrigin() {
+        if (!state.swapOrigin || state.swapOrigin.mode !== 'pali') {
+            state.swapOrigin = {
+                mode: 'pali',
+                bookId: state.paliBookId,
+                page: state.paliPage,
+                bookName: state.paliBookName || 'ပါဠိတော်'
+            };
+        }
+    }
+
+    try {
+        if (edition === 'pali') {
+            const targetId = (state.swapOrigin && state.swapOrigin.mode === 'pali')
+                ? state.swapOrigin.bookId : (state.paliBookId || 'mula_vi_01');
+            const targetPage = (state.swapOrigin && state.swapOrigin.mode === 'pali')
+                ? state.swapOrigin.page : (state.paliPage || 1);
+            if (targetId === state.swapOrigin?.bookId) state.swapOrigin = null;
+            if (isMM) setReaderMode('pali');
+            await loadPaliBook(targetId, targetPage);
+        } else if (edition === 'mm') {
+            savePaliOrigin();
+            setReaderMode('mm');
+            let targetBook = state.mmBookId;
+            let targetPage = state.mmPage || 1;
+            // Try page matching from Pali
+            if (!isMM && state.paliBookId) {
+                try {
+                    const res = await fetch(`/api/match/pali_to_companion?source_book=${encodeURIComponent(state.paliBookId)}&source_page=${state.paliPage || 1}&target_type=mm`);
+                    if (res.ok) {
+                        const match = await res.json();
+                        if (match && match.target_book) {
+                            targetBook = match.target_book;
+                            targetPage = match.target_page || 1;
+                        }
+                    }
+                } catch (_) {}
+            }
+            await loadMMBook(targetBook, targetPage);
+            showScrollToast(`🇲🇲 မြန်မာပြန် (စာမျက်နှာ ${toMyanmarNum(targetPage)}) သို့ ကူးပြောင်းထားပါသည်`);
+        } else if (edition === 'attha' || edition === 'tika') {
+            const comp = state.pillCompanions;
+            const list = edition === 'attha' ? comp?.attha : comp?.tika;
+            if (list && list.length > 0) {
+                savePaliOrigin();
+                if (isMM) setReaderMode('pali');
+                const target = list[0];
+                await loadPaliBook(target.id, 1);
+                showScrollToast(`📖 ${target.name || target.id} သို့ ရောက်ရှိပါပြီ`);
+            }
+        }
+    } catch (e) {
+        console.warn('Pill edition switch failed:', e);
+    }
+
+    updateReaderToolbarState();
+    updateEditionPills();
 }
 
 async function loadSwitcherProgressiveData(curBookId, curPage, isMM) {
@@ -2514,6 +2634,9 @@ async function loadPaliBook(bookId, targetPage = null) {
     state.feedLastLoadedPage = page;
 
     await loadPaliPage(bookId, page);
+
+    // v7.59: refresh edition pills after book load
+    if (typeof updateEditionPills === 'function') updateEditionPills();
 }
 
 function cleanPeyala(html) {
@@ -3089,6 +3212,9 @@ async function loadMMBook(bookId, targetPage = null) {
     state.feedLastLoadedPage = page;
 
     await loadMMPage(bookId, page);
+
+    // v7.59: refresh edition pills after book load
+    if (typeof updateEditionPills === 'function') updateEditionPills();
 }
 
 async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAppend = false, isPrepend = false) {
