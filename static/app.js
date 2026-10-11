@@ -3057,6 +3057,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     updateBookmarkIconStatus();
                     highlightActiveToc(actualPage);
                     injectAnnotationPins(el.paliContent, bookId, actualPage);
+                    applyNissayaToCurrentPage();
                     applyPendingSearchHighlight(el.paliContent);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
@@ -3189,6 +3190,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 updateBookmarkIconStatus();
                 highlightActiveToc(actualPage);
                 injectAnnotationPins(el.paliContent, bookId, actualPage);
+                applyNissayaToCurrentPage();
                 applyPendingSearchHighlight(el.paliContent);
             }
         }
@@ -3356,6 +3358,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     highlightActiveToc(actualPage);
                     debounceRecent(bookId, actualPage);
                     injectAnnotationPins(el.paliContent, bookId, actualPage);
+                    applyNissayaToCurrentPage();
                     applyPendingSearchHighlight(el.paliContent);
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
@@ -3486,6 +3489,7 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 highlightActiveToc(actualPage);
                 debounceRecent(bookId, actualPage);
                 injectAnnotationPins(el.paliContent, bookId, actualPage);
+                applyNissayaToCurrentPage();
                 applyPendingSearchHighlight(el.paliContent);
             }
         }
