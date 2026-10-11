@@ -7842,6 +7842,11 @@ function setupEventListeners() {
     }
     if (el.btnMoreToggleNissaya) {
         el.btnMoreToggleNissaya.addEventListener("click", () => {
+            // Nissaya glosses only render under Pāḷi text: if the user is in
+            // Myanmar-translation mode, switch them to Pāḷi first.
+            if (state.readerMode === "mm" && !state.showNissaya) {
+                setReaderMode("pali");
+            }
             setNissayaVisibility(!state.showNissaya);
         });
     }
@@ -7942,11 +7947,15 @@ function setNissayaVisibility(show) {
 
 function updateNissayaToggleLabel() {
     if (el.moreNissayaStateText) {
-        el.moreNissayaStateText.textContent = state.showNissaya ? "နိဿယ ဝှက်မည်" : "နိဿယ ပြမည်";
+        if (state.readerMode === "mm" && !state.showNissaya) {
+            el.moreNissayaStateText.textContent = "ပါဠိပြောင်း၍ နိဿယပြမည်";
+        } else {
+            el.moreNissayaStateText.textContent = state.showNissaya ? "နိဿယ ဝှက်မည်" : "နိဿယ ပြမည်";
+        }
     }
-    // Nissaya is a Pāḷi gloss layer — only relevant in Pāḷi reading modes.
+    // Always show the toggle — in MM mode tapping it switches to Pāḷi first.
     if (el.nissayaToggleRow) {
-        el.nissayaToggleRow.style.display = (state.readerMode === "mm") ? "none" : "";
+        el.nissayaToggleRow.style.display = "";
     }
 }
 
