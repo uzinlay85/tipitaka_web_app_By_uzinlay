@@ -1533,6 +1533,8 @@ function setupExportUI() {
 let _jumpFirst = 1, _jumpLast = 1;
 
 function _jumpIsMM() { return state.readerMode === "mm"; }
+// Nissaya mode reads the same Pāḷi book/page as Pāḷi mode — only presentation differs.
+function _isPaliReaderMode() { return _isPaliReaderMode() || state.readerMode === "nissaya"; }
 
 // Inline page jump (v7.39): the footer pill toggles an input row in normal
 // flow inside the footer. No overlay, no dialog, no slider, no ticks,
@@ -1992,7 +1994,7 @@ function setReaderMode(mode) {
 }
 
 function handleCrossLink() {
-    if (state.readerMode === "pali") {
+    if (_isPaliReaderMode()) {
         if (state.matchingMM) {
             state.mmBookId = state.matchingMM.book_id;
             state.mmPage = state.matchingMM.page;
@@ -2997,7 +2999,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
         state.matchingMM = data.matching_mm;
         const actualPage = data.page;
         
-        if (state.readerMode === "pali") {
+        if (_isPaliReaderMode()) {
             let html = cleanPaliContent(data.content);
             if (highlightWord) {
                 const regex = new RegExp(`(${highlightWord})`, "gi");
@@ -8126,7 +8128,7 @@ function setScrollMode(mode) {
         if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
         const curPage = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
         if (state.readerMode === "mm") loadMMPage(state.mmBookId, curPage);
-        else if (state.readerMode === "pali") loadPaliPage(state.paliBookId, curPage);
+        else if (_isPaliReaderMode()) loadPaliPage(state.paliBookId, curPage);
     } else {
         if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
         if (el.loadPrevBox) el.loadPrevBox.style.display = "none";
@@ -8137,7 +8139,7 @@ function setScrollMode(mode) {
         }
         const curPage = (state.readerMode === "mm") ? state.mmPage : state.paliPage;
         if (state.readerMode === "mm") loadMMPage(state.mmBookId, curPage);
-        else if (state.readerMode === "pali") loadPaliPage(state.paliBookId, curPage);
+        else if (_isPaliReaderMode()) loadPaliPage(state.paliBookId, curPage);
     }
 }
 
@@ -8199,7 +8201,7 @@ async function loadNextFeedPage() {
     const currentLast = loaded[loaded.length - 1];
     const nextPage = currentLast + 1;
 
-    if (state.readerMode === "pali") {
+    if (_isPaliReaderMode()) {
         if (nextPage > state.paliLastPage) {
             showSentinelEnd();
             return;
@@ -8251,7 +8253,7 @@ async function handleLoadPrevPage() {
     if (el.btnLoadPrevPage) el.btnLoadPrevPage.disabled = true;
 
     try {
-        if (state.readerMode === "pali") {
+        if (_isPaliReaderMode()) {
             if (prevPageNum >= state.paliFirstPage && !document.getElementById(`pali-page-${prevPageNum}`)) {
                 await loadPaliPage(state.paliBookId, prevPageNum, null, false, true);
             }
@@ -8304,7 +8306,7 @@ function setupPageVisibilityObserver() {
 }
 
 function updateCurrentViewPage(pageNum) {
-    if (state.readerMode === "pali") {
+    if (_isPaliReaderMode()) {
         if (state.paliPage === pageNum) return;
         state.paliPage = pageNum;
         el.metaPageNum.textContent = toMyanmarNum(pageNum);
