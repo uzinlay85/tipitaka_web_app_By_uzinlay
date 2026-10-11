@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.69">
+    <link rel="stylesheet" href="/static/app.css?v=7.70">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -75,6 +75,12 @@
             <button id="btnToggleNotes" class="tool-btn notes-toggle-btn" title="မူကွဲ ပါဠိတော်များ (Footnotes / Variants) ဖွင့်/ပိတ်">
                 <span class="btn-icon">📝</span>
                 <span class="btn-text" id="toggleNotesLabel">မူကွဲ: ပိတ်</span>
+            </button>
+
+            <!-- Toggle Myanmar Nissaya Glosses (နိဿယ အနက် ဖွင့်/ပိတ်) -->
+            <button id="btnToggleNissaya" class="tool-btn nissaya-toggle-btn" title="မြန်မာ နိဿယ (စကားပြေ အနက်) ဖွင့်/ပိတ်">
+                <span class="btn-icon">📜</span>
+                <span class="btn-text" id="toggleNissayaLabel">နိဿယ: ပိတ်</span>
             </button>
 
             <!-- Scroll / Page Navigation Mode (စာမျက်နှာ အကူးအပြောင်း) -->
@@ -684,6 +690,10 @@
                         <span class="tab-icon">📚</span>
                         <span>ကျမ်းအမည်</span>
                     </button>
+                    <button type="button" class="modal-tab-btn" data-mode="nissaya" title="မြန်မာနိဿယ စကားပြေအနက်များအတွင်း ရှာဖွေမှု (39K+ Glosses)">
+                        <span class="tab-icon">📜</span>
+                        <span>နိဿယ</span>
+                    </button>
                 </div>
 
                 <!-- Myanmar Modes Group -->
@@ -699,6 +709,10 @@
                     <button type="button" class="modal-tab-btn" data-mode="mm_toc" title="မြန်မာပြန် မာတိကာ ခေါင်းစဉ်များ (၁ သောင်းကျော်)">
                         <span class="tab-icon">📑</span>
                         <span>မာတိကာ</span>
+                    </button>
+                    <button type="button" class="modal-tab-btn" data-mode="nissaya" title="မြန်မာနိဿယ စကားပြေအနက်များအတွင်း ရှာဖွေမှု (39K+ Glosses)">
+                        <span class="tab-icon">📜</span>
+                        <span>နိဿယ</span>
                     </button>
                 </div>
             </div>
@@ -1537,6 +1551,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.69"></script>
+    <script src="/static/app.js?v=7.70"></script>
 </body>
 </html>

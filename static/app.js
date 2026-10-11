@@ -200,6 +200,8 @@ const el = {
     btnToggleNotesMobile: document.getElementById("btnToggleNotesMobile"),
     toggleNotesLabelMobile: document.getElementById("toggleNotesLabelMobile"),
     mobileNotesRow: document.getElementById("mobileNotesRow"),
+    btnToggleNissaya: document.getElementById("btnToggleNissaya"),
+    toggleNissayaLabel: document.getElementById("toggleNissayaLabel"),
     scrollModeDropdownWrapper: document.getElementById("scrollModeDropdownWrapper"),
     btnScrollMode: document.getElementById("btnScrollMode"),
     scrollModeIcon: document.getElementById("scrollModeIcon"),
@@ -1983,6 +1985,7 @@ function setReaderMode(mode) {
     highlightActiveBookInSidebar();
     renderBooksTree();
     renderHomeCatalog();
+    updateNissayaToggleLabel();
 
     if (state.appView === "reader" && window.innerWidth > 992) {
         state.isSidebarOpen = true;
@@ -2106,6 +2109,23 @@ async function openEditionSwitcher() {
         </div>
     `;
 
+    // Card 3: မြန်မာ နိဿယ အနက်လွှာ (Per-paragraph gloss toggle layer)
+    const isNissayaOn = !!state.showNissaya;
+    html += `
+        <div class="edition-switcher-card edition-layer-card ${isNissayaOn ? 'active-layer' : ''}" id="switcherCardNissaya" data-type="nissaya">
+            <div class="edition-card-left">
+                <span class="edition-card-icon">📜</span>
+                <div class="edition-card-texts">
+                    <span class="edition-card-title">မြန်မာ နိဿယ (စကားပြေ အနက်)</span>
+                    <span class="edition-card-desc">စာပိုဒ်အလိုက် မြန်မာစကားပြေအနက် ဖွင့်/ပိတ်လွှာ</span>
+                </div>
+            </div>
+            <span class="edition-card-badge ${isNissayaOn ? 'badge-active' : 'badge-muted'}" id="switcherBadgeNissaya">
+                ${isNissayaOn ? '✓ ဖွင့်ထားသည်' : 'ပိတ်ထားသည်'}
+            </span>
+        </div>
+    `;
+
     // Container for Companions (Atthakatha & Tika)
     html += `<div id="switcherCompanionsContainer"></div>`;
 
@@ -2132,6 +2152,19 @@ function attachSwitcherItemHandlers() {
             const type = card.getAttribute("data-type");
             const bookId = card.getAttribute("data-book");
             const page = parseInt(card.getAttribute("data-page"), 10) || 1;
+
+            if (type === "nissaya") {
+                const nextState = !state.showNissaya;
+                setNissayaVisibility(nextState);
+                card.classList.toggle("active-layer", nextState);
+                const badge = card.querySelector("#switcherBadgeNissaya") || card.querySelector(".edition-card-badge");
+                if (badge) {
+                    badge.className = `edition-card-badge ${nextState ? 'badge-active' : 'badge-muted'}`;
+                    badge.textContent = nextState ? '✓ ဖွင့်ထားသည်' : 'ပိတ်ထားသည်';
+                }
+                showScrollToast(nextState ? "📜 မြန်မာနိဿယ အနက်ကို ဖွင့်ထားပါသည်" : "မြန်မာနိဿယ အနက်ကို ပိတ်လိုက်ပါပြီ");
+                return;
+            }
 
             if (card.classList.contains("active-edition")) {
                 closeEditionSwitcher();
@@ -5510,6 +5543,18 @@ async function performSearch() {
                         </div>
                     </div>
                 `;
+            } else if (state.searchMode === "nissaya" || data.type === "nissaya") {
+                const paraText = r.paragraph_number ? `စာပိုဒ် ${toMyanmarNum(r.paragraph_number)}` : "";
+                const pageText = `စာ-${toMyanmarNum(r.page_number)}`;
+                html += `
+                    <div class="search-result-item nissaya-search-item" data-type="nissaya" data-bid="${escapeHtml(r.book_id)}" data-page="${r.page_number}" data-para="${r.paragraph_number || ''}">
+                        <div class="res-header">
+                            <span class="res-book">📜 ${escapeHtml(r.book_name)}</span>
+                            <span class="res-page">${pageText}${paraText ? ' • ' + paraText : ''}</span>
+                        </div>
+                        <div class="res-snippet">${r.snippet || escapeHtml(r.gloss || '')}</div>
+                    </div>
+                `;
             }
         });
 
@@ -5530,8 +5575,8 @@ function setSearchScope(scope, targetMode = null) {
     if (el.paliTabsGroup) el.paliTabsGroup.style.display = (scope === "pali") ? "flex" : "none";
     if (el.mmTabsGroup) el.mmTabsGroup.style.display = (scope === "mm") ? "flex" : "none";
 
-    const paliModes = ["word", "phrase", "sutta", "book"];
-    const mmModes = ["mm_phrase", "mm_book", "mm_toc"];
+    const paliModes = ["word", "phrase", "sutta", "book", "nissaya"];
+    const mmModes = ["mm_phrase", "mm_book", "mm_toc", "nissaya"];
 
     if (targetMode) {
         state.searchMode = targetMode;
@@ -5550,7 +5595,9 @@ function setSearchScope(scope, targetMode = null) {
     }
 
     if (el.globalSearchInput) {
-        if (scope === "pali") {
+        if (state.searchMode === "nissaya") {
+            el.globalSearchInput.placeholder = "မြန်မာနိဿယ စကားပြေအနက်များအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ...";
+        } else if (scope === "pali") {
             el.globalSearchInput.placeholder = "ပါဠိတော် ကျမ်းစာများအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ...";
         } else {
             el.globalSearchInput.placeholder = "မြန်မာပြန် ကျမ်းစာများအတွင်း ရှာဖွေလိုသော စာလုံး ရိုက်ထည့်ပါ...";
@@ -5562,7 +5609,7 @@ function openSearchModal() {
     el.searchModal.classList.add("open");
     const isMMMode = state.searchMode && state.searchMode.startsWith("mm_");
     const isMMReader = state.readerMode === "mm";
-    const preferredScope = isMMMode ? "mm" : (state.searchMode && ["word", "phrase", "sutta", "book"].includes(state.searchMode) ? "pali" : (isMMReader ? "mm" : "pali"));
+    const preferredScope = isMMMode ? "mm" : (state.searchMode && ["word", "phrase", "sutta", "book", "nissaya"].includes(state.searchMode) ? (state.searchScope || (isMMReader ? "mm" : "pali")) : (isMMReader ? "mm" : "pali"));
     setSearchScope(preferredScope, state.searchMode);
     el.globalSearchInput.focus();
 }
@@ -6637,6 +6684,13 @@ function setupEventListeners() {
         });
     }
 
+    // Toggle Myanmar Nissaya Glosses (Desktop Toolbar)
+    if (el.btnToggleNissaya) {
+        el.btnToggleNissaya.addEventListener("click", () => {
+            setNissayaVisibility(!state.showNissaya);
+        });
+    }
+
     // Toggle Sidebar
     el.btnToggleSidebar.addEventListener("click", () => toggleSidebar());
     
@@ -7222,23 +7276,50 @@ function setupEventListeners() {
         if (e.target === el.searchModal) closeSearchModal();
     });
     if (el.searchResultsList) {
-        el.searchResultsList.addEventListener("click", (e) => {
+        el.searchResultsList.addEventListener("click", async (e) => {
             const item = e.target.closest(".search-result-item");
             if (!item) return;
             const targetType = item.getAttribute("data-type");
             const bid = item.getAttribute("data-bid");
             const p = parseInt(item.getAttribute("data-page"), 10);
+            const paraNum = item.getAttribute("data-para");
             const q = el.globalSearchInput ? el.globalSearchInput.value.trim() : "";
             state.pendingSearchHighlight = q || null;
             closeSearchModal();
-            if (targetType === "mm") {
+
+            if (targetType === "nissaya") {
+                // Ensure Nissaya gloss layer is enabled
+                if (!state.showNissaya) {
+                    setNissayaVisibility(true);
+                }
+                setReaderMode("pali");
+                await loadPaliBook(bid, p);
+                setAppView("reader");
+
+                // Scroll to target paragraph and highlight its gloss if present
+                if (paraNum) {
+                    setTimeout(() => {
+                        const targetAnchor = document.querySelector(`a[name="para${paraNum}"]`);
+                        if (targetAnchor) {
+                            targetAnchor.scrollIntoView({ behavior: "smooth", block: "center" });
+                            const targetP = targetAnchor.closest("p");
+                            if (targetP) {
+                                targetP.classList.add("search-target-highlight");
+                                setTimeout(() => targetP.classList.remove("search-target-highlight"), 2500);
+                            }
+                        }
+                    }, 350);
+                }
+            } else if (targetType === "mm") {
                 setReaderMode("mm");
-                loadMMBook(bid, p);
+                await loadMMBook(bid, p);
+                setAppView("reader");
             } else {
                 setReaderMode("pali");
-                loadPaliBook(bid, p);
+                await loadPaliBook(bid, p);
+                setAppView("reader");
             }
-            setAppView("reader");
+
             if (window.innerWidth > 992) {
                 switchToSidebarTab("tab-toc");
                 highlightActiveToc(p, true);
@@ -7965,6 +8046,9 @@ function setNissayaVisibility(show) {
 }
 
 function updateNissayaToggleLabel() {
+    const isPaliMode = (state.readerMode !== "mm");
+
+    // More Sheet toggle state text
     if (el.moreNissayaStateText) {
         if (state.readerMode === "nissaya") {
             el.moreNissayaStateText.textContent = "နိဿယ mode ဖွင့်ထားသည်";
@@ -7977,6 +8061,27 @@ function updateNissayaToggleLabel() {
     // Always show the toggle — in MM mode tapping it switches to Pāḷi first.
     if (el.nissayaToggleRow) {
         el.nissayaToggleRow.style.display = "";
+    }
+
+    // Desktop Reader Toolbar button
+    if (el.btnToggleNissaya) {
+        el.btnToggleNissaya.style.display = isPaliMode ? "inline-flex" : "none";
+        el.btnToggleNissaya.classList.toggle("active", !!state.showNissaya);
+        el.btnToggleNissaya.title = state.showNissaya ? "မြန်မာနိဿယ အနက် ဖွင့်ထားပါသည် (ပိတ်ရန် နှိပ်ပါ)" : "မြန်မာနိဿယ အနက် ပိတ်ထားပါသည် (ဖွင့်ရန် နှိပ်ပါ)";
+    }
+    if (el.toggleNissayaLabel) {
+        el.toggleNissayaLabel.textContent = state.showNissaya ? "နိဿယ: ဖွင့်" : "နိဿယ: ပိတ်";
+    }
+
+    // Edition Switcher sheet card & badge (if open)
+    const switcherCard = document.getElementById("switcherCardNissaya");
+    if (switcherCard) {
+        switcherCard.classList.toggle("active-layer", !!state.showNissaya);
+        const badge = switcherCard.querySelector("#switcherBadgeNissaya") || switcherCard.querySelector(".edition-card-badge");
+        if (badge) {
+            badge.className = `edition-card-badge ${state.showNissaya ? 'badge-active' : 'badge-muted'}`;
+            badge.textContent = state.showNissaya ? '✓ ဖွင့်ထားသည်' : 'ပိတ်ထားသည်';
+        }
     }
 }
 

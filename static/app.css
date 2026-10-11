@@ -5823,3 +5823,32 @@ mark.search-match-highlight {
     color: var(--text-secondary);
     font-style: italic;
 }
+
+.tool-btn.nissaya-toggle-btn.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
+.edition-switcher-card.edition-layer-card {
+    border-style: dashed;
+}
+
+.edition-switcher-card.edition-layer-card.active-layer {
+    background: var(--accent-light, rgba(234, 88, 12, 0.08));
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+.search-result-item.nissaya-search-item {
+    border-left: 3px solid var(--accent);
+}
+
+.search-target-highlight {
+    animation: targetFlash 2.5s ease-out;
+}
+
+@keyframes targetFlash {
+    0% { background-color: rgba(234, 88, 12, 0.25); }
+    100% { background-color: transparent; }
+}
