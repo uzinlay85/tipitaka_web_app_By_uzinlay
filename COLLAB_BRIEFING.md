@@ -309,3 +309,45 @@
 
 
 
+
+---
+
+## 6. Myanmar Nissaya integration — COMPLETE (Muse, 2026-10-11)
+
+**Status:** ✅ Shipped in v7.64. Harvest 100% complete, mapped, tested, merged to main.
+
+**Source method (final):** `GET https://api.tipitakapali.org/api/ai/paragraph_content?book=<code>&chapter=<n>&start=0&end=10000&langs=my_nissaya` — returns full chapter passages with `para_index`, `para_num`, `pali`, `translations.my_nissaya`. (Abandoned `/api/ai/sentences` — capped at 40/chapter.)
+
+**Final counts:**
+- 217/217 books harvested, 1,251,282 passages, 201,408 with nissaya text
+- Mapped: 39,093 glosses across 114 user books (`nissaya_gloss` table)
+- Excluded: `mula_ku_10` (Jataka — 180 tpp episodes vs 42 user restarts, unresolvable); 948 oversized concatenations (>20KB, bad tpp para_num in attha/tika)
+
+**Deployed schema:** `nissaya.db` (separate 236MB SQLite, NOT in APK) → `TIPITAKA_DATA_DIR/nissaya.db`
+```sql
+nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss TEXT,
+              PRIMARY KEY(book_id, paragraph_number, page_number))
+```
+
+**Backend (`app.py`):**
+- `GET /api/nissaya/<book_id>/<page_num>` → `{available, glosses: {para: text}}`
+- `GET /api/nissaya/available/<book_id>` → `{available}`
+- Graceful degradation: missing/corrupt DB → `{available: false, glosses: {}}`
+
+**Frontend:**
+- Toggle: "မြန်မာ နိဿယ" in Reader More Sheet (အပြင်အဆင်) — persistence key `tipitaka_show_nissaya`
+- Injects gloss divs (`.nissaya-gloss`) beneath `a[name^="para"]` anchors; verse glosses attach after `gatha*` runs
+- Per-page cache + `nissayaGen` race guard; hidden in Myanmar-translation mode
+- Attribution: `tipitakapali.org (wikipali.org) • CC BY-NC-SA`
+
+**Tests:** `test_nissaya_regression.py` 21/21 PASS; full suite (export 24, audit 42) PASS.
+
+**Known limitations:**
+- UI toggle is in More Sheet, not ကျမ်းရွေး layer (product direction was ကျမ်းရွေး — needs reconciliation)
+- Attha/Tika coverage partial (tpp para_num unreliable for commentaries)
+- Jataka (mula_ku_10) has no glosses
+
+**Follow-up for Antigravity (collab branch welcome):**
+- Move nissaya toggle to ကျမ်းရွေး edition layer per product direction
+- Improve attha/tika mapping if better tpp alignment found
+- Search within nissaya glosses

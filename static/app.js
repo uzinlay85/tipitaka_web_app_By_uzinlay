@@ -50,6 +50,7 @@ const state = {
     isDictOpen: window.innerWidth > 992 && (localStorage.getItem("tipitaka_dict_open") === "1"),
     isSidebarOpen: window.innerWidth > 992,
     showNotes: localStorage.getItem("tipitaka_show_notes") === "1",
+    showNissaya: localStorage.getItem("tipitaka_show_nissaya") === "1",
     scrollMode: (function() {
         const m = localStorage.getItem("tipitaka_scroll_mode");
         if (m === "single") return "single";
@@ -413,6 +414,9 @@ const el = {
     moreFontDisplay: document.getElementById("moreFontDisplay"),
     btnMoreToggleNotes: document.getElementById("btnMoreToggleNotes"),
     moreNotesStateText: document.getElementById("moreNotesStateText"),
+    btnMoreToggleNissaya: document.getElementById("btnMoreToggleNissaya"),
+    moreNissayaStateText: document.getElementById("moreNissayaStateText"),
+    nissayaToggleRow: document.getElementById("nissayaToggleRow"),
     btnMoreDict: document.getElementById("btnMoreDict"),
     btnMoreCopy: document.getElementById("btnMoreCopy"),
     btnMoreTOC: document.getElementById("btnMoreTOC"),
@@ -997,6 +1001,8 @@ function applyAnnotationsToCurrentPage() {
     // Main reader
     if (el.paliContent) injectAnnotationPins(el.paliContent, bookId, page);
     if (el.splitPaliContent) injectAnnotationPins(el.splitPaliContent, state.paliBookId, state.paliPage);
+    // Myanmar Nissaya gloss layer (Pāḷi modes only; no-op when toggled off)
+    applyNissayaToCurrentPage();
 }
 
 // Render sidebar annotation list
@@ -2439,6 +2445,7 @@ function openReaderMoreSheet() {
     if (el.moreNotesStateText) {
         el.moreNotesStateText.textContent = state.showNotes ? "အောက်ခြေမှတ်စု ဝှက်မည်" : "အောက်ခြေမှတ်စု ပြမည်";
     }
+    updateNissayaToggleLabel();
     document.querySelectorAll(".qs-theme-btn").forEach(btn => {
         btn.classList.toggle("active", btn.getAttribute("data-theme") === state.theme);
     });
@@ -7833,6 +7840,11 @@ function setupEventListeners() {
             }
         });
     }
+    if (el.btnMoreToggleNissaya) {
+        el.btnMoreToggleNissaya.addEventListener("click", () => {
+            setNissayaVisibility(!state.showNissaya);
+        });
+    }
 
     // Actions in Reader More Sheet
     if (el.btnMoreDict) {
@@ -7914,6 +7926,99 @@ function setNotesVisibility(show) {
     }
 
     localStorage.setItem("tipitaka_show_notes", show ? "1" : "0");
+}
+
+// ---------------- Myanmar Nissaya glosses ----------------
+// Per-paragraph word-by-word Myanmar glosses (source: tipitakapali.org
+// my_nissaya, digitized by wikipali.org, CC BY-NC-SA 3.0 non-commercial).
+const nissayaCache = new Map(); // "bookId/page" -> glosses object or null
+
+function setNissayaVisibility(show) {
+    state.showNissaya = show;
+    localStorage.setItem("tipitaka_show_nissaya", show ? "1" : "0");
+    updateNissayaToggleLabel();
+    applyNissayaToCurrentPage();
+}
+
+function updateNissayaToggleLabel() {
+    if (el.moreNissayaStateText) {
+        el.moreNissayaStateText.textContent = state.showNissaya ? "နိဿယ ဝှက်မည်" : "နိဿယ ပြမည်";
+    }
+    // Nissaya is a Pāḷi gloss layer — only relevant in Pāḷi reading modes.
+    if (el.nissayaToggleRow) {
+        el.nissayaToggleRow.style.display = (state.readerMode === "mm") ? "none" : "";
+    }
+}
+
+async function fetchNissayaGlosses(bookId, page) {
+    const key = bookId + "/" + page;
+    if (nissayaCache.has(key)) return nissayaCache.get(key);
+    let glosses = null;
+    try {
+        const r = await fetch(`/api/nissaya/${encodeURIComponent(bookId)}/${page}`);
+        if (r.ok) {
+            const d = await r.json();
+            if (d.available && d.glosses && Object.keys(d.glosses).length) {
+                glosses = d.glosses;
+                nissayaCache.set(key, glosses);
+            }
+        }
+    } catch (e) { glosses = null; }
+    return glosses;
+}
+
+function injectNissayaGlosses(container, glosses) {
+    if (!container || !glosses) return;
+    // Each paragraph carries <a name="paraN"> — N is the paragraph number.
+    container.querySelectorAll('a[name^="para"]').forEach(anchor => {
+        const m = /^para(\d+)/.exec(anchor.getAttribute("name") || "");
+        if (!m) return;
+        const gloss = glosses[m[1]];
+        if (!gloss) return;
+        let p = anchor.closest("p");
+        if (!p) return;
+        // For verses the anchor sits in a hangnum <p>; attach after the verse lines.
+        let insertAfter = p;
+        let sib = p.nextElementSibling;
+        while (sib && sib.tagName === "P" && /^gatha/i.test(sib.className || "")) {
+            insertAfter = sib;
+            sib = sib.nextElementSibling;
+        }
+        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-gloss")) return;
+        const div = document.createElement("div");
+        div.className = "nissaya-gloss";
+        div.setAttribute("data-para", m[1]);
+        div.textContent = gloss;
+        insertAfter.after(div);
+    });
+}
+
+let nissayaGen = 0; // guards against page-flip races during async fetch
+async function applyNissayaToCurrentPage() {
+    const gen = ++nissayaGen;
+    document.querySelectorAll(".nissaya-gloss").forEach(e => e.remove());
+    updateNissayaToggleLabel();
+    if (!state.showNissaya || state.readerMode === "mm") return;
+    const jobs = [];
+    const collect = (rootEl, bookId, fallbackPage) => {
+        if (!rootEl || !bookId) return;
+        const sections = rootEl.querySelectorAll("section.feed-page-item[data-page]");
+        if (sections.length) {
+            sections.forEach(sec => jobs.push({
+                container: sec, bookId,
+                page: parseInt(sec.getAttribute("data-page"), 10) || fallbackPage
+            }));
+        } else if (fallbackPage) {
+            jobs.push({ container: rootEl, bookId, page: fallbackPage });
+        }
+    };
+    collect(el.paliContent, state.paliBookId, state.paliPage);
+    collect(el.splitPaliContent, state.paliBookId, state.paliPage);
+    for (const { container, bookId, page } of jobs) {
+        const glosses = await fetchNissayaGlosses(bookId, page);
+        if (gen !== nissayaGen) return; // superseded by a newer render/toggle
+        injectNissayaGlosses(container, glosses);
+    }
 }
 
 function setScrollMode(mode) {

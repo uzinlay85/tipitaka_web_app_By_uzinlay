@@ -5776,3 +5776,16 @@ mark.search-match-highlight {
     text-overflow: ellipsis;
 }
 
+
+/* Myanmar Nissaya gloss layer — per-paragraph word-by-word glosses */
+.nissaya-gloss {
+    font-size: 0.86em;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 8px 12px;
+    margin: 6px 0 14px 0;
+    white-space: pre-wrap;
+}

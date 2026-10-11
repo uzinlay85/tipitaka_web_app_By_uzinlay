@@ -18,8 +18,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("TIPITAKA_DATA_DIR", BASE_DIR)
 DB_PALI_PATH = os.path.join(DATA_DIR, "tipitaka_pali.db")
 DB_MM_PATH = os.path.join(DATA_DIR, "tipitaka_mm.db")
+DB_NISSAYA_PATH = os.path.join(DATA_DIR, "nissaya.db")
 DB_PALI_RO_URI = f"file:{os.path.abspath(DB_PALI_PATH).replace(os.sep, '/')}?mode=ro"
 DB_MM_RO_URI = f"file:{os.path.abspath(DB_MM_PATH).replace(os.sep, '/')}?mode=ro"
+DB_NISSAYA_RO_URI = f"file:{os.path.abspath(DB_NISSAYA_PATH).replace(os.sep, '/')}?mode=ro"
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
@@ -154,7 +156,7 @@ def add_cache_headers(response):
     elif path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
     # 3. Canonical Tipitaka text pages and catalogs: 24h browser cache, 7d CDN stale-while-revalidate
-    elif path.startswith("/api/page/") or path.startswith("/api/book") or path.startswith("/api/categories") or path.startswith("/api/mm/") or path.startswith("/api/pali/companions/"):
+    elif path.startswith("/api/page/") or path.startswith("/api/book") or path.startswith("/api/categories") or path.startswith("/api/mm/") or path.startswith("/api/pali/companions/") or path.startswith("/api/nissaya/"):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     return response
 
@@ -201,6 +203,27 @@ def get_mm_db():
         g.mm_db = conn
     return conn
 
+def get_nissaya_db():
+    """Get request-scoped read-only SQLite connection for the Myanmar Nissaya
+    gloss database. Returns None when nissaya.db is not deployed (feature
+    degrades gracefully)."""
+    if not os.path.exists(DB_NISSAYA_PATH):
+        return None
+    conn = g.get('nissaya_db')
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")
+        except Exception:
+            conn = None
+
+    if conn is None:
+        conn = sqlite3.connect(DB_NISSAYA_RO_URI, uri=True, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only = ON")
+        conn.execute("PRAGMA cache_size = -32000")
+        g.nissaya_db = conn
+    return conn
+
 @app.teardown_appcontext
 def close_db_connections(exception=None):
     """Automatically close all request-scoped database connections."""
@@ -210,6 +233,9 @@ def close_db_connections(exception=None):
     mm_db = g.pop('mm_db', None)
     if mm_db is not None:
         mm_db.close()
+    nissaya_db = g.pop('nissaya_db', None)
+    if nissaya_db is not None:
+        nissaya_db.close()
 
 def heal_databases():
     """Auto-correct any known legacy page numbering offsets once safely without write-lock storms."""
@@ -794,6 +820,43 @@ def api_page(book_id, page_num):
         "content": content_html,
         "matching_mm": matching_mm
     })
+
+# ----------------- Myanmar Nissaya glosses -----------------
+
+@app.route("/api/nissaya/<book_id>/<int:page_num>")
+def api_nissaya(book_id, page_num):
+    """Return Myanmar Nissaya glosses for one Pāḷi page.
+
+    Response: {"available": bool, "glosses": {"<paragraph_number>": "<gloss>"}}.
+    `available` is False when nissaya.db is not deployed or the book has no
+    nissaya data — the frontend hides the toggle in that case.
+    """
+    n_conn = get_nissaya_db()
+    if n_conn is None:
+        return jsonify({"available": False, "glosses": {}})
+    try:
+        rows = n_conn.execute(
+            "SELECT paragraph_number, gloss FROM nissaya_gloss "
+            "WHERE book_id = ? AND page_number = ?",
+            (book_id, page_num)).fetchall()
+    except Exception:
+        return jsonify({"available": False, "glosses": {}})
+    glosses = {str(r["paragraph_number"]): r["gloss"] for r in rows}
+    return jsonify({"available": True, "glosses": glosses})
+
+@app.route("/api/nissaya/available/<book_id>")
+def api_nissaya_available(book_id):
+    """Lightweight check: does this book have any nissaya glosses?"""
+    n_conn = get_nissaya_db()
+    if n_conn is None:
+        return jsonify({"available": False})
+    try:
+        row = n_conn.execute(
+            "SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1",
+            (book_id,)).fetchone()
+    except Exception:
+        return jsonify({"available": False})
+    return jsonify({"available": row is not None})
 
 # ----------------- Book Export (Word / PDF) -----------------
 
