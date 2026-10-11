@@ -1534,7 +1534,7 @@ let _jumpFirst = 1, _jumpLast = 1;
 
 function _jumpIsMM() { return state.readerMode === "mm"; }
 // Nissaya mode reads the same Pāḷi book/page as Pāḷi mode — only presentation differs.
-function _isPaliReaderMode() { return _isPaliReaderMode() || state.readerMode === "nissaya"; }
+function _isPaliReaderMode() { return state.readerMode === "pali" || state.readerMode === "nissaya"; }
 
 // Inline page jump (v7.39): the footer pill toggles an input row in normal
 // flow inside the footer. No overlay, no dialog, no slider, no ticks,
