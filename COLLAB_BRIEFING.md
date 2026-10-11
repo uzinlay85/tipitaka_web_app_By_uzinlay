@@ -199,10 +199,27 @@
 | Modern Minimal Reader Redesign (Option A: Clean Header + 5-Action Thumb-Zone Toolbar with Search, 2-Way Scripture Page Matching) | Other Agent (Antigravity) | `collab/modern-minimal-reader` | ✅ merged to main (1cce533, v7.61) |
 | Android Release v1.0.8 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 9; includes Option A Reader and 2-way scripture matching) | Other Agent (Antigravity) | `collab/android-release-v108` | ✅ published to GitHub Releases (android-v1.0.8, 44882671 bytes), merged to main (74d029a) |
 | Android Release v1.0.9 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 10; includes Muse v7.62 mobile reader chrome fix) | Other Agent (Antigravity) | `collab/android-release-v109` | ✅ published to GitHub Releases (android-v1.0.9, 44882671 bytes), merged to main (7acab33) |
-| Android Release v1.0.10 (signed APK build, GitHub Release publish, and updater metadata for versionCode: 11; includes Web v7.63 split user guide) | Other Agent (Antigravity) | `collab/android-release-v1010` | ✅ merged to main (650d344) |
 | Android Release v1.0.11 (signed APK build, GitHub Release publish, updater metadata for versionCode: 12; Direct In-App Downloader with live ProgressDialog and Browser fallback) | Other Agent (Antigravity) | `collab/fix-updater-download` | ready for Muse review |
+| Myanmar Nissaya Enhancements (ကျမ်းရွေး Edition Layer Toggle + Root Mūla Fallback for Attha/Tika + In-Gloss Search) | Other Agent (Antigravity) | `collab/nissaya-edition-layer-and-search` | ✅ completed & verified, ready for Muse review |
 
-- 2026-10-04 — User Phone Test & Verification (v1.0.2):
+- 2026-10-11 — Other Agent (Antigravity): Myanmar Nissaya Enhancements (`collab/nissaya-edition-layer-and-search`):
+  1. **ကျမ်းရွေး Edition Layer Toggle & Toolbar Parity**:
+     - Added `#switcherCardNissaya` (`#switcherBadgeNissaya`) into the Unified Edition Switcher modal (`#editionSwitcherSheet`).
+     - Added 1-tap desktop reader toolbar button `#btnToggleNissaya` (`#toggleNissayaLabel`).
+     - Kept backward compatibility with the Reader More Sheet toggle (`#nissayaToggleRow`, `#btnMoreToggleNissaya`, `#moreNissayaStateText`).
+     - All toggles stay synchronized via `updateNissayaToggleLabel()` and reactive toast notifications.
+  2. **Attha/Tika Coverage Fallback**:
+     - When commentary glosses are absent, `/api/nissaya/<book_id>/<page_num>` maps commentary pages to root Mūla paragraphs via `pages.paranum`, `paragraph_mapping`, and `pali_attha_tika_match`.
+     - Tested on `attha_vi_01_01` p.105: successfully retrieves root Vinaya paras 4, 5, 6 glosses (100% coverage).
+     - `/api/nissaya/available/<book_id>` returns `true` when commentary books map to root Mūla glosses.
+     - Strictly preserved exclusion of `mula_ku_10` (Jataka) per instructions.
+  3. **Universal Search within Nissaya Glosses**:
+     - Backend `/api/search?type=nissaya&q=...`: searches 39,093 glosses in `nissaya.db` (excludes `mula_ku_10`), returning book title, page, paragraph, and focused `<mark>` snippets via `make_nissaya_snippet()`. Response time ~13.8ms.
+     - Frontend Universal Search Modal (`templates/index.html` + `static/app.js`): Added `[📜 နိဿယ]` search tabs in both Pāḷi and Myanmar scopes.
+     - Direct click navigation: Result cards open exact canonical book & page, auto-activate Nissaya gloss layer (`setNissayaVisibility(true)`), scroll smoothly to target paragraph (`a[name="paraN"]`), and flash visual highlight.
+  4. **Regression & Verification**:
+     - Expanded `test_nissaya_regression.py` to 38 assertions (38/38 PASS).
+     - Full test suites pass: `test_audit_fixes.py` (42/42 PASS), `test_scripture_page_matching.py` (8/8 PASS), `node --check static/app.js` (0 errors).
   1. Phone in-app updater check confirmed: Toast explicitly displays `လက်ရှိဗားရှင်း (v1.0.2) သည် နောက်ဆုံးဗားရှင်း ဖြစ်ပါသည်` (packageManager.getPackageInfo().versionName == '1.0.2' confirmed installed).
   2. Note for Muse on About Dialog version: Help modal Section 12 displays `Version 1.0.0` because `app.py:32` has hardcoded `APP_VERSION = "1.0.0"`. `render_template` passes `app_version=APP_VERSION`.
   3. Reader UI vs Catalog UI: User verified that the new 2x4 Action Sheet, Clean Header, and Instant Full-Width Swap are scoped to the Reader Screen (`state.appView === 'reader'`), accessed upon opening any book from the catalog.

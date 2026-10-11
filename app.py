@@ -823,6 +823,36 @@ def api_page(book_id, page_num):
 
 # ----------------- Myanmar Nissaya glosses -----------------
 
+def make_nissaya_snippet(gloss, query, max_len=180):
+    """Extract and highlight the most relevant clause from a word-by-word Nissaya gloss."""
+    if not gloss or not query:
+        return ""
+    segments = [s.strip() for s in gloss.split("|") if s.strip()]
+    matched_segments = [s for s in segments if query.lower() in s.lower()]
+
+    if matched_segments:
+        chosen = []
+        cur_len = 0
+        for seg in matched_segments:
+            if cur_len + len(seg) > max_len and chosen:
+                break
+            chosen.append(seg)
+            cur_len += len(seg)
+        raw_snippet = " | ".join(chosen)
+    else:
+        idx = gloss.lower().find(query.lower())
+        if idx == -1:
+            raw_snippet = gloss[:max_len]
+        else:
+            start = max(0, idx - 50)
+            end = min(len(gloss), idx + len(query) + 80)
+            prefix = "..." if start > 0 else ""
+            suffix = "..." if end < len(gloss) else ""
+            raw_snippet = prefix + gloss[start:end] + suffix
+
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", raw_snippet)
+
 @app.route("/api/nissaya/<book_id>/<int:page_num>")
 def api_nissaya(book_id, page_num):
     """Return Myanmar Nissaya glosses for one Pāḷi page.
@@ -830,23 +860,83 @@ def api_nissaya(book_id, page_num):
     Response: {"available": bool, "glosses": {"<paragraph_number>": "<gloss>"}}.
     `available` is False when nissaya.db is not deployed or the book has no
     nissaya data — the frontend hides the toggle in that case.
+    Enriches Attha/Tika commentaries via root Mūla paragraph mapping when direct
+    commentary glosses are unmapped. Excludes mula_ku_10 (Jataka episode mismatch).
     """
+    if book_id == "mula_ku_10":
+        return jsonify({"available": False, "glosses": {}})
+
     n_conn = get_nissaya_db()
     if n_conn is None:
         return jsonify({"available": False, "glosses": {}})
+
+    glosses = {}
     try:
         rows = n_conn.execute(
             "SELECT paragraph_number, gloss FROM nissaya_gloss "
             "WHERE book_id = ? AND page_number = ?",
             (book_id, page_num)).fetchall()
+        for r in rows:
+            glosses[str(r["paragraph_number"])] = r["gloss"]
     except Exception:
-        return jsonify({"available": False, "glosses": {}})
-    glosses = {str(r["paragraph_number"]): r["gloss"] for r in rows}
-    return jsonify({"available": True, "glosses": glosses})
+        pass
+
+    # Enhanced Attha/Tika fallback: if glosses are missing for this page,
+    # inspect the page's paranum and paragraph_mapping to find root Mūla glosses.
+    if not glosses and (book_id.startswith("attha_") or book_id.startswith("tika_")):
+        try:
+            p_conn = get_pali_db()
+            page_row = p_conn.execute(
+                "SELECT paranum FROM pages WHERE book_id = ? AND page = ?",
+                (book_id, page_num)).fetchone()
+
+            target_paras = []
+            if page_row and page_row["paranum"]:
+                nums = [int(x) for x in page_row["paranum"].strip("-").split("-") if x.isdigit()]
+                target_paras.extend(nums)
+
+            pm_rows = p_conn.execute(
+                "SELECT paragraph, from_book_id FROM paragraph_mapping "
+                "WHERE to_book_id = ? AND to_page_number = ?",
+                (book_id, page_num)).fetchall()
+
+            base_books = set()
+            for pm in pm_rows:
+                if pm["paragraph"] not in target_paras:
+                    target_paras.append(pm["paragraph"])
+                if pm["from_book_id"]:
+                    base_books.add(pm["from_book_id"])
+
+            if not base_books:
+                match_row = p_conn.execute(
+                    "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
+                    (book_id,)).fetchone()
+                if match_row and match_row["base"]:
+                    base_books.add(match_row["base"])
+
+            if target_paras and base_books:
+                placeholders = ",".join("?" for _ in target_paras)
+                for b_id in base_books:
+                    if b_id == "mula_ku_10":
+                        continue
+                    fb_rows = n_conn.execute(
+                        f"SELECT paragraph_number, gloss FROM nissaya_gloss "
+                        f"WHERE book_id = ? AND paragraph_number IN ({placeholders})",
+                        [b_id] + target_paras).fetchall()
+                    for r in fb_rows:
+                        p_str = str(r["paragraph_number"])
+                        if p_str not in glosses:
+                            glosses[p_str] = r["gloss"]
+        except Exception:
+            pass
+
+    return jsonify({"available": len(glosses) > 0, "glosses": glosses})
 
 @app.route("/api/nissaya/available/<book_id>")
 def api_nissaya_available(book_id):
-    """Lightweight check: does this book have any nissaya glosses?"""
+    """Lightweight check: does this book (or its commentary root) have any nissaya glosses?"""
+    if book_id == "mula_ku_10":
+        return jsonify({"available": False})
     n_conn = get_nissaya_db()
     if n_conn is None:
         return jsonify({"available": False})
@@ -854,9 +944,24 @@ def api_nissaya_available(book_id):
         row = n_conn.execute(
             "SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1",
             (book_id,)).fetchone()
+        if row is not None:
+            return jsonify({"available": True})
+
+        # Check commentary root fallback
+        if book_id.startswith("attha_") or book_id.startswith("tika_"):
+            p_conn = get_pali_db()
+            match_row = p_conn.execute(
+                "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
+                (book_id,)).fetchone()
+            if match_row and match_row["base"] and match_row["base"] != "mula_ku_10":
+                base_row = n_conn.execute(
+                    "SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1",
+                    (match_row["base"],)).fetchone()
+                if base_row is not None:
+                    return jsonify({"available": True})
     except Exception:
         return jsonify({"available": False})
-    return jsonify({"available": row is not None})
+    return jsonify({"available": False})
 
 # ----------------- Book Export (Word / PDF) -----------------
 
@@ -1853,6 +1958,51 @@ def api_search():
             "total": total,
             "page": page,
             "results": [dict(r) for r in rows]
+        })
+
+    elif stype == "nissaya":
+        n_conn = get_nissaya_db()
+        if n_conn is None:
+            return jsonify({"type": "nissaya", "query": query, "total": 0, "page": page, "results": []})
+        p_conn = get_pali_db()
+        book_rows = p_conn.execute("SELECT id, name FROM books").fetchall()
+        book_names = {r["id"]: r["name"] for r in book_rows}
+
+        rows = n_conn.execute("""
+            SELECT book_id, paragraph_number, page_number, gloss
+            FROM nissaya_gloss
+            WHERE gloss LIKE ? AND book_id != 'mula_ku_10'
+            ORDER BY book_id ASC, page_number ASC, paragraph_number ASC
+            LIMIT ? OFFSET ?
+        """, (f"%{query}%", limit, offset)).fetchall()
+
+        try:
+            total = n_conn.execute(
+                "SELECT count(*) FROM nissaya_gloss WHERE gloss LIKE ? AND book_id != 'mula_ku_10'",
+                (f"%{query}%",)).fetchone()[0]
+        except Exception:
+            total = len(rows)
+
+        results = []
+        for r in rows:
+            b_id = r["book_id"]
+            gloss_text = r["gloss"] or ""
+            snippet = make_nissaya_snippet(gloss_text, query)
+            results.append({
+                "book_id": b_id,
+                "book_name": book_names.get(b_id, b_id),
+                "paragraph_number": r["paragraph_number"],
+                "page_number": r["page_number"],
+                "snippet": snippet,
+                "gloss": gloss_text[:300]
+            })
+
+        return jsonify({
+            "type": "nissaya",
+            "query": query,
+            "total": total,
+            "page": page,
+            "results": results
         })
 
     else:
