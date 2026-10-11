@@ -334,20 +334,24 @@ nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss
 - `GET /api/nissaya/available/<book_id>` → `{available}`
 - Graceful degradation: missing/corrupt DB → `{available: false, glosses: {}}`
 
-**Frontend:**
-- Toggle: "မြန်မာ နိဿယ" in Reader More Sheet (အပြင်အဆင်) — persistence key `tipitaka_show_nissaya`
+**Frontend (v7.64 → v7.69):**
+- v7.64: "မြန်မာ နိဿယ" toggle in Reader More Sheet (အပြင်အဆင်) — persistence key `tipitaka_show_nissaya`
+- v7.65: toggle now ALWAYS visible (was hidden in MM mode) with NEW badge + yellow highlight; tapping it in MM mode auto-switches to Pāḷi and opens nissaya (user couldn't find it — placement, not instructions, was the fix)
+- v7.66 (user request): 📜 နိဿယ is now a 4th reader mode — ☸️ ပါဠိတော် | 🇲🇲 မြန်မာပြန် | 📜 နိဿယ | 📖 ယှဉ်တွဲ. In 📜 mode the page's nissaya glosses render as the primary large text (`.nissaya-mode-block`) with the Pāḷi dimmed above as reference (`.nissaya-mode p { opacity: 0.5 }`); page-turning/book-switching follow the Pāḷi path
+- v7.67–v7.69: render-path fixes — `_isPaliReaderMode()` helper (nissaya uses the Pāḷi data path everywhere), `applyNissayaToCurrentPage()` called after every Pāḷi page render (was toggle-only), `applyNissayaMode()` injects the gloss blocks; cache-bust `?v=7.69`
 - Injects gloss divs (`.nissaya-gloss`) beneath `a[name^="para"]` anchors; verse glosses attach after `gatha*` runs
-- Per-page cache + `nissayaGen` race guard; hidden in Myanmar-translation mode
+- Per-page cache (`nissayaCache`) + `nissayaGen` race guard; no-op in MM mode
 - Attribution: `tipitakapali.org (wikipali.org) • CC BY-NC-SA`
+- NOTE (2026-10-11): the earlier plan to move the toggle into the ကျမ်းရွေး edition layer is SUPERSEDED — the mode-bar design (always-visible toggle + dedicated 📜 mode) is the shipped product direction. Do not move it.
 
 **Tests:** `test_nissaya_regression.py` 21/21 PASS; full suite (export 24, audit 42) PASS.
 
 **Known limitations:**
-- UI toggle is in More Sheet, not ကျမ်းရွေး layer (product direction was ကျမ်းရွေး — needs reconciliation)
 - Attha/Tika coverage partial (tpp para_num unreliable for commentaries)
-- Jataka (mula_ku_10) has no glosses
+- Jataka (mula_ku_10) has no glosses (episode-numbering mismatch — do not touch)
+- Feed (continuous-scroll) mode: appended/prepended pages don't get nissaya applied yet (single-page render path only) — small follow-up
 
 **Follow-up for Antigravity (collab branch welcome):**
-- Move nissaya toggle to ကျမ်းရွေး edition layer per product direction
+- Apply nissaya to feed-append/prepend pages (call `applyNissayaToCurrentPage()` in the `isAppend`/`isPrepend` branches of `loadPaliPage`)
 - Improve attha/tika mapping if better tpp alignment found
 - Search within nissaya glosses
