@@ -4577,6 +4577,7 @@ function attachTocEventListeners() {
             } else {
                 loadPaliPage(state.paliBookId, p);
             }
+            setAppView("reader");
             if (window.innerWidth <= 992) {
                 closeSidebarMobile();
             } else {
@@ -4917,6 +4918,7 @@ function renderSuttas() {
             } else {
                 loadPaliPage(state.paliBookId, p);
             }
+            setAppView("reader");
             if (window.innerWidth <= 992) {
                 closeSidebarMobile();
             } else {
@@ -7220,6 +7222,7 @@ function setupEventListeners() {
     // Click Sticky Current Reading Card in TOC to smoothly focus on active item
     if (el.tocCurrentCard) {
         el.tocCurrentCard.addEventListener("click", () => {
+            setAppView("reader");
             if (!el.tocList) return;
             const activeBtn = el.tocList.querySelector(".toc-item-btn.active");
             if (activeBtn) {
