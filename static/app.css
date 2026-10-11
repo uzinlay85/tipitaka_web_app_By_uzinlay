@@ -5789,3 +5789,37 @@ mark.search-match-highlight {
     margin: 6px 0 14px 0;
     white-space: pre-wrap;
 }
+/* Dedicated Nissaya reading mode: Pali dims, glosses become primary text */
+.nissaya-mode p {
+    opacity: 0.5;
+    font-size: 0.88em;
+}
+.nissaya-mode-block {
+    background: #fffbeb;
+    border: 1.5px solid #b45309;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 8px 0 16px 0;
+    white-space: pre-wrap;
+}
+.nissaya-mode-label {
+    display: inline-block;
+    background: #b45309;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+.nissaya-mode-text {
+    font-size: 1.05em;
+    line-height: 1.9;
+    color: var(--text-primary);
+}
+.nissaya-mode-notice {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-secondary);
+    font-style: italic;
+}

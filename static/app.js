@@ -190,6 +190,7 @@ const el = {
     // Mode Switcher & Tools
     btnModePali: document.getElementById("btnModePali"),
     btnModeMM: document.getElementById("btnModeMM"),
+    btnModeNissaya: document.getElementById("btnModeNissaya"),
     btnModeSplit: document.getElementById("btnModeSplit"),
     btnCrossLink: document.getElementById("btnCrossLink"),
     crossLinkIcon: document.getElementById("crossLinkIcon"),
@@ -1921,6 +1922,7 @@ function setReaderMode(mode) {
 
     el.btnModePali.classList.toggle("active", mode === "pali");
     el.btnModeMM.classList.toggle("active", mode === "mm");
+    if (el.btnModeNissaya) el.btnModeNissaya.classList.toggle("active", mode === "nissaya");
     el.btnModeSplit.classList.toggle("active", mode === "split");
 
     document.querySelectorAll(".mobile-mode-btn").forEach(btn => {
@@ -1955,18 +1957,20 @@ function setReaderMode(mode) {
         // Immediate feedback: never leave the paper blank while the book/page loads
         el.paliContent.innerHTML = `<div class="loading-state">မြန်မာပြန် စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
         loadMMBook(state.mmBookId, state.mmPage);
-    } else { // 'pali'
+    } else { // 'pali' or 'nissaya' — nissaya mode reads the same Pāḷi book/page,
+             // rendered with nissaya glosses as the primary text
+        const isNissaya = (mode === "nissaya");
         el.readerPaper.style.display = "flex";
         el.splitViewContainer.style.display = "none";
         el.paliBasketFilter.style.display = "flex";
-        el.metaEditionTag.textContent = "ပါဠိတော်";
+        el.metaEditionTag.textContent = isNissaya ? "မြန်မာ နိဿယ" : "ပါဠိတော်";
         el.btnCrossLink.style.display = "inline-flex";
         if (el.crossLinkIcon) el.crossLinkIcon.textContent = "🇲🇲";
         if (el.crossLinkLabel) el.crossLinkLabel.textContent = "မြန်မာပြန်သို့";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         // Immediate feedback: never leave the paper blank while the book/page loads
-        el.paliContent.innerHTML = `<div class="loading-state">စာမျက်နှာ ဖွင့်လှစ်နေပါသည်...</div>`;
+        el.paliContent.innerHTML = `<div class="loading-state">${isNissaya ? "နိဿယ စာမျက်နှာ ဖွင့်လှစ်နေပါသည်..." : "စာမျက်နှာ ဖွင့်လှစ်နေပါသည်..."}</div>`;
         loadPaliBook(state.paliBookId, state.paliPage);
     }
     // Re-render sidebar lists: the book metadata (and its renderTOC/renderSuttas
@@ -2013,6 +2017,9 @@ function updateReaderToolbarState() {
     if (state.readerMode === "mm") {
         el.toolbarEditionIcon.textContent = "🇲🇲";
         el.toolbarEditionLabel.textContent = "မြန်မာ";
+    } else if (state.readerMode === "nissaya") {
+        el.toolbarEditionIcon.textContent = "📜";
+        el.toolbarEditionLabel.textContent = "နိဿယ";
     } else {
         const bookId = state.paliBookId || "";
         if (bookId.startsWith("attha_") || bookId.includes("attha")) {
@@ -6608,6 +6615,7 @@ function setupEventListeners() {
     // Mode Switcher Buttons
     el.btnModePali.addEventListener("click", () => setReaderMode("pali"));
     el.btnModeMM.addEventListener("click", () => setReaderMode("mm"));
+    if (el.btnModeNissaya) el.btnModeNissaya.addEventListener("click", () => setReaderMode("nissaya"));
     el.btnModeSplit.addEventListener("click", () => setReaderMode("split"));
     el.btnCrossLink.addEventListener("click", handleCrossLink);
 
@@ -7842,6 +7850,11 @@ function setupEventListeners() {
     }
     if (el.btnMoreToggleNissaya) {
         el.btnMoreToggleNissaya.addEventListener("click", () => {
+            // In dedicated nissaya mode the toggle returns to Pāḷi view.
+            if (state.readerMode === "nissaya") {
+                setReaderMode("pali");
+                return;
+            }
             // Nissaya glosses only render under Pāḷi text: if the user is in
             // Myanmar-translation mode, switch them to Pāḷi first.
             if (state.readerMode === "mm" && !state.showNissaya) {
@@ -7947,7 +7960,9 @@ function setNissayaVisibility(show) {
 
 function updateNissayaToggleLabel() {
     if (el.moreNissayaStateText) {
-        if (state.readerMode === "mm" && !state.showNissaya) {
+        if (state.readerMode === "nissaya") {
+            el.moreNissayaStateText.textContent = "နိဿယ mode ဖွင့်ထားသည်";
+        } else if (state.readerMode === "mm" && !state.showNissaya) {
             el.moreNissayaStateText.textContent = "ပါဠိပြောင်း၍ နိဿယပြမည်";
         } else {
             el.moreNissayaStateText.textContent = state.showNissaya ? "နိဿယ ဝှက်မည်" : "နိဿယ ပြမည်";
@@ -8006,8 +8021,17 @@ let nissayaGen = 0; // guards against page-flip races during async fetch
 async function applyNissayaToCurrentPage() {
     const gen = ++nissayaGen;
     document.querySelectorAll(".nissaya-gloss").forEach(e => e.remove());
+    document.querySelectorAll(".nissaya-mode-block").forEach(e => e.remove());
+    document.querySelectorAll(".nissaya-mode-notice").forEach(e => e.remove());
+    if (el.paliContent) el.paliContent.classList.toggle("nissaya-mode", state.readerMode === "nissaya");
     updateNissayaToggleLabel();
-    if (!state.showNissaya || state.readerMode === "mm") return;
+    if (state.readerMode === "mm") return;
+    // Dedicated Nissaya reading mode: glosses become the primary text
+    if (state.readerMode === "nissaya") {
+        await applyNissayaMode(gen);
+        return;
+    }
+    if (!state.showNissaya) return;
     const jobs = [];
     const collect = (rootEl, bookId, fallbackPage) => {
         if (!rootEl || !bookId) return;
@@ -8028,6 +8052,49 @@ async function applyNissayaToCurrentPage() {
         if (gen !== nissayaGen) return; // superseded by a newer render/toggle
         injectNissayaGlosses(container, glosses);
     }
+}
+
+async function applyNissayaMode(gen) {
+    const bookId = state.paliBookId, page = state.paliPage;
+    if (!bookId || !page || !el.paliContent) return;
+    const glosses = await fetchNissayaGlosses(bookId, page);
+    if (gen !== nissayaGen) return; // superseded
+    if (!glosses || !Object.keys(glosses).length) {
+        const notice = document.createElement("div");
+        notice.className = "nissaya-mode-notice";
+        notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+        el.paliContent.prepend(notice);
+        return;
+    }
+    // Each paragraph carries <a name="paraN"> — N is the paragraph number.
+    el.paliContent.querySelectorAll('a[name^="para"]').forEach(anchor => {
+        const m = /^para(\d+)/.exec(anchor.getAttribute("name") || "");
+        if (!m) return;
+        const gloss = glosses[m[1]];
+        if (!gloss) return;
+        let p = anchor.closest("p");
+        if (!p) return;
+        // For verses the anchor sits in a hangnum <p>; attach after the verse lines.
+        let insertAfter = p;
+        let sib = p.nextElementSibling;
+        while (sib && sib.tagName === "P" && /^gatha/i.test(sib.className || "")) {
+            insertAfter = sib;
+            sib = sib.nextElementSibling;
+        }
+        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-mode-block")) return;
+        const block = document.createElement("div");
+        block.className = "nissaya-mode-block";
+        block.setAttribute("data-para", m[1]);
+        const label = document.createElement("div");
+        label.className = "nissaya-mode-label";
+        label.textContent = "နိဿယ";
+        const text = document.createElement("div");
+        text.className = "nissaya-mode-text";
+        text.textContent = gloss;
+        block.appendChild(label);
+        block.appendChild(text);
+        insertAfter.after(block);
+    });
 }
 
 function setScrollMode(mode) {
