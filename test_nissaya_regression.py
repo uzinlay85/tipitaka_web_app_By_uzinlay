@@ -66,6 +66,13 @@ check("nissaya snippet helper exists", "def make_nissaya_snippet(" in PY)
 check("jataka excluded from nissaya endpoint", "mula_ku_10" in PY)
 check("attha/tika fallback logic exists", "pali_attha_tika_match" in PY and "paragraph_mapping" in PY)
 
+check("nissaya feed append/prepend helper exists", "function applyNissayaToFeedSection(" in JS)
+check("nissaya mode blocks helper exists", "function injectNissayaModeBlocks(" in JS)
+check("nissaya injected on feed append", "applyNissayaToFeedSection(sec, bookId, actualPage)" in JS)
+check("continue reading card uses setAppView", 'card.onclick' in JS and 'setAppView("reader")' in JS and 'showView' not in JS)
+check("continue reading card supports nissaya", 'top.mode === "nissaya"' in JS)
+check("2-hop tika fallback exists in backend", "2-hop" in PY and "pali_attha_tika_match" in PY)
+
 # --- CSS ---
 check("nissaya gloss styled", ".nissaya-gloss" in CSS)
 check("nissaya desktop button active styled", ".tool-btn.nissaya-toggle-btn.active" in CSS)

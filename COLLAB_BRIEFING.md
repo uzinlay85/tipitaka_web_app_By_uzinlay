@@ -361,14 +361,27 @@ nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss
 - Attribution: `tipitakapali.org (wikipali.org) • CC BY-NC-SA`
 - NOTE (2026-10-11): the earlier plan to move the toggle into the ကျမ်းရွေး edition layer is SUPERSEDED — the mode-bar design (always-visible toggle + dedicated 📜 mode) is the shipped product direction. Do not move it.
 
-**Tests:** `test_nissaya_regression.py` 21/21 PASS; full suite (export 24, audit 42) PASS.
+**Tests:** `test_nissaya_regression.py` 44/44 PASS; full suite (scripture matching 8/8, audit 42/42) PASS.
 
 **Known limitations:**
-- Attha/Tika coverage partial (tpp para_num unreliable for commentaries)
+- Attha/Tika coverage partial (tpp para_num unreliable for commentaries, enriched via 2-hop base mapping)
 - Jataka (mula_ku_10) has no glosses (episode-numbering mismatch — do not touch)
-- Feed (continuous-scroll) mode: appended/prepended pages don't get nissaya applied yet (single-page render path only) — small follow-up
 
-**Follow-up for Antigravity (collab branch welcome):**
-- Apply nissaya to feed-append/prepend pages (call `applyNissayaToCurrentPage()` in the `isAppend`/`isPrepend` branches of `loadPaliPage`)
-- Improve attha/tika mapping if better tpp alignment found
-- Search within nissaya glosses
+**Antigravity Updates (2026-10-14, collab/nissaya-feed-and-continue-fix):**
+1. **Continue Reading Card ("ဆက်ဖတ်ရန်"):**
+   - Fixed crash in `homeContinueCard.onclick` (`showView("reader")` was undefined, replaced with `setAppView("reader")`).
+   - Added full mode routing for `top.mode === "nissaya"` and `top.mode === "split"`, both on Home continue card and in `loadRecentOrFirst()` and reading history modal.
+2. **Feed (Continuous-Scroll) Mode Nissaya Injection:**
+   - Implemented `applyNissayaToFeedSection(sec, bookId, page)` and `injectNissayaModeBlocks(container, glosses)`.
+   - Wired into `loadPaliPage` `isAppend` and `isPrepend` so newly scrolled pages immediately receive their nissaya glosses or mode blocks without re-rendering existing DOM nodes.
+   - Enhanced `applyNissayaMode(gen)` to collect and render all loaded `section.feed-page-item[data-page]` elements when switching modes or rendering feed mode.
+3. **Dual Split View & Edition Switcher:**
+   - Added `applyNissayaToCurrentPage()` and `injectAnnotationPins()` to `el.splitPaliContent` when split view is active.
+   - When tapping Nissaya in the Edition Switcher from MM mode, automatically transitions to Pāḷi mode so glosses become visible.
+4. **Backend Commentary Fallback (2-Hop Ṭīkā Matching):**
+   - In `app.py`, enhanced `api_nissaya` and `api_nissaya_available` with 2-hop base book traversal (Ṭīkā → Atthakathā → Mūla root) when checking available glosses.
+5. **Verification:**
+   - `test_nissaya_regression.py` 44/44 PASS
+   - `test_audit_fixes.py` 42/42 PASS
+   - `test_scripture_page_matching.py` 8/8 PASS
+   - `node --check static/app.js` clean PASS (0 errors)

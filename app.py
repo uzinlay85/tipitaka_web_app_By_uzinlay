@@ -908,11 +908,19 @@ def api_nissaya(book_id, page_num):
                     base_books.add(pm["from_book_id"])
 
             if not base_books:
-                match_row = p_conn.execute(
+                match_rows = p_conn.execute(
                     "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
-                    (book_id,)).fetchone()
-                if match_row and match_row["base"]:
-                    base_books.add(match_row["base"])
+                    (book_id,)).fetchall()
+                for mr in match_rows:
+                    if mr["base"]:
+                        base_books.add(mr["base"])
+                        # 2-hop traversal to root Mūla for Ṭīkā
+                        m2_rows = p_conn.execute(
+                            "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
+                            (mr["base"],)).fetchall()
+                        for m2 in m2_rows:
+                            if m2["base"]:
+                                base_books.add(m2["base"])
 
             if target_paras and base_books:
                 placeholders = ",".join("?" for _ in target_paras)
@@ -947,18 +955,25 @@ def api_nissaya_available(book_id):
         if row is not None:
             return jsonify({"available": True})
 
-        # Check commentary root fallback
+        # Check commentary root fallback (including 2-hop for Ṭīkā)
         if book_id.startswith("attha_") or book_id.startswith("tika_"):
             p_conn = get_pali_db()
-            match_row = p_conn.execute(
+            match_rows = p_conn.execute(
                 "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
-                (book_id,)).fetchone()
-            if match_row and match_row["base"] and match_row["base"] != "mula_ku_10":
-                base_row = n_conn.execute(
-                    "SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1",
-                    (match_row["base"],)).fetchone()
-                if base_row is not None:
-                    return jsonify({"available": True})
+                (book_id,)).fetchall()
+            for mr in match_rows:
+                b = mr["base"]
+                if b and b != "mula_ku_10":
+                    if n_conn.execute("SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1", (b,)).fetchone():
+                        return jsonify({"available": True})
+                    # 2-hop check for Ṭīkā -> Atthakathā -> Mūla
+                    m2_rows = p_conn.execute(
+                        "SELECT base FROM pali_attha_tika_match WHERE exp = ?",
+                        (b,)).fetchall()
+                    for m2 in m2_rows:
+                        b2 = m2["base"]
+                        if b2 and b2 != "mula_ku_10" and n_conn.execute("SELECT 1 FROM nissaya_gloss WHERE book_id = ? LIMIT 1", (b2,)).fetchone():
+                            return jsonify({"available": True})
     except Exception:
         return jsonify({"available": False})
     return jsonify({"available": False})

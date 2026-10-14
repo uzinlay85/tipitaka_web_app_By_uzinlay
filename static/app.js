@@ -1901,6 +1901,9 @@ async function loadRecentOrFirst() {
         if (top.mode === "mm") {
             setReaderMode("mm");
             await loadMMBook(top.bookId, top.page);
+        } else if (top.mode === "nissaya") {
+            setReaderMode("nissaya");
+            await loadPaliBook(top.bookId, top.page);
         } else if (top.mode === "split") {
             setReaderMode("split");
             await loadPaliBook(top.bookId, top.page);
@@ -2155,6 +2158,9 @@ function attachSwitcherItemHandlers() {
 
             if (type === "nissaya") {
                 const nextState = !state.showNissaya;
+                if (state.readerMode === "mm" && nextState) {
+                    setReaderMode("pali");
+                }
                 setNissayaVisibility(nextState);
                 card.classList.toggle("active-layer", nextState);
                 const badge = card.querySelector("#switcherBadgeNissaya") || card.querySelector(".edition-card-badge");
@@ -3130,6 +3136,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     el.paliContent.appendChild(div);
                     el.paliContent.appendChild(sec);
                     injectAnnotationPins(sec, bookId, actualPage);
+                    applyNissayaToFeedSection(sec, bookId, actualPage);
 
                     if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
 
@@ -3178,6 +3185,7 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     el.paliContent.insertBefore(div, el.paliContent.firstChild);
                     el.paliContent.insertBefore(sec, div);
                     injectAnnotationPins(sec, bookId, actualPage);
+                    applyNissayaToFeedSection(sec, bookId, actualPage);
 
                     const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
                     el.readerContainer.scrollTop = oldScrollTop + heightAdded;
@@ -3244,6 +3252,8 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
             if (el.splitPaliContent) {
                 el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
                 applyPendingSearchHighlight(el.splitPaliContent);
+                injectAnnotationPins(el.splitPaliContent, bookId, actualPage);
+                applyNissayaToCurrentPage();
             }
             
             // Sync matching Companion page (Attha, Tika, Mula, or MM)
@@ -4222,11 +4232,18 @@ async function renderHomeCatalog() {
                 if (top.mode === "mm") {
                     setReaderMode("mm");
                     loadMMBook(top.bookId, top.page || 1);
+                } else if (top.mode === "nissaya") {
+                    setReaderMode("nissaya");
+                    loadPaliBook(top.bookId, top.page || 1);
+                } else if (top.mode === "split") {
+                    setReaderMode("split");
+                    loadPaliBook(top.bookId, top.page || 1);
+                    if (top.splitMMBookId) loadMMPage(top.splitMMBookId, top.splitMMPage || 1);
                 } else {
                     setReaderMode("pali");
                     loadPaliBook(top.bookId, top.page || 1);
                 }
-                showView("reader");
+                setAppView("reader");
             };
         } else if (card) {
             card.style.display = "none";
@@ -6431,6 +6448,9 @@ function renderHistoryModalContent() {
                 if (it.mode === "mm") {
                     badgeClass = "badge-mm";
                     badgeText = "🇲🇲 မြန်မာပြန်";
+                } else if (it.mode === "nissaya") {
+                    badgeClass = "badge-nissaya";
+                    badgeText = "📜 နိဿယ";
                 } else if (it.mode === "split") {
                     badgeClass = "badge-split";
                     badgeText = "📖 ယှဉ်တွဲဖတ်";
@@ -6492,6 +6512,9 @@ function renderHistoryModalContent() {
                 if (mode === "mm") {
                     setReaderMode("mm");
                     await loadMMBook(bId, page);
+                } else if (mode === "nissaya") {
+                    setReaderMode("nissaya");
+                    await loadPaliBook(bId, page);
                 } else if (mode === "split") {
                     setReaderMode("split");
                     await loadPaliBook(bId, page);
@@ -8131,6 +8154,60 @@ function injectNissayaGlosses(container, glosses) {
     });
 }
 
+function injectNissayaModeBlocks(container, glosses) {
+    if (!container || !glosses) return;
+    container.querySelectorAll('a[name^="para"]').forEach(anchor => {
+        const m = /^para(\d+)/.exec(anchor.getAttribute("name") || "");
+        if (!m) return;
+        const gloss = glosses[m[1]];
+        if (!gloss) return;
+        let p = anchor.closest("p");
+        if (!p) return;
+        // For verses the anchor sits in a hangnum <p>; attach after the verse lines.
+        let insertAfter = p;
+        let sib = p.nextElementSibling;
+        while (sib && sib.tagName === "P" && /^gatha/i.test(sib.className || "")) {
+            insertAfter = sib;
+            sib = sib.nextElementSibling;
+        }
+        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-mode-block")) return;
+        const block = document.createElement("div");
+        block.className = "nissaya-mode-block";
+        block.setAttribute("data-para", m[1]);
+        const label = document.createElement("div");
+        label.className = "nissaya-mode-label";
+        label.textContent = "နိဿယ";
+        const text = document.createElement("div");
+        text.className = "nissaya-mode-text";
+        text.textContent = gloss;
+        block.appendChild(label);
+        block.appendChild(text);
+        insertAfter.after(block);
+    });
+}
+
+async function applyNissayaToFeedSection(sec, bookId, page) {
+    if (!sec || !bookId || !page || state.readerMode === "mm") return;
+    if (state.readerMode === "nissaya") {
+        const glosses = await fetchNissayaGlosses(bookId, page);
+        if (!glosses || !Object.keys(glosses).length) {
+            if (!sec.querySelector(".nissaya-mode-notice")) {
+                const notice = document.createElement("div");
+                notice.className = "nissaya-mode-notice";
+                notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+                sec.prepend(notice);
+            }
+        } else {
+            injectNissayaModeBlocks(sec, glosses);
+        }
+    } else if (state.showNissaya) {
+        const glosses = await fetchNissayaGlosses(bookId, page);
+        if (glosses && Object.keys(glosses).length) {
+            injectNissayaGlosses(sec, glosses);
+        }
+    }
+}
+
 let nissayaGen = 0; // guards against page-flip races during async fetch
 async function applyNissayaToCurrentPage() {
     const gen = ++nissayaGen;
@@ -8169,46 +8246,39 @@ async function applyNissayaToCurrentPage() {
 }
 
 async function applyNissayaMode(gen) {
-    const bookId = state.paliBookId, page = state.paliPage;
-    if (!bookId || !page || !el.paliContent) return;
-    const glosses = await fetchNissayaGlosses(bookId, page);
-    if (gen !== nissayaGen) return; // superseded
-    if (!glosses || !Object.keys(glosses).length) {
-        const notice = document.createElement("div");
-        notice.className = "nissaya-mode-notice";
-        notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
-        el.paliContent.prepend(notice);
-        return;
-    }
-    // Each paragraph carries <a name="paraN"> — N is the paragraph number.
-    el.paliContent.querySelectorAll('a[name^="para"]').forEach(anchor => {
-        const m = /^para(\d+)/.exec(anchor.getAttribute("name") || "");
-        if (!m) return;
-        const gloss = glosses[m[1]];
-        if (!gloss) return;
-        let p = anchor.closest("p");
-        if (!p) return;
-        // For verses the anchor sits in a hangnum <p>; attach after the verse lines.
-        let insertAfter = p;
-        let sib = p.nextElementSibling;
-        while (sib && sib.tagName === "P" && /^gatha/i.test(sib.className || "")) {
-            insertAfter = sib;
-            sib = sib.nextElementSibling;
+    if (!el.paliContent || !state.paliBookId) return;
+    const bookId = state.paliBookId;
+    const sections = el.paliContent.querySelectorAll("section.feed-page-item[data-page]");
+    if (sections.length > 0) {
+        for (const sec of sections) {
+            const page = parseInt(sec.getAttribute("data-page"), 10) || state.paliPage;
+            const glosses = await fetchNissayaGlosses(bookId, page);
+            if (gen !== nissayaGen) return; // superseded
+            if (!glosses || !Object.keys(glosses).length) {
+                if (!sec.querySelector(".nissaya-mode-notice")) {
+                    const notice = document.createElement("div");
+                    notice.className = "nissaya-mode-notice";
+                    notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+                    sec.prepend(notice);
+                }
+            } else {
+                injectNissayaModeBlocks(sec, glosses);
+            }
         }
-        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-mode-block")) return;
-        const block = document.createElement("div");
-        block.className = "nissaya-mode-block";
-        block.setAttribute("data-para", m[1]);
-        const label = document.createElement("div");
-        label.className = "nissaya-mode-label";
-        label.textContent = "နိဿယ";
-        const text = document.createElement("div");
-        text.className = "nissaya-mode-text";
-        text.textContent = gloss;
-        block.appendChild(label);
-        block.appendChild(text);
-        insertAfter.after(block);
-    });
+    } else {
+        const page = state.paliPage;
+        if (!page) return;
+        const glosses = await fetchNissayaGlosses(bookId, page);
+        if (gen !== nissayaGen) return;
+        if (!glosses || !Object.keys(glosses).length) {
+            const notice = document.createElement("div");
+            notice.className = "nissaya-mode-notice";
+            notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+            el.paliContent.prepend(notice);
+            return;
+        }
+        injectNissayaModeBlocks(el.paliContent, glosses);
+    }
 }
 
 function setScrollMode(mode) {
