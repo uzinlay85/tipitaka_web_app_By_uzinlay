@@ -8261,10 +8261,13 @@ function injectNissayaGlosses(container, glosses) {
 
 function injectNissayaModeBlocks(container, glosses) {
     if (!container || !glosses) return;
+    const injectedParas = new Set();
     container.querySelectorAll('a[name^="para"]').forEach(anchor => {
         const m = /^para(\d+)/.exec(anchor.getAttribute("name") || "");
         if (!m) return;
-        const gloss = glosses[m[1]];
+        const paraNum = m[1];
+        if (injectedParas.has(paraNum)) return;
+        const gloss = glosses[paraNum];
         if (!gloss) return;
         let p = anchor.closest("p");
         if (!p) return;
@@ -8275,19 +8278,49 @@ function injectNissayaModeBlocks(container, glosses) {
             insertAfter = sib;
             sib = sib.nextElementSibling;
         }
-        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-mode-block")) return;
+        if (insertAfter.nextElementSibling && insertAfter.nextElementSibling.classList.contains("nissaya-mode-block")) {
+            injectedParas.add(paraNum);
+            return;
+        }
         const block = document.createElement("div");
         block.className = "nissaya-mode-block";
-        block.setAttribute("data-para", m[1]);
-        const label = document.createElement("div");
-        label.className = "nissaya-mode-label";
-        label.textContent = "နိဿယ";
-        const text = document.createElement("div");
-        text.className = "nissaya-mode-text";
-        text.textContent = gloss;
-        block.appendChild(label);
-        block.appendChild(text);
+        block.setAttribute("data-para", paraNum);
+
+        // Render as clean, pure scripture paragraphs (same typography as Myanmar translation)
+        const paragraphs = String(gloss).split(/\n\s*\n/);
+        paragraphs.forEach(paraText => {
+            const trimmed = paraText.trim();
+            if (!trimmed) return;
+            const pEl = document.createElement("p");
+            pEl.className = "nissaya-mode-para bodytext";
+            pEl.textContent = trimmed;
+            block.appendChild(pEl);
+        });
+
         insertAfter.after(block);
+        injectedParas.add(paraNum);
+    });
+
+    // Fallback: any remaining glosses for this page that didn't have an anchor in DOM
+    Object.keys(glosses).forEach(paraNum => {
+        if (!injectedParas.has(paraNum)) {
+            const gloss = glosses[paraNum];
+            if (!gloss) return;
+            const block = document.createElement("div");
+            block.className = "nissaya-mode-block";
+            block.setAttribute("data-para", paraNum);
+            const paragraphs = String(gloss).split(/\n\s*\n/);
+            paragraphs.forEach(paraText => {
+                const trimmed = paraText.trim();
+                if (!trimmed) return;
+                const pEl = document.createElement("p");
+                pEl.className = "nissaya-mode-para bodytext";
+                pEl.textContent = trimmed;
+                block.appendChild(pEl);
+            });
+            container.appendChild(block);
+            injectedParas.add(paraNum);
+        }
     });
 }
 
@@ -8299,7 +8332,13 @@ async function applyNissayaToFeedSection(sec, bookId, page) {
             if (!sec.querySelector(".nissaya-mode-notice")) {
                 const notice = document.createElement("div");
                 notice.className = "nissaya-mode-notice";
-                notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+                notice.innerHTML = `
+                    <div style="font-size:1.05rem;margin-bottom:12px;font-weight:600;">📜 ဤစာမျက်နှာအတွက် မြန်မာနိဿယ မရှိသေးပါ။</div>
+                    <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
+                        <button class="tool-btn" onclick="setReaderMode('pali')">☸️ ပါဠိတော်ဖြင့် ဖတ်ရှုရန်</button>
+                        <button class="tool-btn" onclick="setReaderMode('mm')">🇲🇲 မြန်မာပြန်ဖြင့် ဖတ်ရှုရန်</button>
+                    </div>
+                `;
                 sec.prepend(notice);
             }
         } else {
@@ -8363,7 +8402,13 @@ async function applyNissayaMode(gen) {
                 if (!sec.querySelector(".nissaya-mode-notice")) {
                     const notice = document.createElement("div");
                     notice.className = "nissaya-mode-notice";
-                    notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+                    notice.innerHTML = `
+                        <div style="font-size:1.05rem;margin-bottom:12px;font-weight:600;">📜 ဤစာမျက်နှာအတွက် မြန်မာနိဿယ မရှိသေးပါ။</div>
+                        <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
+                            <button class="tool-btn" onclick="setReaderMode('pali')">☸️ ပါဠိတော်ဖြင့် ဖတ်ရှုရန်</button>
+                            <button class="tool-btn" onclick="setReaderMode('mm')">🇲🇲 မြန်မာပြန်ဖြင့် ဖတ်ရှုရန်</button>
+                        </div>
+                    `;
                     sec.prepend(notice);
                 }
             } else {
@@ -8378,7 +8423,13 @@ async function applyNissayaMode(gen) {
         if (!glosses || !Object.keys(glosses).length) {
             const notice = document.createElement("div");
             notice.className = "nissaya-mode-notice";
-            notice.textContent = "ဒီစာမျက်နှာအတွက် နိဿယ မရှိသေးပါ။";
+            notice.innerHTML = `
+                <div style="font-size:1.05rem;margin-bottom:12px;font-weight:600;">📜 ဤစာမျက်နှာအတွက် မြန်မာနိဿယ မရှိသေးပါ။</div>
+                <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
+                    <button class="tool-btn" onclick="setReaderMode('pali')">☸️ ပါဠိတော်ဖြင့် ဖတ်ရှုရန်</button>
+                    <button class="tool-btn" onclick="setReaderMode('mm')">🇲🇲 မြန်မာပြန်ဖြင့် ဖတ်ရှုရန်</button>
+                </div>
+            `;
             el.paliContent.prepend(notice);
             return;
         }
