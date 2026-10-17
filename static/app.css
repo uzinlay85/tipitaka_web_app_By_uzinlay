@@ -2907,7 +2907,8 @@ body.hide-notes .note {
     /* Collapse remaining text labels into clean, sleek icon buttons */
     #btnToggleNotes .btn-text,
     #btnScrollMode .btn-text,
-    #crossLinkLabel {
+    #crossLinkLabel,
+    #nissayaCrossLinkLabel {
         display: none !important;
     }
     .current-book-badge {

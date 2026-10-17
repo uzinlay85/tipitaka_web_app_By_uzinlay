@@ -30,6 +30,14 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 # Synchronized with Android versionName or android_release.json.
 # APP_CREATED_DATE is the day this app was first created and never changes.
 # ---------------------------------------------------------------------------
+def _env_int(name, default):
+    """Parse an integer env var; fall back on garbage input instead of 500ing."""
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
 def _resolve_app_version():
     # 1. Injected by Android bootstrap/runtime (matches installed APK versionName)
     env_ver = os.environ.get("ANDROID_VERSION_NAME")
@@ -97,6 +105,27 @@ def _proxy_to_upstream(req):
         return jsonify({"error": "sync server unreachable (offline?)"}), 502
 
 
+def _client_ip():
+    """Best-effort client IP for rate limiting.
+
+    X-Forwarded-For is only trusted when the request arrives from a local
+    reverse proxy (loopback / private address), which is the VPS-deployment
+    shape (Cloudflare/nginx -> gunicorn on 127.0.0.1). A direct client on a
+    public address cannot spoof its rate-limit identity by sending XFF."""
+    remote = request.remote_addr or "?"
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        ip_first = remote.split(":")[0] if remote.count(":") == 1 else remote
+        try:
+            import ipaddress
+            is_local_proxy = (ipaddress.ip_address(ip_first).is_loopback or
+                              ipaddress.ip_address(ip_first).is_private)
+        except ValueError:
+            is_local_proxy = False
+        if is_local_proxy:
+            return xff.split(",")[0].strip()
+    return remote
+
 @app.route("/api/health")
 def health():
     """Tiny endpoint used by the Android wrapper to know the server is up."""
@@ -108,7 +137,7 @@ _ANDROID_RELEASE_FILE = os.path.join(DATA_DIR, "android_release.json")
 def android_update():
     """Returns latest Android APK release metadata for in-app updater."""
     meta = {
-        "versionCode": int(os.environ.get("ANDROID_LATEST_VERSION_CODE", 2)),
+        "versionCode": _env_int("ANDROID_LATEST_VERSION_CODE", 2),
         "versionName": os.environ.get("ANDROID_LATEST_VERSION_NAME", "1.0.1"),
         "downloadUrl": os.environ.get(
             "ANDROID_LATEST_DOWNLOAD_URL",
@@ -156,7 +185,9 @@ def add_cache_headers(response):
     elif path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
     # 3. Canonical Tipitaka text pages and catalogs: 24h browser cache, 7d CDN stale-while-revalidate
-    elif path.startswith("/api/page/") or path.startswith("/api/book") or path.startswith("/api/categories") or path.startswith("/api/mm/") or path.startswith("/api/pali/companions/") or path.startswith("/api/nissaya/"):
+    #    (only successful responses — a transient 500/404 must never poison the cache)
+    elif response.status_code == 200 and (
+            path.startswith("/api/page/") or path.startswith("/api/book") or path.startswith("/api/categories") or path.startswith("/api/mm/") or path.startswith("/api/pali/companions/") or path.startswith("/api/nissaya/")):
         response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     return response
 
@@ -995,7 +1026,7 @@ def api_export(mode, book_id):
         return jsonify({"error": "only docx format is supported"}), 400
 
     # Rate limit: 10 exports / hour / IP (files are expensive to build)
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+    ip = _client_ip()
     if not _rate_ok(ip, limit=10, window=3600):
         return jsonify({"error": "too many downloads, try again later"}), 429
 
@@ -1262,7 +1293,7 @@ def api_match_para_to_page():
     mm_book_id = request.args.get("mm_book_id", "")
     para_num = request.args.get("para", type=int)
 
-    if not para_num:
+    if para_num is None:
         return jsonify({"error": "para required"}), 400
 
     result = {"para": para_num}
@@ -1430,24 +1461,32 @@ def api_match_pali_to_companion():
             if pmap and pmap[0] in candidate_targets:
                 return jsonify({"matched": True, "target_book": pmap[0], "target_page": pmap[1]})
 
-        # Pre-cache pages & paranum for candidate target books
-        target_pages_map = {}
+        # Invert to para-number -> earliest page lookups per candidate book:
+        # the previous nested list scans were O(paragraphs x pages) per request.
+        target_para_map = {}
         for t_bid in candidate_targets:
             rows = p_cur.execute(
                 "SELECT page, paranum FROM pages WHERE book_id = ? AND paranum != '' AND paranum IS NOT NULL",
                 (t_bid,)
             ).fetchall()
-            target_pages_map[t_bid] = []
+            pmap = {}
             for r in rows:
-                p_nums = [int(n) for n in str(r["paranum"]).strip('-').split('-') if n.isdigit()]
-                target_pages_map[t_bid].append((r["page"], p_nums))
+                pg = r["page"]
+                for n in str(r["paranum"]).strip('-').split('-'):
+                    if n.isdigit():
+                        num = int(n)
+                        old = pmap.get(num)
+                        if old is None or pg < old:
+                            pmap[num] = pg
+            target_para_map[t_bid] = pmap
 
         if source_paras:
             for t_bid in candidate_targets:
+                pmap = target_para_map.get(t_bid, {})
                 for num in source_paras:
-                    for page_no, t_nums in target_pages_map.get(t_bid, []):
-                        if num in t_nums:
-                            return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
+                    pg = pmap.get(num)
+                    if pg is not None:
+                        return jsonify({"matched": True, "target_book": t_bid, "target_page": pg, "matched_para": num})
 
         # Preceding paragraphs fallback
         if not is_source_mm:
@@ -1457,9 +1496,9 @@ def api_match_pali_to_companion():
                 if prev_nums:
                     for num in range(prev_nums[-1], 0, -1):
                         for t_bid in candidate_targets:
-                            for page_no, t_nums in target_pages_map.get(t_bid, []):
-                                if num in t_nums:
-                                    return jsonify({"matched": True, "target_book": t_bid, "target_page": page_no, "matched_para": num})
+                            pg = target_para_map.get(t_bid, {}).get(num)
+                            if pg is not None:
+                                return jsonify({"matched": True, "target_book": t_bid, "target_page": pg, "matched_para": num})
 
         def_bid = candidate_targets[0]
         b = p_cur.execute("SELECT firstpage FROM books WHERE id = ?", (def_bid,)).fetchone()
@@ -1633,41 +1672,45 @@ def get_pali_stem_candidates(clean):
 def _cached_pali_dict_lookup(clean):
     """Zero-I/O memoized lookup for recurring Pali words with morphological stemmer."""
     conn = sqlite3.connect(DB_PALI_RO_URI, uri=True, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
+    try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
 
-    candidates = get_pali_stem_candidates(clean)
+        candidates = get_pali_stem_candidates(clean)
 
-    results = []
-    matched_word = clean
+        results = []
+        matched_word = clean
 
-    for cand in candidates:
-        rows = cur.execute("""
-            SELECT d.word, d.definition, b.id as book_id, b.name as book_name 
-            FROM dictionary d 
-            JOIN dictionary_books b ON d.book_id = b.id 
-            WHERE d.word = ? 
-            ORDER BY b.user_order ASC
-        """, (cand,)).fetchall()
-        if rows:
-            matched_word = cand
-            results = tuple(dict(r) for r in rows)
-            break
+        for cand in candidates:
+            rows = cur.execute("""
+                SELECT d.word, d.definition, b.id as book_id, b.name as book_name
+                FROM dictionary d
+                JOIN dictionary_books b ON d.book_id = b.id
+                WHERE d.word = ?
+                ORDER BY b.user_order ASC
+            """, (cand,)).fetchall()
+            if rows:
+                matched_word = cand
+                results = tuple(dict(r) for r in rows)
+                break
 
-    if not results and len(clean) >= 2:
-        rows = cur.execute("""
-            SELECT d.word, d.definition, b.id as book_id, b.name as book_name 
-            FROM dictionary d 
-            JOIN dictionary_books b ON d.book_id = b.id 
-            WHERE d.word LIKE ? 
-            ORDER BY b.user_order ASC LIMIT 10
-        """, (clean + "%",)).fetchall()
-        if rows:
-            matched_word = rows[0]["word"]
-            results = tuple(dict(r) for r in rows)
+        if not results and len(clean) >= 2:
+            rows = cur.execute("""
+                SELECT d.word, d.definition, b.id as book_id, b.name as book_name
+                FROM dictionary d
+                JOIN dictionary_books b ON d.book_id = b.id
+                WHERE d.word LIKE ?
+                ORDER BY b.user_order ASC LIMIT 10
+            """, (clean + "%",)).fetchall()
+            if rows:
+                matched_word = rows[0]["word"]
+                results = tuple(dict(r) for r in rows)
 
-    conn.close()
-    return matched_word, results
+        return matched_word, results
+    finally:
+        # Never leak the connection if a query raises (e.g. DB replaced
+        # mid-command); the lru_cache keeps results, not errors.
+        conn.close()
 
 @app.route("/api/dictionary/lookup")
 def api_dict_lookup():
@@ -2050,14 +2093,14 @@ def api_search():
             return jsonify({"type": "word", "query": query, "total": 0, "results": [], "matched_words": []})
 
         matched_words = [r["word"] for r in word_rows]
-        all_page_ids = []
-        for r in word_rows:
-            rowids_str = r["rowids"] or ""
-            tokens = [t.strip() for t in rowids_str.split(",") if t.strip()]
-            for tok in tokens:
-                pid = tok.split("_")[0]
-                if pid not in all_page_ids:
-                    all_page_ids.append(pid)
+        # Ordered de-dup via dict (O(n)); membership test on a list was O(n²)
+        # for common words with tens of thousands of rowid tokens.
+        all_page_ids = list(dict.fromkeys(
+            tok.split("_")[0]
+            for r in word_rows
+            for tok in (r["rowids"] or "").split(",")
+            if tok.strip()
+        ))
 
         total_occurrences = sum(r["count"] for r in word_rows)
         total_pages = len(all_page_ids)
@@ -2136,6 +2179,7 @@ SYNC_DB_PATH = os.path.join(BASE_DIR, "sync.db")
 _SYNC_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L confusables
 _SYNC_COLORS = {"amber", "blue", "green", "red"}
 _SYNC_RATE = {}  # ip -> [attempt timestamps] for /api/sync/claim
+_SYNC_RATE_LOCK = threading.Lock()
 
 
 _SYNC_SCHEMA = """
@@ -2174,6 +2218,7 @@ CREATE TABLE IF NOT EXISTS sync_history (
 CREATE INDEX IF NOT EXISTS idx_sync_hist_updated ON sync_history(account_id, updated_at);
 """
 _SYNC_DB_READY = False
+_SYNC_DB_LOCK = threading.Lock()
 
 
 def _sync_conn():
@@ -2185,13 +2230,21 @@ def _sync_conn():
     conn.execute("PRAGMA foreign_keys=ON")
     # Lazy init: ensures tables exist even when the app is run via
     # gunicorn/systemd (where __main__ never executes). Idempotent.
+    # Lock-guarded: two threaded first requests racing executescript on the
+    # same new DB would otherwise hit "database is locked" and silently
+    # skip schema creation.
     if not _SYNC_DB_READY:
-        try:
-            conn.executescript(_SYNC_SCHEMA)
-            conn.commit()
-            _SYNC_DB_READY = True
-        except Exception:
-            pass
+        with _SYNC_DB_LOCK:
+            if not _SYNC_DB_READY:
+                try:
+                    conn.executescript(_SYNC_SCHEMA)
+                    conn.commit()
+                    _SYNC_DB_READY = True
+                except Exception as e:
+                    # Flag stays False, so the next request retries init,
+                    # but log loudly: silent schema failure makes every
+                    # later sync endpoint 500 with no trace.
+                    print(f"sync DB schema init failed: {e}", file=sys.stderr)
     return conn
 
 
@@ -2240,15 +2293,18 @@ def _rate_ok(ip, limit=10, window=300):
     if len(hits) >= limit:
         return False
     hits.append(now)
-    _SYNC_RATE[ip] = hits
-    if len(_SYNC_RATE) > 2000:
-        # Evict the 500 least-recently-seen IPs. Never wipe the whole table:
-        # wiping would let an attacker reset everyone's limit by flooding
-        # the table with fresh IPs.
-        victims = sorted(_SYNC_RATE,
-                         key=lambda k: _SYNC_RATE[k][-1] if _SYNC_RATE[k] else 0)[:500]
-        for v in victims:
-            _SYNC_RATE.pop(v, None)
+    # Read-modify-write under lock: the threaded WSGI server would otherwise
+    # lose concurrent hits and quietly raise the effective limit.
+    with _SYNC_RATE_LOCK:
+        _SYNC_RATE[ip] = hits
+        if len(_SYNC_RATE) > 2000:
+            # Evict the 500 least-recently-seen IPs. Never wipe the whole table:
+            # wiping would let an attacker reset everyone's limit by flooding
+            # the table with fresh IPs.
+            victims = sorted(_SYNC_RATE,
+                             key=lambda k: _SYNC_RATE[k][-1] if _SYNC_RATE[k] else 0)[:500]
+            for v in victims:
+                _SYNC_RATE.pop(v, None)
     return True
 
 
@@ -2517,11 +2573,14 @@ def api_sync_pull():
         since = 0
     conn = _sync_conn()
     try:
+        # Payload cap: an account with a huge history must not produce a
+        # multi-MB response on every device poll. Clients already merge
+        # incrementally via `since`, so the next pull fills any gap.
         rows = conn.execute(
-            "SELECT data FROM sync_annotations WHERE account_id = ? AND updated_at > ?",
+            "SELECT data FROM sync_annotations WHERE account_id = ? AND updated_at > ? LIMIT 2000",
             (acc["id"], since)).fetchall()
         hist_rows = conn.execute(
-            "SELECT data FROM sync_history WHERE account_id = ? AND updated_at > ?",
+            "SELECT data FROM sync_history WHERE account_id = ? AND updated_at > ? LIMIT 2000",
             (acc["id"], since)).fetchall()
     finally:
         conn.close()
@@ -2574,13 +2633,18 @@ def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = _env_int("PORT", 5000)
+    # The Werkzeug dev server binds to loopback by default; VPS deployments go
+    # through gunicorn (127.0.0.1:5005 per install_vps.sh) and the Android
+    # wrapper talks over 127.0.0.1, so nothing legitimate needs 0.0.0.0 here.
+    # Set APP_HOST=0.0.0.0 explicitly for LAN testing.
+    host = os.environ.get("APP_HOST", "127.0.0.1")
     init_sync_db()
     if os.environ.get("NO_BROWSER") != "1":
         threading.Timer(1.2, open_browser).start()
     print(f"==================================================")
     print(f" Tipitaka Pali & Myanmar Web Reader")
-    print(f" Server running at: http://127.0.0.1:{port}")
+    print(f" Server running at: http://{host}:{port}")
     print(f" Press Ctrl+C to stop.")
     print(f"==================================================")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host=host, port=port, debug=False)

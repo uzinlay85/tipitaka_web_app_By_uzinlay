@@ -195,6 +195,7 @@ const el = {
     btnCrossLink: document.getElementById("btnCrossLink"),
     crossLinkIcon: document.getElementById("crossLinkIcon"),
     crossLinkLabel: document.getElementById("crossLinkLabel"),
+    btnCrossLinkNissaya: document.getElementById("btnCrossLinkNissaya"),
     btnToggleNotes: document.getElementById("btnToggleNotes"),
     toggleNotesLabel: document.getElementById("toggleNotesLabel"),
     btnToggleNotesMobile: document.getElementById("btnToggleNotesMobile"),
@@ -420,7 +421,7 @@ const el = {
     btnMoreToggleNissaya: document.getElementById("btnMoreToggleNissaya"),
     moreNissayaStateText: document.getElementById("moreNissayaStateText"),
     nissayaToggleRow: document.getElementById("nissayaToggleRow"),
-    btnMoreDict: document.getElementById("btnMoreDict"),
+    btnMoreDictSheet: document.getElementById("btnMoreDictSheet"),
     btnMoreCopy: document.getElementById("btnMoreCopy"),
     btnMoreTOC: document.getElementById("btnMoreTOC"),
     btnMoreHome: document.getElementById("btnMoreHome")
@@ -1946,6 +1947,7 @@ function setReaderMode(mode) {
         el.paliBasketFilter.style.display = "flex";
         el.metaEditionTag.textContent = "ယှဉ်တွဲဖတ်ရှုခြင်း";
         el.btnCrossLink.style.display = "none";
+        if (el.btnCrossLinkNissaya) el.btnCrossLinkNissaya.style.display = "none";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         el.relatedDropdownWrapper.style.display = "none";
@@ -1956,6 +1958,7 @@ function setReaderMode(mode) {
         el.paliBasketFilter.style.display = "none";
         el.metaEditionTag.textContent = "မြန်မာပြန်";
         el.btnCrossLink.style.display = "inline-flex";
+        if (el.btnCrossLinkNissaya) el.btnCrossLinkNissaya.style.display = "inline-flex";
         if (el.crossLinkIcon) el.crossLinkIcon.textContent = "☸️";
         if (el.crossLinkLabel) el.crossLinkLabel.textContent = "ပါဠိတော်သို့";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "none";
@@ -1974,6 +1977,7 @@ function setReaderMode(mode) {
         el.btnCrossLink.style.display = "inline-flex";
         if (el.crossLinkIcon) el.crossLinkIcon.textContent = "🇲🇲";
         if (el.crossLinkLabel) el.crossLinkLabel.textContent = "မြန်မာပြန်သို့";
+        if (el.btnCrossLinkNissaya) el.btnCrossLinkNissaya.style.display = isNissaya ? "none" : "inline-flex";
         if (el.btnToggleNotes) el.btnToggleNotes.style.display = "inline-flex";
         if (el.mobileNotesRow) el.mobileNotesRow.style.display = "block";
         // Immediate feedback: never leave the paper blank while the book/page loads
@@ -2013,6 +2017,19 @@ function handleCrossLink() {
         }
         setReaderMode("pali");
     }
+}
+
+// Jump straight from the Pāḷi (or Myanmar translation) into Myanmar Nissaya mode,
+// reading the same Pāḷi book/page as the source text.
+function handleCrossLinkNissaya() {
+    if (state.readerMode === "mm") {
+        if (state.matchingPali) {
+            state.paliBookId = state.matchingPali.book_id;
+            state.paliPage = state.matchingPali.page;
+        }
+    }
+    setReaderMode("nissaya");
+    showScrollToast("📜 မြန်မာ နိဿယသို့ ကူးပြောင်းထားပါသည်");
 }
 
 // ============================================================
@@ -2677,6 +2694,13 @@ function pruneFeedDOM() {
         if (anchor && toRemove.includes(anchor)) badgeRow.remove();
     }
     for (const elm of toRemove) elm.remove();
+    // Keep state.feedLoadedPages in sync with the DOM window: pruned pages are
+    // no longer "loaded", so the Set stays truthful for state consumers.
+    if (state.feedLoadedPages instanceof Set) {
+        state.feedLoadedPages.forEach(p => {
+            if (p < minKeep || p > maxKeep) state.feedLoadedPages.delete(p);
+        });
+    }
 }
 
 // ----------------- Pali Reader -----------------
@@ -3041,7 +3065,10 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
         if (_isPaliReaderMode()) {
             let html = cleanPaliContent(data.content);
             if (highlightWord) {
-                const regex = new RegExp(`(${highlightWord})`, "gi");
+                // Escape regex metacharacters: raw user text like "(" or "+"
+                // would throw a SyntaxError and abort the whole render.
+                const safeWord = highlightWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const regex = new RegExp(`(${safeWord})`, "gi");
                 html = html.replace(regex, `<mark class="hit">$1</mark>`);
             }
 
@@ -3263,6 +3290,17 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
     } catch (err) {
         console.error("Failed to load pali page:", err);
+        // Never leave the paper frozen on the loading text: show an error
+        // with a retry, unless a newer load (newer session) already took over.
+        if (!isAppend && !isPrepend && thisSession === state.feedSessionId &&
+            state.readerMode !== "split" && el.paliContent) {
+            el.paliContent.innerHTML = `
+                <div class="page-error-state" style="padding:40px 16px;text-align:center;">
+                    <p style="margin-bottom:14px;">စာမျက်နှာ ဆွဲယူရာတွင် အမှားတစ်ခု ဖြစ်ပွားပါသည်။</p>
+                    <button class="tool-btn" onclick='loadPaliPage(${JSON.stringify(bookId)}, ${targetNum})'>ပြန်လည်ကြိုးစားရန်</button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -3567,6 +3605,16 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 
     } catch (err) {
         console.error("Failed to load mm page:", err);
+        // Same anti-freeze guard as the Pali loader: keep a retry on screen
+        // unless a newer load already took over the pane.
+        if (!isSplitRightPane && !isAppend && !isPrepend && el.paliContent) {
+            el.paliContent.innerHTML = `
+                <div class="page-error-state" style="padding:40px 16px;text-align:center;">
+                    <p style="margin-bottom:14px;">စာမျက်နှာ ဆွဲယူရာတွင် အမှားတစ်ခု ဖြစ်ပွားပါသည်။</p>
+                    <button class="tool-btn" onclick='loadMMPage(${JSON.stringify(bookId)}, ${targetNum})'>ပြန်လည်ကြိုးစားရန်</button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -4282,7 +4330,7 @@ async function renderHomeCatalog() {
     let html = "";
     if (isPali && state.paliCategories && state.paliCategories.length > 0) {
         state.paliCategories.forEach(cat => {
-            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
+            const cleanCatName = escapeHtml(getCleanCategoryName(cat.name, cat.id));
             const books = (cat.books || []).filter(b => b.basket === basket);
             if (books.length > 0) {
                 html += `
@@ -4292,8 +4340,8 @@ async function renderHomeCatalog() {
                 `;
                 books.forEach(b => {
                     html += `
-                        <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
-                            <span class="home-book-name">${b.name}${volumeBadgeHtml(b.id)}</span>
+                        <button class="home-book-row" data-id="${escapeHtml(b.id)}" data-name="${escapeHtml(b.name)}">
+                            <span class="home-book-name">${escapeHtml(b.name)}${volumeBadgeHtml(b.id)}</span>
                         </button>
                     `;
                 });
@@ -4306,7 +4354,7 @@ async function renderHomeCatalog() {
     } else if (!isPali && state.mmCategories && state.mmCategories.length > 0) {
         // Myanmar translations catalog (60 books)
         state.mmCategories.forEach(cat => {
-            const cleanCatName = getCleanCategoryName(cat.name, cat.id);
+            const cleanCatName = escapeHtml(getCleanCategoryName(cat.name, cat.id));
             if (cat.books && cat.books.length > 0) {
                 html += `
                     <div class="home-cat-section">
@@ -4315,8 +4363,8 @@ async function renderHomeCatalog() {
                 `;
                 cat.books.forEach(b => {
                     html += `
-                        <button class="home-book-row" data-id="${b.id}" data-name="${b.name}">
-                            <span class="home-book-name">${b.name}${volumeBadgeHtml(b.id)}</span>
+                        <button class="home-book-row" data-id="${escapeHtml(b.id)}" data-name="${escapeHtml(b.name)}">
+                            <span class="home-book-name">${escapeHtml(b.name)}${volumeBadgeHtml(b.id)}</span>
                         </button>
                     `;
                 });
@@ -5368,6 +5416,7 @@ async function lookupDictionary(word, triggerPopover = false, clickX = 0, clickY
 
     try {
         const res = await fetch(`/api/dictionary/lookup?word=${encodeURIComponent(word)}`);
+        if (!res.ok) throw new Error(`Dict lookup failed (HTTP ${res.status})`);
         const data = await res.json();
         if (seq !== _dictLookupSeq) return; // stale response — a newer lookup is in flight
 
@@ -5482,6 +5531,7 @@ async function performSearch() {
 
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=${state.searchMode}&limit=30`);
+        if (!res.ok) throw new Error(`Search failed (HTTP ${res.status})`);
         const data = await res.json();
         if (seq !== _searchSeq) return; // stale response — a newer search is in flight
 
@@ -5571,7 +5621,7 @@ async function performSearch() {
                             <span class="res-book">📜 ${escapeHtml(r.book_name)}</span>
                             <span class="res-page">${pageText}${paraText ? ' • ' + paraText : ''}</span>
                         </div>
-                        <div class="res-snippet">${r.snippet || escapeHtml(r.gloss || '')}</div>
+                        <div class="res-snippet">${r.snippet ? String(r.snippet).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])).replace(/&lt;(\/?)mark&gt;/g, '<$1mark>') : escapeHtml(r.gloss || '')}</div>
                     </div>
                 `;
             }
@@ -6696,6 +6746,7 @@ function setupEventListeners() {
     if (el.btnModeNissaya) el.btnModeNissaya.addEventListener("click", () => setReaderMode("nissaya"));
     el.btnModeSplit.addEventListener("click", () => setReaderMode("split"));
     el.btnCrossLink.addEventListener("click", handleCrossLink);
+    if (el.btnCrossLinkNissaya) el.btnCrossLinkNissaya.addEventListener("click", handleCrossLinkNissaya);
 
     // Toggle Footnotes / Variant Readings
     if (el.btnToggleNotes) {
@@ -7978,8 +8029,8 @@ function setupEventListeners() {
     }
 
     // Actions in Reader More Sheet
-    if (el.btnMoreDict) {
-        el.btnMoreDict.addEventListener("click", () => {
+    if (el.btnMoreDictSheet) {
+        el.btnMoreDictSheet.addEventListener("click", () => {
             closeReaderMoreSheet();
             toggleDictSidebar(true);
         });
@@ -8063,6 +8114,18 @@ function setNotesVisibility(show) {
 // Per-paragraph word-by-word Myanmar glosses (source: tipitakapali.org
 // my_nissaya, digitized by wikipali.org, CC BY-NC-SA 3.0 non-commercial).
 const nissayaCache = new Map(); // "bookId/page" -> glosses object or null
+const NISSAYA_CACHE_MAX = 50;   // bounded LRU: long scroll-speech sessions
+                                // would otherwise cache every visited page
+
+function cacheNissayaGlosses(key, glosses) {
+    // Re-insert to refresh recency, then evict the oldest entry when full.
+    nissayaCache.delete(key);
+    nissayaCache.set(key, glosses);
+    if (nissayaCache.size > NISSAYA_CACHE_MAX) {
+        const oldest = nissayaCache.keys().next().value;
+        nissayaCache.delete(oldest);
+    }
+}
 
 function setNissayaVisibility(show) {
     state.showNissaya = show;
@@ -8113,7 +8176,13 @@ function updateNissayaToggleLabel() {
 
 async function fetchNissayaGlosses(bookId, page) {
     const key = bookId + "/" + page;
-    if (nissayaCache.has(key)) return nissayaCache.get(key);
+    if (nissayaCache.has(key)) {
+        // Refresh recency so re-reads keep the entry alive in the LRU.
+        const v = nissayaCache.get(key);
+        nissayaCache.delete(key);
+        nissayaCache.set(key, v);
+        return v;
+    }
     let glosses = null;
     try {
         const r = await fetch(`/api/nissaya/${encodeURIComponent(bookId)}/${page}`);
@@ -8121,7 +8190,7 @@ async function fetchNissayaGlosses(bookId, page) {
             const d = await r.json();
             if (d.available && d.glosses && Object.keys(d.glosses).length) {
                 glosses = d.glosses;
-                nissayaCache.set(key, glosses);
+                cacheNissayaGlosses(key, glosses);
             }
         }
     } catch (e) { glosses = null; }

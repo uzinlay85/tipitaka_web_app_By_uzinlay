@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.71">
+    <link rel="stylesheet" href="/static/app.css?v=7.73">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -69,6 +69,12 @@
             <button id="btnCrossLink" class="tool-btn cross-link-btn" title="ပါဠိတော်နှင့် မြန်မာပြန် အပြန်အလှန် ကူးပြောင်းရန်">
                 <span class="btn-icon" id="crossLinkIcon">🇲🇲</span>
                 <span class="btn-text" id="crossLinkLabel">မြန်မာပြန်သို့</span>
+            </button>
+
+            <!-- Quick Cross-link Button (Pali -> Myanmar Nissaya) -->
+            <button id="btnCrossLinkNissaya" class="tool-btn cross-link-btn nissaya-cross-link-btn" title="ပါဠိတော်မှ မြန်မာ နိဿယသို့ ကူးပြောင်းရန်">
+                <span class="btn-icon">📜</span>
+                <span class="btn-text" id="nissayaCrossLinkLabel">နိဿယသို့</span>
             </button>
 
             <!-- Toggle Variant Readings (မူကွဲပါဠိတော် ဖွင့်/ပိတ်) -->
@@ -1480,7 +1486,7 @@
 
             <!-- Vertical Action List -->
             <div class="reader-more-action-list">
-                <button type="button" class="reader-more-action-item" id="btnMoreDict">
+                <button type="button" class="reader-more-action-item" id="btnMoreDictSheet">
                     <div class="more-item-icon circle-dict">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -1551,6 +1557,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.71"></script>
+    <script src="/static/app.js?v=7.73"></script>
 </body>
 </html>
