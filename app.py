@@ -2634,17 +2634,17 @@ def open_browser():
 
 if __name__ == "__main__":
     port = _env_int("PORT", 5000)
-    # The Werkzeug dev server binds to loopback by default; VPS deployments go
-    # through gunicorn (127.0.0.1:5005 per install_vps.sh) and the Android
-    # wrapper talks over 127.0.0.1, so nothing legitimate needs 0.0.0.0 here.
-    # Set APP_HOST=0.0.0.0 explicitly for LAN testing.
-    host = os.environ.get("APP_HOST", "127.0.0.1")
+    # Default to 0.0.0.0 so phone, tablet, and LAN devices on the same Wi-Fi
+    # can access the reader. Set APP_HOST=127.0.0.1 to restrict to localhost.
+    host = os.environ.get("APP_HOST", "0.0.0.0")
     init_sync_db()
     if os.environ.get("NO_BROWSER") != "1":
         threading.Timer(1.2, open_browser).start()
     print(f"==================================================")
     print(f" Tipitaka Pali & Myanmar Web Reader")
-    print(f" Server running at: http://{host}:{port}")
+    print(f" Server running at: http://127.0.0.1:{port}")
+    if host == "0.0.0.0":
+        print(f" LAN access: http://<your-ip>:{port}")
     print(f" Press Ctrl+C to stop.")
     print(f"==================================================")
     app.run(host=host, port=port, debug=False)

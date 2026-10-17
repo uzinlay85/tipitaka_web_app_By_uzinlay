@@ -657,41 +657,49 @@ function removeAnnotationStyleFromPara(paraEl) {
 // highlights and text-selection highlights).
 function injectAnnotationPins(containerEl, bookId, page) {
     if (!containerEl) return;
+    try {
+        // Remove any legacy pin buttons left from older versions
+        containerEl.querySelectorAll(".para-pin-btn").forEach(b => b.remove());
 
-    // Remove any legacy pin buttons left from older versions
-    containerEl.querySelectorAll(".para-pin-btn").forEach(b => b.remove());
-
-    const paras = containerEl.querySelectorAll("p");
-    // Hoist the annotation read out of the per-paragraph loop: getAll() does a
-    // localStorage read + full JSON.parse, and this loop runs per paragraph
-    // (50-150x per page). Index once by paraId instead of O(P x A) filtering.
-    const byPara = new Map();
-    for (const a of AnnotationManager.getAll()) {
-        if (a.bookId === bookId && String(a.page) === String(page) && a.paraId) {
-            if (!byPara.has(a.paraId)) byPara.set(a.paraId, []);
-            byPara.get(a.paraId).push(a);
-        }
-    }
-    paras.forEach((p, idx) => {
-        if (!p.classList.contains("annotatable-para") || !p.getAttribute("data-para-id")) {
-            p.classList.add("annotatable-para");
-            p.setAttribute("data-para-id", `p${page}_${idx}`);
-        }
-        // Remember reading context on the paragraph for selection handler
-        p.setAttribute("data-ann-book", bookId);
-        p.setAttribute("data-ann-page", page);
-
-        // Re-apply saved annotations for this paragraph
-        const paraId = p.getAttribute("data-para-id");
-        const entries = byPara.get(paraId) || [];
-        entries.forEach(a => {
-            if (a.selText) {
-                highlightTextInPara(p, a.selText, a.color, a.selStart || 0, a.id);
-            } else {
-                applyAnnotationStyleToPara(p, a.color);
+        const paras = containerEl.querySelectorAll("p");
+        // Hoist the annotation read out of the per-paragraph loop: getAll() does a
+        // localStorage read + full JSON.parse, and this loop runs per paragraph
+        // (50-150x per page). Index once by paraId instead of O(P x A) filtering.
+        const byPara = new Map();
+        for (const a of AnnotationManager.getAll()) {
+            if (a && a.bookId === bookId && String(a.page) === String(page) && a.paraId) {
+                if (!byPara.has(a.paraId)) byPara.set(a.paraId, []);
+                byPara.get(a.paraId).push(a);
             }
+        }
+        paras.forEach((p, idx) => {
+            if (!p.classList.contains("annotatable-para") || !p.getAttribute("data-para-id")) {
+                p.classList.add("annotatable-para");
+                p.setAttribute("data-para-id", `p${page}_${idx}`);
+            }
+            // Remember reading context on the paragraph for selection handler
+            p.setAttribute("data-ann-book", bookId);
+            p.setAttribute("data-ann-page", page);
+
+            // Re-apply saved annotations for this paragraph
+            const paraId = p.getAttribute("data-para-id");
+            const entries = byPara.get(paraId) || [];
+            entries.forEach(a => {
+                if (!a) return;
+                try {
+                    if (a.selText) {
+                        highlightTextInPara(p, a.selText, a.color, a.selStart || 0, a.id);
+                    } else {
+                        applyAnnotationStyleToPara(p, a.color);
+                    }
+                } catch (e) {
+                    console.warn("highlightText err:", e);
+                }
+            });
         });
-    });
+    } catch (err) {
+        console.warn("injectAnnotationPins error:", err);
+    }
 }
 
 // Find the annotatable paragraph containing a DOM node
@@ -2850,83 +2858,93 @@ const PALI_PARTICLES_RE = /(^|[\s"\'“‘\(])(န|နော|မာ|စ|ဝါ|�
 
 function cleanPaliContent(html) {
     if (!html) return "";
-    // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
-    const peyalaCleaned = cleanPeyala(html);
+    try {
+        // ပေယျာလ အကျဉ်းချုံးများကို ဆဋ္ဌမူစာအုပ်အတိုင်း "။ ပ ။" အဖြစ် အရင်ပြောင်းလဲပါမည်
+        const peyalaCleaned = cleanPeyala(html);
 
-    const formatted = peyalaCleaned.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
-        // ဂါထာပါဠိတော်များ (Gāthā) စာပိုဒ်များဖြစ်ပါက ဆဋ္ဌမူစာအုပ် မူရင်းပုံစံအတိုင်း:
-        // ပထမ နှင့် တတိယ ပုဒ်အဆုံးတွင် ပုဒ်ထီး "၊" သုံးသည်
-        // ဒုတိယ နှင့် စတုတ္ထ ပုဒ်အဆုံးတွင် ပုဒ်မ "။" သုံးသည်
-        if (/\bclass\s*=\s*["'][^"']*gatha[^"']*["']/i.test(attrs)) {
-            const clsMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
-            const clsName = clsMatch ? clsMatch[1].toLowerCase() : "";
-            
-            // If already wrapped in gatha-pada, preserve
-            if (content.includes('<span class="gatha-pada')) {
-                return `<p${attrs}>${content}</p>`;
-            }
+        const formatted = peyalaCleaned.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, content) => {
+            // ဂါထာပါဠိတော်များ (Gāthā) စာပိုဒ်များဖြစ်ပါက ဆဋ္ဌမူစာအုပ် မူရင်းပုံစံအတိုင်း:
+            // ပထမ နှင့် တတိယ ပုဒ်အဆုံးတွင် ပုဒ်ထီး "၊" သုံးသည်
+            // ဒုတိယ နှင့် စတုတ္ထ ပုဒ်အဆုံးတွင် ပုဒ်မ "။" သုံးသည်
+            if (/\bclass\s*=\s*["'][^"']*gatha[^"']*["']/i.test(attrs)) {
+                const clsMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
+                const clsName = clsMatch ? clsMatch[1].toLowerCase() : "";
+                
+                // If already wrapped in gatha-pada, preserve
+                if (content.includes('<span class="gatha-pada')) {
+                    return `<p${attrs}>${content}</p>`;
+                }
 
-            // ၁။ ဂါထာစာကြောင်း အစရှိ မလိုအပ်သော space များကို ဖယ်ရှား၍ ညီညာစေပါမည်
-            content = content.replace(/^\s+/, "");
-            content = content.replace(/^((?:<a\b[^>]*>.*?<\/a>)*)\s+/, "$1");
-            // ဆဋ္ဌမူစာအုပ် မူရင်းအတိုင်း ဂါထာအစ/အဆုံး quotation marks (‘‘, ’’, “, ”) များကို သန့်စင်ဖယ်ရှားပါမည်
-            content = cleanGathaQuotes(content);
+                // ၁။ ဂါထာစာကြောင်း အစရှိ မလိုအပ်သော space များကို ဖယ်ရှား၍ ညီညာစေပါမည်
+                content = content.replace(/^\s+/, "");
+                content = content.replace(/^((?:<a\b[^>]*>.*?<\/a>)*)\s+/, "$1");
+                // ဆဋ္ဌမူစာအုပ် မူရင်းအတိုင်း ဂါထာအစ/အဆုံး quotation marks (‘‘, ’’, “, ”) များကို သန့်စင်ဖယ်ရှားပါမည်
+                content = cleanGathaQuotes(content);
 
-            // ၂။ အပုဒ်များ ခွဲခြားထားသော comma ပါဝင်ပါက တစ်ပါဒစီ ခွဲခြား wrap လုပ်ပါမည်
-            if (/,+(?![^<]*>)/.test(content)) {
-                const parts = content.split(/,(?![^<]*>)\s*/);
-                const padas = parts.map((part, i) => {
-                    let p = cleanGathaQuotes(part.trim());
-                    if (i < parts.length - 1) {
-                        p = p.replace(/[၊။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "၊$1");
-                        if (!/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
-                            p = p + "၊";
+                // ၂။ အပုဒ်များ ခွဲခြားထားသော comma ပါဝင်ပါက တစ်ပါဒစီ ခွဲခြား wrap လုပ်ပါမည်
+                if (/,+(?![^<]*>)/.test(content)) {
+                    const parts = content.split(/,(?![^<]*>)\s*/);
+                    const padas = parts.map((part, i) => {
+                        let p = cleanGathaQuotes(part.trim());
+                        if (i < parts.length - 1) {
+                            p = p.replace(/[၊။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "၊$1");
+                            if (!/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
+                                p = p + "၊";
+                            }
+                        } else {
+                            p = p.replace(/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
+                            if (!/[။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
+                                p = p + "။";
+                            }
                         }
-                    } else {
-                        p = p.replace(/[၊]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
-                        if (!/[။]([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/.test(p)) {
-                            p = p + "။";
-                        }
+                        p = cleanGathaQuotes(p);
+                        return `<span class="gatha-pada pada${i + 1}">${p}</span>`;
+                    });
+                    return `<p${attrs}>${padas.join(" ")}</p>`;
+                } else {
+                    let p = cleanGathaQuotes(content.trim());
+                    if (clsName.includes("gatha2") || clsName.includes("gatha4") || clsName.includes("gathalast")) {
+                        p = p.replace(/၊([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
                     }
                     p = cleanGathaQuotes(p);
-                    return `<span class="gatha-pada pada${i + 1}">${p}</span>`;
-                });
-                return `<p${attrs}>${padas.join(" ")}</p>`;
-            } else {
-                let p = cleanGathaQuotes(content.trim());
-                if (clsName.includes("gatha2") || clsName.includes("gatha4") || clsName.includes("gathalast")) {
-                    p = p.replace(/၊([’"”’'\s]*(?:<[^>]+>[’"”’'\s]*)*)$/, "။$1");
+                    return `<p${attrs}><span class="gatha-pada">${p}</span></p>`;
                 }
-                p = cleanGathaQuotes(p);
-                return `<p${attrs}><span class="gatha-pada">${p}</span></p>`;
             }
-        }
-        
-        // စကားပြေ (Prose / Bodytext) တွင် မူရင်း English comma, semicolon များကို ပုဒ်ထီး (၊) သို့လည်းကောင်း၊ ? နှင့် ! များကို ပုဒ်မ (။) သို့လည်းကောင်း ပြောင်းလဲပြီးနောက်၊
-        // ဆဋ္ဌသံဂါယနာ မူရင်းစာအုပ်စံနှုန်းအတိုင်း အာလပနများနှင့် နိပါတ်ပုဒ်ငယ်များရှိ Western comma အပိုများကို သန့်စင်ပါမည်
-        let cleaned = content
-            .replace(/,(?![^<]*>)/g, "၊")
-            .replace(/;(?![^<]*>)/g, "၊")
-            .replace(/[?!](?![^<]*>)/g, "။")
-            .replace(PALI_VOCATIVES_BEFORE_RE, " $1$2")
-            .replace(PALI_VOCATIVES_AFTER_RE, "$1$2 ")
-            .replace(PALI_PARTICLES_RE, "$1$2$3 ")
-            .replace(/၊\s*၊/g, "၊")
-            .replace(/၊\s*။/g, "။")
-            .replace(/။\s*။/g, "။")
-            .replace(/[ \t]{2,}/g, " ");
-        return `<p${attrs}>${cleaned}</p>`;
-    });
+            
+            // စကားပြေ (Prose / Bodytext) တွင် မူရင်း English comma, semicolon များကို ပုဒ်ထီး (၊) သို့လည်းကောင်း၊ ? နှင့် ! များကို ပုဒ်မ (။) သို့လည်းကောင်း ပြောင်းလဲပြီးနောက်၊
+            // ဆဋ္ဌသံဂါယနာ မူရင်းစာအုပ်စံနှုန်းအတိုင်း အာလပနများနှင့် နိပါတ်ပုဒ်ငယ်များရှိ Western comma အပိုများကို သန့်စင်ပါမည်
+            let cleaned = content
+                .replace(/,(?![^<]*>)/g, "၊")
+                .replace(/;(?![^<]*>)/g, "၊")
+                .replace(/[?!](?![^<]*>)/g, "။")
+                .replace(PALI_VOCATIVES_BEFORE_RE, " $1$2")
+                .replace(PALI_VOCATIVES_AFTER_RE, "$1$2 ")
+                .replace(PALI_PARTICLES_RE, "$1$2$3 ")
+                .replace(/၊\s*၊/g, "၊")
+                .replace(/၊\s*။/g, "။")
+                .replace(/။\s*။/g, "။")
+                .replace(/[ \t]{2,}/g, " ");
+            return `<p${attrs}>${cleaned}</p>`;
+        });
 
-    // ၅။ စာကြောင်းအကူးအပြောင်းတွင် စာလုံးဆင့်များ ပြတ်တောက်၍ (+) မဖြစ်ပေါ်စေရန် ပါဠိစာလုံးများကို wrap ပြုလုပ်ပါမည်
-    return protectPaliWords(formatted);
+        // ၅။ စာကြောင်းအကူးအပြောင်းတွင် စာလုံးဆင့်များ ပြတ်တောက်၍ (+) မဖြစ်ပေါ်စေရန် ပါဠိစာလုံးများကို wrap ပြုလုပ်ပါမည်
+        return protectPaliWords(formatted);
+    } catch (e) {
+        console.warn("cleanPaliContent err:", e);
+        return html;
+    }
 }
 
 function cleanMMContent(html) {
     if (!html) return "";
-    let res = cleanPeyala(html);
-    res = res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
-    return protectMyanmarConjuncts(res);
+    try {
+        let res = cleanPeyala(html);
+        res = res.replace(/။\s*ပ\s*။/g, "။ ပ ။ ").replace(/[ \t]{2,}/g, " ");
+        return protectMyanmarConjuncts(res);
+    } catch (e) {
+        console.warn("cleanMMContent err:", e);
+        return html;
+    }
 }
 
 /* ============================================================
@@ -3117,14 +3135,14 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                     if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
 
-                    setupSentinelObserver();
-                    setupPageVisibilityObserver();
-                    debounceRecent(bookId, actualPage);
-                    updateBookmarkIconStatus();
-                    highlightActiveToc(actualPage);
-                    injectAnnotationPins(el.paliContent, bookId, actualPage);
-                    applyNissayaToCurrentPage();
-                    applyPendingSearchHighlight(el.paliContent);
+                    try { setupSentinelObserver(); } catch (e) { console.warn("setupSentinelObserver err:", e); }
+                    try { setupPageVisibilityObserver(); } catch (e) { console.warn("setupPageVisibilityObserver err:", e); }
+                    try { debounceRecent(bookId, actualPage); } catch (e) { console.warn("debounceRecent err:", e); }
+                    try { updateBookmarkIconStatus(); } catch (e) { console.warn("updateBookmarkIconStatus err:", e); }
+                    try { highlightActiveToc(actualPage); } catch (e) { console.warn("highlightActiveToc err:", e); }
+                    try { injectAnnotationPins(el.paliContent, bookId, actualPage); } catch (e) { console.warn("injectAnnotationPins err:", e); }
+                    try { applyNissayaToCurrentPage(); } catch (e) { console.warn("applyNissaya err:", e); }
+                    try { applyPendingSearchHighlight(el.paliContent); } catch (e) { console.warn("applyPendingSearchHighlight err:", e); }
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -3162,10 +3180,12 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
                     el.paliContent.appendChild(div);
                     el.paliContent.appendChild(sec);
-                    injectAnnotationPins(sec, bookId, actualPage);
-                    applyNissayaToFeedSection(sec, bookId, actualPage);
+                    try { injectAnnotationPins(sec, bookId, actualPage); } catch (e) { console.warn(e); }
+                    try { applyNissayaToFeedSection(sec, bookId, actualPage); } catch (e) { console.warn(e); }
 
-                    if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+                    if (pageVisibilityObserver) {
+                        try { pageVisibilityObserver.observe(sec); } catch (e) { console.warn(e); }
+                    }
 
                     if (actualPage >= data.last_page) {
                         if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
@@ -3211,13 +3231,15 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
 
                     el.paliContent.insertBefore(div, el.paliContent.firstChild);
                     el.paliContent.insertBefore(sec, div);
-                    injectAnnotationPins(sec, bookId, actualPage);
-                    applyNissayaToFeedSection(sec, bookId, actualPage);
+                    try { injectAnnotationPins(sec, bookId, actualPage); } catch (e) { console.warn(e); }
+                    try { applyNissayaToFeedSection(sec, bookId, actualPage); } catch (e) { console.warn(e); }
 
                     const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
                     el.readerContainer.scrollTop = oldScrollTop + heightAdded;
 
-                    if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+                    if (pageVisibilityObserver) {
+                        try { pageVisibilityObserver.observe(sec); } catch (e) { console.warn(e); }
+                    }
 
                     if (el.loadPrevBox && el.loadPrevText) {
                         if (actualPage > data.first_page) {
@@ -3254,12 +3276,12 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
                 if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
                 updateScrollIndicator(actualPage, data.last_page);
                 
-                debounceRecent(bookId, actualPage);
-                updateBookmarkIconStatus();
-                highlightActiveToc(actualPage);
-                injectAnnotationPins(el.paliContent, bookId, actualPage);
-                applyNissayaToCurrentPage();
-                applyPendingSearchHighlight(el.paliContent);
+                try { debounceRecent(bookId, actualPage); } catch (e) { console.warn("debounceRecent err:", e); }
+                try { updateBookmarkIconStatus(); } catch (e) { console.warn("updateBookmarkIconStatus err:", e); }
+                try { highlightActiveToc(actualPage); } catch (e) { console.warn("highlightActiveToc err:", e); }
+                try { injectAnnotationPins(el.paliContent, bookId, actualPage); } catch (e) { console.warn("injectAnnotationPins err:", e); }
+                try { applyNissayaToCurrentPage(); } catch (e) { console.warn("applyNissaya err:", e); }
+                try { applyPendingSearchHighlight(el.paliContent); } catch (e) { console.warn("applyPendingSearchHighlight err:", e); }
             }
         }
 
@@ -3278,21 +3300,26 @@ async function loadPaliPage(bookId, pageNum = null, highlightWord = null, isAppe
             if (el.btnSplitPaliNext) el.btnSplitPaliNext.disabled = !data.has_next;
             if (el.splitPaliContent) {
                 el.splitPaliContent.innerHTML = cleanPaliContent(data.content);
-                applyPendingSearchHighlight(el.splitPaliContent);
-                injectAnnotationPins(el.splitPaliContent, bookId, actualPage);
-                applyNissayaToCurrentPage();
+                try { applyPendingSearchHighlight(el.splitPaliContent); } catch (e) { console.warn(e); }
+                try { injectAnnotationPins(el.splitPaliContent, bookId, actualPage); } catch (e) { console.warn(e); }
+                try { applyNissayaToCurrentPage(); } catch (e) { console.warn(e); }
             }
             
             // Sync matching Companion page (Attha, Tika, Mula, or MM)
-            await syncSplitCompanionPane(bookId, actualPage);
-            attachSplitViewParagraphListeners();
+            try {
+                await syncSplitCompanionPane(bookId, actualPage);
+                attachSplitViewParagraphListeners();
+            } catch (e) {
+                console.warn("syncSplitCompanionPane err:", e);
+            }
         }
 
     } catch (err) {
         console.error("Failed to load pali page:", err);
         // Never leave the paper frozen on the loading text: show an error
-        // with a retry, unless a newer load (newer session) already took over.
-        if (!isAppend && !isPrepend && thisSession === state.feedSessionId &&
+        // with a retry ONLY if content hasn't been rendered yet.
+        const hasContent = el.paliContent && el.paliContent.querySelector(".feed-page-item, p");
+        if (!hasContent && !isAppend && !isPrepend && thisSession === state.feedSessionId &&
             state.readerMode !== "split" && el.paliContent) {
             el.paliContent.innerHTML = `
                 <div class="page-error-state" style="padding:40px 16px;text-align:center;">
@@ -3434,13 +3461,13 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                     if (el.sentinelLoading) el.sentinelLoading.style.display = "none";
                     if (el.pageScrollIndicator) el.pageScrollIndicator.style.display = "none";
 
-                    setupSentinelObserver();
-                    setupPageVisibilityObserver();
-                    highlightActiveToc(actualPage);
-                    debounceRecent(bookId, actualPage);
-                    injectAnnotationPins(el.paliContent, bookId, actualPage);
-                    applyNissayaToCurrentPage();
-                    applyPendingSearchHighlight(el.paliContent);
+                    try { setupSentinelObserver(); } catch (e) { console.warn(e); }
+                    try { setupPageVisibilityObserver(); } catch (e) { console.warn(e); }
+                    try { highlightActiveToc(actualPage); } catch (e) { console.warn(e); }
+                    try { debounceRecent(bookId, actualPage); } catch (e) { console.warn(e); }
+                    try { injectAnnotationPins(el.paliContent, bookId, actualPage); } catch (e) { console.warn(e); }
+                    try { applyNissayaToCurrentPage(); } catch (e) { console.warn(e); }
+                    try { applyPendingSearchHighlight(el.paliContent); } catch (e) { console.warn(e); }
                 } else if (isAppend) {
                     const loaded = getLoadedFeedPages();
                     const currentLast = loaded.length > 0 ? loaded[loaded.length - 1] : (data.first_page - 1);
@@ -3478,9 +3505,11 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 
                     el.paliContent.appendChild(div);
                     el.paliContent.appendChild(sec);
-                    injectAnnotationPins(sec, bookId, actualPage);
+                    try { injectAnnotationPins(sec, bookId, actualPage); } catch (e) { console.warn(e); }
 
-                    if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+                    if (pageVisibilityObserver) {
+                        try { pageVisibilityObserver.observe(sec); } catch (e) { console.warn(e); }
+                    }
 
                     if (actualPage >= data.last_page) {
                         if (el.sentinelEnd) el.sentinelEnd.style.display = "block";
@@ -3526,11 +3555,14 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
 
                     el.paliContent.insertBefore(div, el.paliContent.firstChild);
                     el.paliContent.insertBefore(sec, div);
+                    try { injectAnnotationPins(sec, bookId, actualPage); } catch (e) { console.warn(e); }
 
                     const heightAdded = el.readerContainer.scrollHeight - oldScrollHeight;
                     el.readerContainer.scrollTop = oldScrollTop + heightAdded;
 
-                    if (pageVisibilityObserver) pageVisibilityObserver.observe(sec);
+                    if (pageVisibilityObserver) {
+                        try { pageVisibilityObserver.observe(sec); } catch (e) { console.warn(e); }
+                    }
 
                     if (el.loadPrevBox && el.loadPrevText) {
                         if (actualPage > data.first_page) {
@@ -3567,11 +3599,11 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
                 if (el.infiniteSentinel) el.infiniteSentinel.style.display = "none";
                 updateScrollIndicator(actualPage, data.last_page);
 
-                highlightActiveToc(actualPage);
-                debounceRecent(bookId, actualPage);
-                injectAnnotationPins(el.paliContent, bookId, actualPage);
-                applyNissayaToCurrentPage();
-                applyPendingSearchHighlight(el.paliContent);
+                try { highlightActiveToc(actualPage); } catch (e) { console.warn(e); }
+                try { debounceRecent(bookId, actualPage); } catch (e) { console.warn(e); }
+                try { injectAnnotationPins(el.paliContent, bookId, actualPage); } catch (e) { console.warn(e); }
+                try { applyNissayaToCurrentPage(); } catch (e) { console.warn(e); }
+                try { applyPendingSearchHighlight(el.paliContent); } catch (e) { console.warn(e); }
             }
         }
 
@@ -3592,22 +3624,23 @@ async function loadMMPage(bookId, pageNum = null, isSplitRightPane = false, isAp
             if (el.btnSplitMMNext) el.btnSplitMMNext.disabled = !data.has_next;
             if (el.splitMMContent) {
                 el.splitMMContent.innerHTML = cleanMMContent(data.content);
-                applyPendingSearchHighlight(el.splitMMContent);
+                try { applyPendingSearchHighlight(el.splitMMContent); } catch (e) { console.warn(e); }
             }
             if (el.bookTitleDisplay && state.readerMode === "split") {
                 el.bookTitleDisplay.textContent = `${withVolumeLabel(state.paliBookId, state.paliBookName || 'ပါဠိတော်')} ↔ ${withVolumeLabel(data.book_id, data.book_name)}`;
             }
-            attachSplitViewParagraphListeners();
+            try { attachSplitViewParagraphListeners(); } catch (e) { console.warn(e); }
             if (state.readerMode === "split") {
-                debounceRecent(state.paliBookId, state.paliPage);
+                try { debounceRecent(state.paliBookId, state.paliPage); } catch (e) { console.warn(e); }
             }
         }
 
     } catch (err) {
         console.error("Failed to load mm page:", err);
         // Same anti-freeze guard as the Pali loader: keep a retry on screen
-        // unless a newer load already took over the pane.
-        if (!isSplitRightPane && !isAppend && !isPrepend && el.paliContent) {
+        // ONLY if content hasn't been rendered yet.
+        const hasContent = el.paliContent && el.paliContent.querySelector(".feed-page-item, p");
+        if (!hasContent && !isSplitRightPane && !isAppend && !isPrepend && el.paliContent) {
             el.paliContent.innerHTML = `
                 <div class="page-error-state" style="padding:40px 16px;text-align:center;">
                     <p style="margin-bottom:14px;">စာမျက်နှာ ဆွဲယူရာတွင် အမှားတစ်ခု ဖြစ်ပွားပါသည်။</p>
@@ -5212,11 +5245,11 @@ const BookmarkManager = {
     _id(bookId, page) { return "bm_" + String(bookId) + "_" + String(page); },
 
     getAll() {
-        return this._readRaw().filter(b => !b.deleted);
+        return this._readRaw().filter(b => b && !b.deleted);
     },
 
     isBookmarked(bookId, page) {
-        return this._readRaw().some(b => !b.deleted && b.bookId === bookId && Number(b.page) === Number(page));
+        return this._readRaw().some(b => b && !b.deleted && b.bookId === bookId && Number(b.page) === Number(page));
     },
 
     add({ bookId, bookName, page, note, mode }) {
@@ -5363,13 +5396,16 @@ function renderBookmarksList() {
 }
 
 function updateBookmarkIconStatus() {
-    const isBookmarked = BookmarkManager.isBookmarked(state.paliBookId, state.paliPage);
-    if (isBookmarked) {
-        el.bookmarkIcon.setAttribute("fill", "currentColor");
-        el.btnBookmarkToggle.style.color = "var(--accent)";
-    } else {
-        el.bookmarkIcon.setAttribute("fill", "none");
-        el.btnBookmarkToggle.style.color = "";
+    try {
+        const isBookmarked = BookmarkManager.isBookmarked(state.paliBookId, state.paliPage);
+        if (el.bookmarkIcon) {
+            el.bookmarkIcon.setAttribute("fill", isBookmarked ? "currentColor" : "none");
+        }
+        if (el.btnBookmarkToggle) {
+            el.btnBookmarkToggle.style.color = isBookmarked ? "var(--accent)" : "";
+        }
+    } catch (e) {
+        console.warn("updateBookmarkIconStatus error:", e);
     }
 }
 
@@ -8396,28 +8432,32 @@ function setScrollMode(mode) {
 
 let infiniteSentinelObserver = null;
 function setupSentinelObserver() {
-    if (infiniteSentinelObserver) {
-        infiniteSentinelObserver.disconnect();
-        infiniteSentinelObserver = null;
-    }
-    if (state.scrollMode !== "feed") return;
+    try {
+        if (infiniteSentinelObserver) {
+            infiniteSentinelObserver.disconnect();
+            infiniteSentinelObserver = null;
+        }
+        if (state.scrollMode !== "feed") return;
 
-    const sentinel = document.getElementById("infiniteSentinel");
-    if (!sentinel) return;
+        const sentinel = document.getElementById("infiniteSentinel");
+        if (!sentinel || typeof IntersectionObserver === "undefined") return;
 
-    infiniteSentinelObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                loadNextFeedPage();
-            }
+        infiniteSentinelObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    loadNextFeedPage();
+                }
+            });
+        }, {
+            root: el.readerContainer || null,
+            rootMargin: "0px 0px 200px 0px",
+            threshold: 0.05
         });
-    }, {
-        root: el.readerContainer,
-        rootMargin: "0px 0px 200px 0px",
-        threshold: 0.05
-    });
 
-    infiniteSentinelObserver.observe(sentinel);
+        infiniteSentinelObserver.observe(sentinel);
+    } catch (e) {
+        console.warn("setupSentinelObserver error:", e);
+    }
 }
 
 // Feed navigation lock timestamp: if a load wedges (network stall, an
@@ -8524,36 +8564,41 @@ async function handleLoadPrevPage() {
 
 let pageVisibilityObserver = null;
 function setupPageVisibilityObserver() {
-    if (pageVisibilityObserver) {
-        pageVisibilityObserver.disconnect();
-        pageVisibilityObserver = null;
-    }
+    try {
+        if (pageVisibilityObserver) {
+            pageVisibilityObserver.disconnect();
+            pageVisibilityObserver = null;
+        }
+        if (typeof IntersectionObserver === "undefined") return;
 
-    pageVisibilityObserver = new IntersectionObserver((entries) => {
-        let bestEntry = null;
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
-                    bestEntry = entry;
+        pageVisibilityObserver = new IntersectionObserver((entries) => {
+            let bestEntry = null;
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
+                        bestEntry = entry;
+                    }
+                }
+            });
+
+            if (bestEntry) {
+                const p = parseInt(bestEntry.target.getAttribute("data-page"), 10);
+                if (!isNaN(p)) {
+                    updateCurrentViewPage(p);
                 }
             }
+        }, {
+            root: el.readerContainer || null,
+            rootMargin: "-5% 0px -40% 0px",
+            threshold: [0.1, 0.3, 0.6]
         });
 
-        if (bestEntry) {
-            const p = parseInt(bestEntry.target.getAttribute("data-page"), 10);
-            if (!isNaN(p)) {
-                updateCurrentViewPage(p);
-            }
-        }
-    }, {
-        root: el.readerContainer,
-        rootMargin: "-5% 0px -40% 0px",
-        threshold: [0.1, 0.3, 0.6]
-    });
-
-    document.querySelectorAll(".feed-page-item").forEach(sec => {
-        pageVisibilityObserver.observe(sec);
-    });
+        document.querySelectorAll(".feed-page-item").forEach(sec => {
+            pageVisibilityObserver.observe(sec);
+        });
+    } catch (e) {
+        console.warn("setupPageVisibilityObserver error:", e);
+    }
 }
 
 function updateCurrentViewPage(pageNum) {
