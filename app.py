@@ -1287,6 +1287,42 @@ def api_mm_page(book_id, page_num):
 
 # ----------------- Paragraph Match API (Split View Sync) -----------------
 
+def find_nearest_pali_para_page(pali_cur, book_id, para_num):
+    """Closest *marked* paragraph page inside a Pali book.
+
+    Aṭṭhakathā/Ṭīkā volumes only print a paragraph number at selected
+    boundaries (e.g. `attha_vi_01_02` jumps straight from para 233 to 424), so
+    an exact `paranum` lookup usually misses for commentary pages. Return the
+    latest page whose paragraph range contains the greatest marked paragraph
+    <= para_num; when the request precedes the book's first mark, fall back to
+    that first mark. Returns (page, matched_para) or (None, None).
+    """
+    rows = pali_cur.execute(
+        "SELECT page, paranum FROM pages WHERE book_id = ? AND paranum IS NOT NULL AND paranum != '' ORDER BY page",
+        (book_id,)
+    ).fetchall()
+
+    best_para = None
+    best_page = None
+    first_para = None
+    first_page = None
+    for r in rows:
+        page = r["page"]
+        for token in str(r["paranum"]).replace("-", " ").split():
+            if not token.isdigit():
+                continue
+            num = int(token)
+            if first_para is None or num < first_para:
+                first_para, first_page = num, page
+            if num <= para_num and (best_para is None or num > best_para):
+                best_para, best_page = num, page
+
+    if best_page is not None:
+        return best_page, best_para
+    if first_page is not None:
+        return first_page, first_para
+    return None, None
+
 @app.route("/api/match/para_to_page")
 def api_match_para_to_page():
     pali_book_id = request.args.get("pali_book_id", "")
@@ -1312,6 +1348,23 @@ def api_match_para_to_page():
             if mp:
                 result["mm_book_id"] = target_mm_id
                 result["mm_page"] = mp[0]
+            else:
+                # Translations occasionally skip a paragraph number; land on the
+                # paragraph just before it so the jump still moves the pane.
+                near = m_cur.execute(
+                    "SELECT paragraph_number, page_number FROM paragraphs WHERE book_id = ? AND paragraph_number <= ? ORDER BY paragraph_number DESC LIMIT 1",
+                    (target_mm_id, para_num)
+                ).fetchone()
+                if not near:
+                    near = m_cur.execute(
+                        "SELECT paragraph_number, page_number FROM paragraphs WHERE book_id = ? AND paragraph_number > ? ORDER BY paragraph_number ASC LIMIT 1",
+                        (target_mm_id, para_num)
+                    ).fetchone()
+                if near:
+                    result["mm_book_id"] = target_mm_id
+                    result["mm_page"] = near[1]
+                    result["mm_para"] = near[0]
+                    result["approximate"] = True
 
     # 2. Lookup in Pali DB
     if os.path.exists(DB_PALI_PATH):
@@ -1329,6 +1382,14 @@ def api_match_para_to_page():
             if p_page:
                 result["pali_book_id"] = target_pali_id
                 result["pali_page"] = p_page[0]
+                result["matched_para"] = para_num
+            else:
+                near_page, near_para = find_nearest_pali_para_page(p_cur, target_pali_id, para_num)
+                if near_page is not None:
+                    result["pali_book_id"] = target_pali_id
+                    result["pali_page"] = near_page
+                    result["matched_para"] = near_para
+                    result["approximate"] = True
 
     return jsonify(result)
 
@@ -1370,8 +1431,19 @@ def api_match_pali_to_companion():
     # If source is Pali (Mūla, Aṭṭhakathā, or Ṭīkā)
     if not is_source_mm and p_conn:
         p_cur = p_conn.cursor()
-        # Find base Mūla Pali book ID if source is an Atthakatha or Tika
-        base_match = p_cur.execute("SELECT base FROM pali_attha_tika_match WHERE exp = ?", (source_book,)).fetchone()
+        # Find base Mūla Pali book ID if source is an Atthakatha or Tika.
+        # pali_attha_tika_match stores both direct links (mula -> attha/tika) and
+        # 2-hop links (attha -> tika), so prefer a row whose base is genuinely a
+        # Mūla volume — otherwise a Ṭīkā source resolves to an Aṭṭhakathā base
+        # and every companion lookup (pali/attha/tika) lands on the wrong book.
+        base_match = p_cur.execute("""
+            SELECT m.base FROM pali_attha_tika_match m
+            JOIN books b ON b.id = m.base
+            WHERE m.exp = ? AND b.basket = 'mula'
+            LIMIT 1
+        """, (source_book,)).fetchone()
+        if not base_match:
+            base_match = p_cur.execute("SELECT base FROM pali_attha_tika_match WHERE exp = ? LIMIT 1", (source_book,)).fetchone()
         if base_match:
             base_pali_id = base_match[0]
 

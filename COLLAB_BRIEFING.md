@@ -385,3 +385,31 @@ nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss
    - `test_audit_fixes.py` 42/42 PASS
    - `test_scripture_page_matching.py` 8/8 PASS
    - `node --check static/app.js` clean PASS (0 errors)
+
+---
+
+## 7. Pāḷi ⇄ Aṭṭhakathā/Ṭīkā bridge fixes (2026-10-18, v7.76, uncommitted — user to review/deploy)
+
+**Reports:** closing the loop while reading the Pāḷi root text — "အပြန်/အလှန်" between Pāḷi and Aṭṭhakathā/Ṭīkā pages.
+
+**4 defects found (with evidence) + fixes:**
+
+1. **`app.js openEditionSwitcher()` — "မူလပါဠိတော်" card pointed at the commentary you were already reading.**
+   `isPaliMula` was false inside a commentary, so the fallback `origPaliId = state.paliBookId` (which *is* the Aṭṭhakathā/Ṭīkā book in reader mode) mislabelled the commentary as Mūla; the card badge/page were also wrong whenever `state.swapOrigin` was null (fresh entry from Home/History) or held a commentary.
+   → New `isMulaBookId()` + `getCachedMulaRoot()`; card 1 now resolves the family's Mūla root, and new step **B2** in `loadSwitcherProgressiveData()` matches its exact page (`source=attha_vi_01_02 p.103 ⇒ mula_vi_01 p.150`) and refreshes the card title (`#switcherPaliTitle`).
+
+2. **`app.py /api/match/para_to_page` — commentary paragraph clicks silently did nothing.**
+   Aṭṭhakathā/Ṭīkā only mark selected paragraph boundaries (`attha_vi_01_02`: 233 → 424), so the exact `paranum LIKE '%-N-%'` lookup missed and the endpoint returned no `pali_page`, leaving the split-view click with no reaction. MM translations have the same gap (3 paras: 91, 171, 366).
+   → New `find_nearest_pali_para_page()` + nearest-preceding (or first-mark) fallback for Pāḷi and `paragraphs` fallback for MM, both flagged `approximate: true`.
+
+3. **`app.py /api/match/pali_to_companion` — Ṭīkā source resolved to an Aṭṭhakathā base.**
+   `pali_attha_tika_match` holds 149 rows, 33 of them 2-hop (`attha_* → tika_*`). `SELECT base ... WHERE exp = ? LIMIT 1` returned `attha_vi_01_01` first, so `target_type=attha|tika|pali` from a Ṭīkā returned `matched:false` (or the wrong book). Evidence: `tika_vi_02 p.297 → target_type=attha` was `{"matched": false, "target_book": "tika_vi_02", "target_page": 1}`.
+   → resolve the base only from a row whose base book has `basket = 'mula'`, with the old single-row lookup as fallback (`tika_vi_02 p.297 → attha_vi_01_02 p.103` now ✅).
+
+4. **`app.js` "➔ ဖတ်မည်" (open companion book) always jumped to page 1.**
+   → new shared `matchCompanionPage()` helper; both `.comp-btn-goto` (Pāḷi) and `.comp-btn-goto-mm` (Myanmar) now land on the matched page and fall back to the first page only when the backend reports `matched:false`.
+
+**Cleanup:** removed the vestigial v7.59 "Edition Pills" JS (`initEditionPills`/`updateEditionPills`/`switchToPillEdition`, 130 lines + 2 post-load calls) — the pill markup was deleted in the Option A redesign (`e0d3ea0`), so the handlers could never fire.
+
+**Tests:** `test_scripture_page_matching.py` extended 8 → 14 (tika→attha, tika→mula, exact/nearest/before-first commentary para, MM paragraph gap); new `test_companion_bridge.py` (16 static checks). Full suite green: scripture 14/14, audit 42/42, export 24/24, toc 5/5, stemmer 5/5, updater 2/2, phrase 4/4, nissaya + jump-hang + companion-bridge script checks ALL PASS, `node --check static/app.js` clean. Cache-bust `app.js?v=7.76`.
+
