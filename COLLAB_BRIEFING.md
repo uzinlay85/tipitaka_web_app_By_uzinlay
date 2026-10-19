@@ -413,3 +413,24 @@ nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss
 
 **Tests:** `test_scripture_page_matching.py` extended 8 → 14 (tika→attha, tika→mula, exact/nearest/before-first commentary para, MM paragraph gap); new `test_companion_bridge.py` (16 static checks). Full suite green: scripture 14/14, audit 42/42, export 24/24, toc 5/5, stemmer 5/5, updater 2/2, phrase 4/4, nissaya + jump-hang + companion-bridge script checks ALL PASS, `node --check static/app.js` clean. Cache-bust `app.js?v=7.76`.
 
+---
+
+## 8. UI/UX + Accessibility polish (2026-10-19, v7.77 — CSS only, user to review/deploy)
+
+**တောင်းဆိုချက်:** UI/UX ကို ကျွမ်းကျင်သူအနေနဲ့ စစ်ဆေး — ခေတ်မီအရောင်၊ ခလုတ်နေရာ၊ အချိတ်အဆက် ပြင်ဆင်၊ ပိုလွယ်ကူ ပိုရှင်းလင်းစေရန်။
+
+**စစ်ဆေးတွေ့ရှိချက် (တိုင်းတာထားသည့် အထောက်အထား):**
+
+1. **`--text-muted` က WCAG AA မကျေ (theme ၃ ခုလုံး).** Contrast ratio: paper 2.98, light 2.56, night 3.27 (လိုအပ် 4.5:1)။ → paper `#6d665e`, light `#616b79`, night `#86909d` (≥4.5 အားလုံး); paper secondary ကို `#585047` သို့ နှိမ့် (secondary > muted hierarchy မပျက်စေရန်)။
+2. **Night theme: accent ပေါ် စာဖြူ = 2.70:1.** `--on-solid` token အသစ် (paper/light `#fff`, night `#16191f`) → accent/status fill ရှိ rule ၂၆ ခုကို `var(--on-solid)` သို့ ပြောင်း (night မှာ နက်သောစာ → ≥6:1)။
+3. **မရှိသော CSS variable ကို reference (declaration ပျက်နေ).** `--muted-foreground` (3), `--text` (3), `--foreground`/`--background` (no-fallback) — annotation + export ဧရိယာ; `--shadow-sm` (2, no-fallback) → page-divider badge/load-prev box-shadow လုံးဝ မပေါ်ခဲ့။ → token အမှန်သို့ ပြောင်း + `--shadow-sm` define။ `var(--background, #fff)` က night မှာ အဖြူဖြစ်နေတာ → `--bg-surface`။
+4. **Night override selector မှား:** `[data-theme="dark"]` (theme name က "night") → ဘယ်တော့မှ မကိုက်။ → `[data-theme="night"]`။
+5. **Accessibility ချို့တဲ့:** `:focus-visible` ring မရှိ; `prefers-reduced-motion` မထောက်။ → global focus ring + reduced-motion block + `:disabled` style။
+6. **Dead CSS:** v7.59 `.edition-pills-bar`/`.edition-pill` (markup v7.61 မှာ ဖြုတ်ပြီး) ~၄၄ line — ဖြုတ်။
+7. **Theme နှင့်မကိုက်သော hardcoded အရောင်:** `#ff5722` (home-tab underline, bottom-nav, floating button) → `var(--accent)`; status colors (`#10b981`/`#3b82f6`/`#ef4444`/`#b45309`/`#c0392b`) → `--success`/`--info`/`--danger`/`--warning` (theme အလိုက် contrast မှန်)။
+8. **Mobile tap target သေးငယ်:** `.icon-btn-sm` 26px; `.dropdown-item`/`.basket-btn`/`.history-pill`/`.comp-tab` ~30px။ → `@media (max-width:768px)` မှာ ≥36–44px (WCAG 2.5.5)။
+
+**Verification:** contrast pair များကို script နဲ့ တွက် (အားလုံး ≥4.5); undefined-var scan = 0; brace balance 881/881; `node --check static/app.js` clean; test suite: scripture 14/14, audit 42/42, export 24/24, toc 5/5, stemmer 5/5, updater 2/2, jump-hang + nissaya + companion-bridge ALL PASS။ Cache-bust `app.css?v=7.77` (`app.js` မပြောင်း — 7.76 အတိုင်း)။
+
+**Deploy:** `cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka`; APK ပြန် build + reinstall (static/ က build-time bundle)။
+
