@@ -238,6 +238,9 @@ const el = {
     relatedDropdownWrapper: document.getElementById("relatedDropdownWrapper"),
     btnRelated: document.getElementById("btnRelated"),
     relatedList: document.getElementById("relatedList"),
+
+    // Unified Edition Switcher hub ("ကျမ်းရွေး") — desktop header entry
+    btnOpenEdition: document.getElementById("btnOpenEdition"),
     
     // Bookmark
     btnBookmarkToggle: document.getElementById("btnBookmarkToggle"),
@@ -2115,6 +2118,36 @@ async function openEditionSwitcher() {
     // 1. Initial fast synchronous render (zero delay)
     let html = "";
 
+    // Hint: every card below jumps to the page that matches the reader's spot.
+    html += `
+        <div class="edition-switcher-hint">
+            🔗 ကတ်တစ်ခုကို နှိပ်လိုက်လျှင် လက်ရှိဖတ်ရှုနေသော စာမျက်နှာနှင့်
+            တိုက်ဆိုင်သည့် စာမျက်နှာသို့ အလိုအလျောက် ရောက်ရှိပါမည်။
+        </div>
+    `;
+
+    // Card 0: ↩ Return to where the reader came from (only while a swap is pending).
+    // Skipped when the origin is the Mūla Pāḷi root, because Card 1 below already
+    // surfaces that exact book + matched page — a second card would just duplicate it.
+    const origin = state.swapOrigin;
+    const originCoveredByPaliCard = !!(origin && origin.mode === "pali" && isMulaBookId(origin.bookId));
+    if (origin && origin.bookId && origin.bookId !== curBookId && !originCoveredByPaliCard) {
+        html += `
+            <div class="edition-switcher-card edition-return-card" id="switcherCardReturn"
+                 data-type="origin" data-book="${origin.bookId}"
+                 data-page="${origin.page || 1}" data-mode="${origin.mode || 'pali'}">
+                <div class="edition-card-left">
+                    <span class="edition-card-icon">↩</span>
+                    <div class="edition-card-texts">
+                        <span class="edition-card-title">${escapeHtml(origin.bookName || 'မူလဖတ်ခဲ့သည့်နေရာ')} သို့ ပြန်ရန်</span>
+                        <span class="edition-card-desc">အရင် ဖတ်ရှုခဲ့သော စာမျက်နှာသို့ တိုက်ရိုက် ပြန်သွားမည်</span>
+                    </div>
+                </div>
+                <span class="edition-card-badge badge-return">စာ-${toMyanmarNum(origin.page || 1)} ↩</span>
+            </div>
+        `;
+    }
+
     // Card 1: မူလပါဠိတော် — always the Mūla root of the current text family
     const isPaliMula = (!isMM && isMulaBookId(curBookId));
     let origPaliId, origPaliName, origPaliPage;
@@ -2211,6 +2244,24 @@ function attachSwitcherItemHandlers() {
             const type = card.getAttribute("data-type");
             const bookId = card.getAttribute("data-book");
             const page = parseInt(card.getAttribute("data-page"), 10) || 1;
+
+            if (type === "origin") {
+                // ↩ Jump straight back to the exact book + page the reader
+                // left, then forget the pending swap so the card disappears.
+                const mode = card.getAttribute("data-mode") || "pali";
+                state.swapOrigin = null;
+                closeEditionSwitcher();
+                if (mode === "mm") {
+                    setReaderMode("mm");
+                    await loadMMBook(bookId, page);
+                } else {
+                    if (state.readerMode === "mm") setReaderMode("pali");
+                    await loadPaliBook(bookId, page);
+                }
+                showScrollToast("↩ အရင် ဖတ်ရှုခဲ့သော နေရာသို့ ပြန်ရောက်ပါပြီ");
+                updateReaderToolbarState();
+                return;
+            }
 
             if (type === "nissaya") {
                 const nextState = !state.showNissaya;
@@ -2350,6 +2401,13 @@ async function loadSwitcherProgressiveData(curBookId, curPage, isMM) {
 
         let compHtml = "";
         const curActiveBook = isMM ? state.mmBookId : state.paliBookId;
+
+        // Group label — makes it obvious these are the editions related to the
+        // page the reader is on right now (not a generic book list).
+        const hasCompanionBooks = !!(comp.attha && comp.attha.length) || !!(comp.tika && comp.tika.length);
+        if (hasCompanionBooks) {
+            compHtml += `<div class="edition-switcher-section-label">📚 ဤစာမျက်နှာနှင့် တွဲဖက်ကျမ်းများ</div>`;
+        }
 
         // Atthakatha
         if (comp.attha && comp.attha.length > 0) {
@@ -7023,9 +7081,10 @@ function setupEventListeners() {
     if (el.btnOpenCompanionMobile) {
         el.btnOpenCompanionMobile.addEventListener("click", () => {
             toggleSidebar(false);
-            if (el.relatedDropdownWrapper) {
-                el.relatedDropdownWrapper.classList.toggle("open");
-            }
+            // Previously this toggled the desktop ".header-right" dropdown, which
+            // is hidden on mobile (body.view-reader hides .app-header), so the tap
+            // went nowhere. Route it to the unified switcher modal instead.
+            openEditionSwitcher();
         });
     }
 
@@ -7219,6 +7278,16 @@ function setupEventListeners() {
 
     // Bookmark Toggle
     el.btnBookmarkToggle.addEventListener("click", toggleCurrentBookmark);
+
+    // Unified Edition Switcher hub ("ကျမ်းရွေး") — desktop header entry.
+    // Opens the very same modal as the mobile bottom toolbar, so Pāḷi /
+    // Aṭṭhakathā / Ṭīkā / မြန်မာပြန် / နိဿယ stay reachable from one place.
+    if (el.btnOpenEdition) {
+        el.btnOpenEdition.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openEditionSwitcher();
+        });
+    }
 
     // Commentary Dropdown
     el.btnRelated.addEventListener("click", (e) => {

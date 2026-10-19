@@ -8,7 +8,7 @@
     <!-- Authentic Fonts and Styles -->
     <link rel="stylesheet" href="/static/style_unicode.css">
     <link rel="preload" href="/static/Pyidaungsu-2.5.3_Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="/static/app.css?v=7.77">
+    <link rel="stylesheet" href="/static/app.css?v=7.78">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>☸️</text></svg>">
 </head>
 <body class="theme-paper hide-notes view-home">
@@ -65,6 +65,15 @@
 
         <!-- Right: Actions & Tools -->
         <div class="header-right">
+            <!-- 🔀 Unified Edition Switcher hub ("ကျမ်းရွေး"):
+                 Pāḷi ⇄ Aṭṭhakathā ⇄ Ṭīkā ⇄ မြန်မာပြန် ⇄ နိဿယ — every surface in one place.
+                 Tapping an edition lands on the page that matches the reader's
+                 current position (paragraph-level match on the backend). -->
+            <button id="btnOpenEdition" class="tool-btn cross-link-btn edition-hub-btn" title="ကျမ်းရွေး — ပါဠိတော် / အဋ္ဌကထာ / ဋီကာ / မြန်မာပြန် / နိဿယ တို့ကို စာမျက်နှာ တိုက်ဆိုင်စွာ အပြန်အလှန် ကူးပြောင်းရန်">
+                <span class="btn-icon">🔀</span>
+                <span class="btn-text" id="editionHubLabel">ကျမ်းရွေး</span>
+            </button>
+
             <!-- Quick Cross-link Button (Pali <-> Myanmar) -->
             <button id="btnCrossLink" class="tool-btn cross-link-btn" title="ပါဠိတော်နှင့် မြန်မာပြန် အပြန်အလှန် ကူးပြောင်းရန်">
                 <span class="btn-icon" id="crossLinkIcon">🇲🇲</span>
@@ -260,8 +269,8 @@
                 </div>
                 <div class="mobile-companion-row" id="mobileCompanionRow" style="margin-top: 8px;">
                     <button id="btnOpenCompanionMobile" class="edition-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 0.85rem;">
-                        <span>📚</span>
-                        <span>တွဲဖက်ကျမ်းစာများ ရွေးချယ်ရန်</span>
+                        <span>🔀</span>
+                        <span>ကျမ်းရွေး / တွဲဖက်ကျမ်းစာများ</span>
                     </button>
                 </div>
                 <div class="mobile-scroll-mode-box" style="margin-top: 8px;">
@@ -1557,6 +1566,6 @@
     </div>
 
     <!-- Main JavaScript Logic -->
-    <script src="/static/app.js?v=7.76"></script>
+    <script src="/static/app.js?v=7.78"></script>
 </body>
 </html>

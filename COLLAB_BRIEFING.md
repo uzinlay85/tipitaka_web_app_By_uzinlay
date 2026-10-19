@@ -434,3 +434,28 @@ nissaya_gloss(book_id TEXT, paragraph_number INTEGER, page_number INTEGER, gloss
 
 **Deploy:** `cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka`; APK ပြန် build + reinstall (static/ က build-time bundle)။
 
+## 9. Cross-edition navigation hub — Pāḷi ⇄ အဋ္ဌကထာ ⇄ ဋီကာ ⇄ မြန်မာပြန် ⇄ နိဿယ (2026-10-19, v7.78)
+
+**တောင်းဆိုချက်:** ပါဠိတော်ဖတ်နေရင်း သက်ဆိုင်ရာ အဋ္ဌကထာ/ဋီကာကို သွားနိုင်၊ ပါဠိ/အဋ္ဌကထာ/ဋီကာ/မြန်မာပြန်/နိဿယ — အချင်းချင်း အပြန်အလှန် ကြည့်နိုင်ရန် UI/UX ပြင်၊ ခလုတ်များ လွယ်ကူစွာ ချိတ်ဆက်ပေးရန်။
+
+**လက်ရှိအခြေအနေ စစ်ဆေးတွေ့ရှိချက်:** "ကျမ်းရွေး" (Unified Edition Switcher) modal က data အားလုံး (မူလပါဠိ / မြန်မာပြန် / နိဿယလွှာ / အဋ္ဌကထာ / ဋီကာ — စာပိုဒ်ချင်း page match ဖြင့်) ကို ပြီးပြည့်စုံစွာ ပေးပြီးသား ဖြစ်သည်။ ပြဿနာက **ရောက်လမ်း (discoverability)** နှင့် **ရှင်းလင်းမှု** ဖြစ်သည်:
+
+1. **Desktop မှာ switcher ဖွင့်လမ်းမရှိ** — mobile bottom toolbar (`btnReaderEdition`) နှင့် mobile split ကနေသာ ရ။
+2. **Mobile drawer "တွဲဖက်ကျမ်းစာများ" ခလုတ် ပျက်** — `btnOpenCompanionMobile` က desktop `.header-right` dropdown (`relatedDropdownWrapper`) ကို toggle လုပ်သည်။ သို့သော် reader view mobile (`≤768`) တွင် `body.view-reader .app-header { display:none }` ဖြစ်၍ နှိပ်လျှင် မည်သည့်အရာမှ မပေါ်။
+3. **ပြန်လမ်း (return) မရှင်း** — Pāḷi/MM swap အတွက် card ၁ ခုရှိသော်လည်း၊ အဋ္ဌကထာ/ဋီကာကြား ကူးပြီးနောက် "ဘယ်ကနေ လာခဲ့တာလဲ" ဆိုသည်ကို တစ်ချက်နှိပ် ပြန်ရန် သီးသန့် မရ။
+4. **တွဲဖက်ကျမ်းများ ခွဲပြမှု မရှင်း** — card များ တစ်ဆက်တည်း ရော၊ လက်ရှိစာမျက်နှာနှင့် ဆက်စပ်ကြောင်း မညွှန်း။
+
+**ပြင်ဆင်ချက်:**
+
+1. **Header hub button `btnOpenEdition` (🔀 ကျမ်းရွေး)** — `.header-right` အစတွင်၊ accent fill (`--accent`/`--on-solid`) ဖြင့် primary action အဖြစ်။ `openEditionSwitcher()` ကို ခေါ်၍ **desktop/mobile နှစ်မျိုးလုံး** တစ်နေရာတည်းက ကူးနိုင်သည်။ `≤1380px` တွင် label ကို icon-only အဖြစ် collapse (`#editionHubLabel`)။
+2. **Mobile drawer ခလုတ် ပြုပြင်** — `btnOpenCompanionMobile` ကို `openEditionSwitcher()` သို့ လမ်းကြောင်းပြောင်း၊ label "🔀 ကျမ်းရွေး / တွဲဖက်ကျမ်းစာများ" သို့။ (မလုပ်တော့သော hidden-dropdown toggle ကို ဖြုတ်။)
+3. **↩ မူလသို့ ပြန်ရန် card (`switcherCardReturn`)** — `state.swapOrigin` ရှိချိန်တွင် switcher ၏ အပေါ်ဆုံး card အဖြစ်။ နှိပ်လျှင် မူလ book+page သို့ တိုက်ရိုက်ပြန်၊ origin ကို clear။ **မူလပါဠိမူလ (Mūla)** ဖြစ်လျှင် card 1 က already ဖော်ပြသည် (`originCoveredByPaliCard`) ဖြစ်၍ ထပ်မပြ (duplicate မဖြစ်)။
+4. **အချိတ်အဆက်/ရှင်းလင်းမှု:** switcher အပေါ်တွင် "🔗 ကတ်တစ်ခုနှိပ်လျှင် လက်ရှိစာမျက်နှာနှင့် တိုက်ဆိုင်သည့် စာမျက်နှာသို့" hint; တွဲဖက်ကျမ်းများအပေါ် "📚 ဤစာမျက်နှာနှင့် တွဲဖက်ကျမ်းများ" group label။
+5. **`≤480px`:** ခလုတ်အသစ်ကြောင့် rightmost tool များ မညှပ်စေရန် quick cross-link နှစ်ခု (`btnCrossLink`, `btnCrossLinkNissaya`) ကို ဖျောက် (hub က အစားထိုးပေးပြီး; ဖတ်ရှုမုဒ်တွင် bottom toolbar ရှိပြီးသား)။
+
+**Verification:** `node --check static/app.js` clean; CSS brace balance 890/890; CRLF မပျက်; test suite — scripture 14/14, audit 42/42, export 24/24, toc 5/5, stemmer 5/5, updater 2/2, jump-hang + nissaya PASS၊ `test_companion_bridge.py` 25/25 (hub button, mobile drawer routing, return card, duplicate-skip, group label အသစ်များ အားလုံး PASS)။ Cache-bust `app.css?v=7.78` + `app.js?v=7.78`။
+
+**Backend:** မပြောင်း — `/api/pali/companions/<id>` နှင့် `/api/match/pali_to_companion` (paragraph-level page match) သည် လုံလောက်ပြီးသား။
+
+**Deploy:** `cd /opt/tipitaka && git pull origin main && sudo systemctl restart tipitaka`; APK ပြန် build + reinstall (static/ + templates/ က build-time bundle)။
+

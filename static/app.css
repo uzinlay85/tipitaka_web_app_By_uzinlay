@@ -2136,6 +2136,21 @@ body.hide-notes .note {
     color: var(--on-solid);
 }
 
+/* Unified Edition Switcher hub ("ကျမ်းရွေး") — the primary, always-visible way
+   to move between Pāḷi ⇄ Aṭṭhakathā ⇄ Ṭīkā ⇄ မြန်မာပြန် ⇄ နိဿယ. Filled accent
+   so it reads as the main action, while quick cross-links stay outline style. */
+.edition-hub-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-solid);
+}
+
+.edition-hub-btn:hover {
+    background: var(--accent);
+    color: var(--on-solid);
+    filter: brightness(1.08);
+}
+
 .meta-edition-tag {
     font-size: 0.75rem;
     background: var(--accent-light);
@@ -2925,6 +2940,7 @@ body.hide-notes .note {
     #btnToggleNotes .btn-text,
     #btnScrollMode .btn-text,
     #crossLinkLabel,
+    #editionHubLabel,
     #nissayaCrossLinkLabel {
         display: none !important;
     }
@@ -4886,6 +4902,13 @@ body.ios-fullscreen-fallback .reader-container {
     #btnOpenHistory {
         display: none !important;
     }
+    /* v7.78: the unified "ကျမ်းရွေး" hub button covers Pāḷi ⇄ မြန်မာပြန် ⇄ နိဿယ
+       jumping, so drop the two quick cross-link buttons here to keep the
+       rightmost tools (theme, ›More) from being clipped by overflow-x:hidden. */
+    #btnCrossLink,
+    #btnCrossLinkNissaya {
+        display: none !important;
+    }
     .page-indicator input {
         width: 38px;
     }
@@ -5557,6 +5580,50 @@ mark.search-match-highlight {
 .edition-card-badge.badge-muted {
     background: var(--bg-hover);
     color: var(--text-muted);
+}
+
+/* Explainer shown at the top of the switcher: every card lands on the page
+   that matches the reader's current position. */
+.edition-switcher-hint {
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    background: var(--bg-hover);
+    border-radius: 10px;
+    padding: 8px 11px;
+    margin-bottom: 2px;
+}
+
+/* Group heading for the related-edition cards (Aṭṭhakathā / Ṭīkā …). */
+.edition-switcher-section-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    padding: 8px 2px 2px 2px;
+    letter-spacing: 0.01em;
+}
+
+/* ↩ Return-to-origin card — always the first card while a swap is pending, so
+   the reader has a one-tap way back to the exact book + page they left. */
+.edition-return-card {
+    border-color: var(--accent);
+    background: var(--accent-light);
+}
+
+.edition-return-card:hover,
+.edition-return-card:active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+}
+
+.edition-return-card .edition-card-icon {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.edition-card-badge.badge-return {
+    background: var(--accent);
+    color: var(--on-solid);
 }
 
 /* ============================================================
