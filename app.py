@@ -10,7 +10,7 @@ import hashlib
 import time
 import json
 from functools import lru_cache
-from flask import Flask, Response, jsonify, render_template, request, g
+from flask import Flask, Response, jsonify, render_template, request, g, send_from_directory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Android wrapper sets TIPITAKA_DATA_DIR to the app's private storage where the
@@ -130,6 +130,17 @@ def _client_ip():
 def health():
     """Tiny endpoint used by the Android wrapper to know the server is up."""
     return jsonify({"ok": True})
+
+# Serve Tipitaka Pali page images (VPS-hosted mirror of the R2 bucket).
+# Files live in /home/muse/tipitaka-images/ on this VPS (books/<id>/pNNN.jpg,
+# books.json, related.json, logo/). Served at https://tipi.upanna.top/images/...
+# so the Vercel image viewer (tipitakapali-zin-vps fork) can load them without
+# Cloudflare R2. Added 2026-11-17.
+TIPITAKA_IMAGES_DIR = "/home/muse/tipitaka-images"
+
+@app.route("/images/<path:filename>")
+def serve_tipitaka_image(filename):
+    return send_from_directory(TIPITAKA_IMAGES_DIR, filename)
 
 _ANDROID_RELEASE_FILE = os.path.join(DATA_DIR, "android_release.json")
 
