@@ -180,6 +180,11 @@ _STATS_CACHE = None  # (timestamp, dict) — /api/stats changes only on DB rebui
 @app.after_request
 def add_cache_headers(response):
     path = request.path
+    # CORS: the VPS-hosted image/JSON mirror is fetched cross-origin by the
+    # tipitaka01.vercel.app viewer (fetch of toc.json / related.json / books.json).
+    # These are public data, so allow any origin.
+    if path.startswith("/images/"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
     # HTML shell: always revalidate so new ?v= asset URLs are picked up
     if path == "/":
         response.headers["Cache-Control"] = "no-cache"
